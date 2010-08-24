@@ -77,22 +77,22 @@ bool BlobAnalysis(	IplImage* inputImage,
 	}
 
 	int Trans = Cols;				// MAX trans in any row
-	char* pMask;
-	char* pImage;
+	char* pMask = NULL;
+	char* pImage = NULL;
 
 	// Convert image array into transition array. In each row
 	// the transition array tells which columns have a color change
-	int iCol,iRow,iTran, Tran;				// Data for a given run
-	bool ThisCell, LastCell;		// Contents (colors (0 or 1)) within this row
+	int iCol = 0,iRow = 0,iTran = 0, Tran = 0;				// Data for a given run
+	bool ThisCell = 0, LastCell = 0;		// Contents (colors (0 or 1)) within this row
 	int TransitionOffset = 0;		// Performance booster to avoid multiplication
 	
 	// row 0 and row Rows+1 represent the border
-	int i;
-	int *Transition;				// Transition Matrix
+	int i = 0;
+	int *Transition = 0;				// Transition Matrix
 
 	int nombre_pixels_mascara = 0;
 	//! Imatge amb el perimetre extern de cada pixel
-	IplImage *imatgePerimetreExtern;
+	IplImage *imatgePerimetreExtern = NULL;
 
 	// input images must have only 1-channel and be an image
 	if( !CV_IS_IMAGE( inputImage ) || (inputImage->nChannels != 1) )
@@ -106,7 +106,7 @@ bool BlobAnalysis(	IplImage* inputImage,
 			return false;
 
 		// comprova que la màscara tingui les mateixes dimensions que la imatge
-		if( !CV_ARE_SIZES_EQ(inputImage, maskImage ) )
+		if( !(inputImage->width == maskImage->width && inputImage->height == maskImage->height) )
 		{
 			return false;
 		}
@@ -325,39 +325,38 @@ bool BlobAnalysis(	IplImage* inputImage,
 
 	int *SubsumedRegion = NULL;			
 	
-	double ThisParent;	// These data can change when the line is current
-	double ThisArea;
-	double ThisPerimeter;
-	double ThisSumX;
-	double ThisSumY;
-	double ThisSumXX;
-	double ThisSumYY;
-	double ThisSumXY;
-	double ThisMinX;
-	double ThisMaxX;
-	double ThisMinY;
-	double ThisMaxY;
-	double LastPerimeter;	// This is the only data for retroactive change
-	double ThisExternPerimeter;
+	double ThisParent = 0;	// These data can change when the line is current
+	double ThisArea = 0;
+	double ThisPerimeter = 0;
+	double ThisSumX = 0;
+	double ThisSumY = 0;
+	double ThisSumXX = 0;
+	double ThisSumYY = 0;
+	double ThisSumXY = 0;
+	double ThisMinX = 0;
+	double ThisMaxX = 0;
+	double ThisMinY = 0;
+	double ThisMaxY = 0;
+	double LastPerimeter = 0;	// This is the only data for retroactive change
+	double ThisExternPerimeter = 0;
 	
 	int HighRegionNum = 0;
-	int RegionNum = 0;
 	int ErrorFlag = 0;
 	
-	int LastRow, ThisRow;			// Row number
-	int LastStart, ThisStart;		// Starting column of run
-	int LastEnd, ThisEnd;			// Ending column of run
-	int LastColor, ThisColor;		// Color of run
+	int LastRow = 0, ThisRow = 0;			// Row number
+	int LastStart = 0, ThisStart = 0;		// Starting column of run
+	int LastEnd = 0, ThisEnd = 0;			// Ending column of run
+	int LastColor = 0, ThisColor = 0;		// Color of run
 	
-	int LastIndex, ThisIndex;		// Which run are we up to
-	int LastIndexCount, ThisIndexCount;	// Out of these runs
-	int LastRegionNum, ThisRegionNum;	// Which assignment
-	int *LastRegion;				// Row assignment of region number
-	int *ThisRegion;		// Row assignment of region number
+	int LastIndex = 0, ThisIndex = 0;		// Which run are we up to
+	int LastIndexCount = 0, ThisIndexCount = 0;	// Out of these runs
+	int LastRegionNum = 0, ThisRegionNum = 0;	// Which assignment
+	int *LastRegion = NULL;				// Row assignment of region number
+	int *ThisRegion = NULL;		// Row assignment of region number
 	
 	int LastOffset = -(Trans + 2);	// For performance to avoid multiplication
 	int ThisOffset = 0;				// For performance to avoid multiplication
-	int ComputeData;
+	int ComputeData = 0;
 
 	CvPoint actualedge;
 	uchar imagevalue;
@@ -391,7 +390,7 @@ bool BlobAnalysis(	IplImage* inputImage,
 	//the mask should be the same size as image Roi, so don't take into account the offset
 	if(maskImage!=NULL) pMask = maskImage->imageData - 1;
 
-	char *pImageAux, *pMaskAux;
+	char *pImageAux = NULL, *pMaskAux = NULL;
 	
 	// Loop over all rows
 	for(ThisRow = 1; ThisRow < Rows + 2; ThisRow++)

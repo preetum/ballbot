@@ -97,11 +97,7 @@ public:
 	//! operador + per concatenar dos CBlobResult
 	//! Addition operator to concatenate two sets of blobs
 	CBlobResult operator+( const CBlobResult& source );
-
-	// Written by Karl
-	void filter_blobs(int min_blob_size, int max_blob_size);
-
-
+	
 	//! Afegeix un blob al conjunt
 	//! Adds a blob to the set of blobs
 	void AddBlob( CBlob *blob );

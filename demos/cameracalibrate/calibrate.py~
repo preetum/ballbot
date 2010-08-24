@@ -1,0 +1,3 @@
+import os
+
+os.system('/usr/bin/uvcdynctrl -s "Pan/tilt Reset" 1')

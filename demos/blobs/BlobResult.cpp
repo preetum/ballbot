@@ -11,10 +11,6 @@ MODIFICACIONS (Modificació, Autor, Data):
 #include <stdio.h>
 #include <functional>
 #include <algorithm>
-
-// Karl
-#include "Blob.h"
-
 #include "BlobResult.h"
 #include "BlobExtraction.h"
 #ifdef _DEBUG
@@ -97,7 +93,7 @@ CBlobResult::CBlobResult(IplImage *source, IplImage *mask, int threshold, bool f
 	try
 	{
 		// cridem la funció amb el marc a true=1=blanc (així no unirà els blobs externs)
-		success = BlobAnalysis(source,(uchar)threshold,mask,true,findmoments, m_blobs );
+		success = BlobAnalysis(source,(uchar)threshold,mask,false,findmoments, m_blobs );
 	}
 	catch(...)
 	{
@@ -183,20 +179,6 @@ CBlobResult::~CBlobResult()
 /**************************************************************************
 		Operadors / Operators
 **************************************************************************/
-
-
-
-// Written by Karl
-void CBlobResult::filter_blobs(int min_blob_size, int max_blob_size) {
-
-	this->Filter( *this, B_INCLUDE, CBlobGetArea(), B_GREATER_OR_EQUAL, min_blob_size);
-	this->Filter( *this, B_EXCLUDE, CBlobGetArea(), B_GREATER, max_blob_size);
-}
-
-
-
-
-
 
 
 /**

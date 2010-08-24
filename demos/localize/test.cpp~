@@ -1,0 +1,57 @@
+class Camera {
+	public:
+	Camera() {
+		pan = 0;
+		tilt = 0;
+	}
+
+	/* Reset pan and tilt angle to 0 */
+	void initialize() {
+		execl(uvcdynctrl_path, "Pan reset", "1", (char*)NULL);
+		execl(uvcdynctrl_path, "Tilt reset", "1", (char*)NULL);
+	}
+
+	/* Set pan angle in degrees */
+	void setPan(int8_t value) {
+		// make sure value is in range
+		value = min(value, PAN_MAX);
+		value = max(value, PAN_MIN);
+
+		// calculate relative pan value (signs are intentionally reversed)
+		int32_t delta = (int)(pan - value) * 64;
+
+		char arg[12];
+		sprintf(arg, "%d", delta);
+		if (arg >= 0)
+			execl(uvcdynctrl_path, "Pan (relative)", arg, (char*)NULL);
+		else
+			execl(uvcdynctrl_path, "Pan (relative)", "--", arg, (char*)NULL);
+	}
+
+	/* Set tilt angle in degrees */
+	void setTilt(int8_t value) {
+		// make sure value is in range
+		value = min(value, TILT_MAX);
+		value = max(value, TILT_MIN);
+
+		// calculate relative tilt value (signs are intentionally reversed)
+		int32_t delta = (int)(tilt - value) * 64;
+
+		char arg[12];
+		sprintf(arg, "%d", delta);
+		if (arg >= 0)
+			execl(uvcdynctrl_path, "Tilt (relative)", arg, (char*)NULL);
+		else
+			execl(uvcdynctrl_path, "Tilt (relative)", "--", arg, (char*)NULL);
+	}
+
+	private:
+	int8_t pan, tilt;
+
+	static char *uvcdynctrl_path;
+};
+char *Camera::uvcdynctrl_path = "/usr/bin/uvcdynctrl";
+
+int main (void) {
+	Camera c;
+}

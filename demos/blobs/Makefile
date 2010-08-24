@@ -29,18 +29,10 @@ libblob.a: $(CPPFILES:.cpp=.o)
 	@echo Cleaning objects...
 	rm -f $(CPPFILES:.cpp=.o)
 
-
 all: clean
 
 clean:
 	@echo Cleaning...
 	rm -f $(CFILES:.cpp=.o)
 	rm -f libblob.a
-
-
-
-
-
-blob_example: blob_example.cpp
-	$(CXX) $^ -o $@ `pkg-config --cflags --libs opencv` -L. -lblob
 
