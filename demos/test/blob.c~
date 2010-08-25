@@ -1,0 +1,68 @@
+// http://www.linuxconfig.org/introduction-to-computer-vision-with-opencv-on-linux
+
+#include <stdio.h>
+#include <stdint.h>
+#include "cv.h"
+#include "highgui.h"
+
+#define min(a,b) ((a < b) ? a : b)
+
+#define THRESHOLD 200
+
+int main( int argc, char** argv ) {
+	//	cvNamedWindow( "Example2", CV_WINDOW_AUTOSIZE );
+
+	CvCapture* capture = cvCreateCameraCapture(0) ;
+	IplImage* frame;
+
+	int height, width, channels, pxPerRow;
+	uint8_t *data;
+
+	frame = cvQueryFrame( capture );
+	if( !frame ) return 0;
+
+	height = frame->height;
+	width = frame->width;
+	pxPerRow = frame->widthStep;
+	channels = frame->nChannels;
+	data = (uint8_t*)frame->imageData;
+
+	printf("Capturing %dx%d image, %d channels\n", width, height, channels);
+
+	// Look for center
+	while(frame) {
+		uint32_t xsum = 0, ysum = 0, count = 0;
+		for (int i = 0; i < height; i += 1)         // y-coordinate
+			for (int j = 0; j < width; j += 1) {    // x-coordinate
+				// Get (r,g,b) color components of each pixel
+				uint8_t* pixel = (uint8_t*)(data + i*pxPerRow + j*channels);
+				uint8_t b = pixel[0],
+					g = pixel[1],
+					r = pixel[2];
+
+				// Look for white: all channels must be over threshold
+				if (r > THRESHOLD && g > THRESHOLD && b > THRESHOLD) {
+					// highlight in blue
+					pixel[0] = 0xFF;
+					pixel[1] = pixel[2] = 0;
+
+					xsum += j;
+					ysum += i;
+					count += 1;
+				}
+			}
+
+		if (count > 0)
+			printf("Center: (%d, %d)\n", xsum/count, ysum/count);
+		else
+			printf("No white found\n");
+
+		//cvShowImage( "Example2", frame );
+		char c = cvWaitKey(33);
+		if( c == 27 ) break;
+
+		frame = cvQueryFrame( capture );
+	}
+	cvReleaseCapture( &capture );
+	//	cvDestroyWindow( "Example2" );
+}

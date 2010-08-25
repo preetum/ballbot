@@ -1,0 +1,80 @@
+/*
+http://www.linuxconfig.org/introduction-to-computer-vision-with-opencv-on-linux
+http://wiki.elphel.com/index.php?title=OpenCV_Tennis_balls_recognizing_tutorial
+*/
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "cv.h"
+#include "highgui.h"
+
+#define min(a,b) ((a < b) ? a : b)
+
+#define THRESHOLD 230
+
+int main( int argc, char** argv ) {
+	FILE* out = NULL;
+	bool video = 0;
+
+	int threshold = THRESHOLD;
+	// first parameter: threshold
+	if (argc > 1)
+		threshold = atoi(argv[1]);
+
+	// second parameter: 
+	//  -d = output stuff to serial
+	//  -v = output video
+	if (argc > 2 && argv[2][0] == '-') {
+		char *s = argv[2] + 1;
+		while (*s != '\0')
+			switch (*s) {
+			case 'd':
+				out = popen("python ../ballbot_test.py", "w");
+				break;
+			case 'v':
+				video = 1;
+				break;
+			}
+	}
+
+	if (video)
+		cvNamedWindow( "Example2", CV_WINDOW_AUTOSIZE );
+
+    CvCapture* capture = cvCreateCameraCapture(0) ;
+    IplImage* frame;
+
+    int height, width, channels, pxPerRow;
+	int ymin, ymax;
+    uint8_t *data;
+
+    frame = cvQueryFrame( capture );
+    if( !frame ) return 0;
+
+    while(frame) {
+
+		// convert to HSV
+		CvSize size = cvGetSize(frame);
+		IplImage *hsv = cvCreateImage(size, IPL_DEPTH_8U, 3);
+		cvCvtColor(frame, hsv, CV_BGR2HSV);  
+
+		// generate a mask
+		CvMat *mask = cvCreateMat(size.height, size.width, CV_8UC1);
+		cvInRangeS(hsv, cvScalar(0.11*256, 0.60*256, 0.20*256, 0),
+				   cvScalar(0.14*256, 1.00*256, 1.00*256, 0), mask);
+		cvReleaseImage(&hsv);
+
+
+		if (video)
+			cvShowImage( "Example2", frame );
+
+        char c = cvWaitKey(33);
+        if( c == 27 ) break;
+
+        frame = cvQueryFrame( capture );
+    }
+    cvReleaseCapture( &capture );
+
+	if (video)
+		cvDestroyWindow( "Example2" );
+}
