@@ -17,16 +17,18 @@ class Robot:
   START_BYTE = 0xFF
   COMMAND_BYTE = 0x42
   
-  SERVO_LEFT = 430
-  SERVO_CENTER = 580
-  SERVO_RIGHT = 730
+  SERVO_LEFT = 60
+  SERVO_CENTER = 100
+  SERVO_RIGHT = 140
   
-  # Motor deadband: 520-560
+  # Motor deadband: 91-99
   MOTOR_FULL_FORWARD = 0
-  MOTOR_MIN_FORWARD = 510
-  MOTOR_NEUTRAL = 540
-  MOTOR_MIN_REVERSE = 570
-  MOTOR_FULL_REVERSE = 1023
+  MOTOR_MIN_FORWARD = 91
+  MOTOR_NEUTRAL = 95
+  MOTOR_MIN_REVERSE = 99
+  MOTOR_FULL_REVERSE = 180
+
+  MAX_VELOCITY = 300
 
   def __init__(self, port='/dev/ttyUSB0'):
   
@@ -51,8 +53,6 @@ class Robot:
   def reset(self):
     self.set_steering(0)
     self.set_drive(0)
-    self.set_hopper(0)
-    self.set_sweeper(0)
     self.send_arduino_packet()
     
   def send_arduino_packet(self):
@@ -92,8 +92,7 @@ class Robot:
     
     NOTE: actual angle => servo values have not been calibrated!
     '''
-    value = angle * (Robot.SERVO_RIGHT - Robot.SERVO_LEFT) / 60 + \
-              Robot.SERVO_CENTER
+    value = angle + Robot.SERVO_CENTER
     
     # check that output value is in valid range
     if value > Robot.SERVO_RIGHT:
@@ -102,12 +101,22 @@ class Robot:
       value = Robot.SERVO_LEFT
     
     self.cmd_packet[1] = int(value)
+
+  def set_velocity(self, velocity):
+    '''
+    Set the velocity setpoint to the given value in cm/s.
+    '''
+    if velocity < 0:
+	velocity = 0
+    elif velocity > Robot.MAX_VELOCITY:
+	velocity = Robot.MAX_VELOCITY
+    self.cmd_packet[2] = int(velocity)
     
   def set_drive(self, duty_cycle):
     '''
     Set the drive motor to the given % duty cycle, ranging from -100 to 100.
     0 is stop, a positive value is forward, and a negative value is reverse
-    '''
+    
     if duty_cycle == 0:
       value = Robot.MOTOR_NEUTRAL
     else:
@@ -118,44 +127,16 @@ class Robot:
         value = -duty_cycle * (Robot.MOTOR_FULL_REVERSE - 
                   Robot.MOTOR_MIN_REVERSE) / 100 + Robot.MOTOR_MIN_REVERSE
                   
-        # check that output value is in valid range
-        if value < 0:
-          value = 0
-        elif value > 1023:
-          value = 1023
+    # check that output value is in valid range
+    if value < 0:
+      value = 0
+    elif value > 1023:
+      value = 1023
     
+    value = duty_cycle
     self.cmd_packet[2] = int(value)
-    print 'drive: %d' % value
-  
-  def set_hopper(self, duty_cycle):
-    '''
-    Set the hopper motor to the given % duty cycle, ranging from -100 to 100.
-    '''
+    ''' 
     pass
-  
-  def set_sweeper(self, duty_cycle):
-    '''
-    Set the hopper motor to the given % duty cycle, ranging from -100 to 100.
-    '''
-    pass
-
-  '''
-  def setAnalog(self, ch, val):
-    """
-    Set the value of an analog channel
-    ch in range [0,4]
-    val in range [0, 255]
-    """
-    val = int(val)
-    lb = val % 256
-    hb = (val >> 8) % 256
-    if ch == 0 or ch == 1:
-      self.packet[ch*2] = hb
-      self.packet[ch*2+1] = lb
-    else:
-      self.packet[ch+2] = lb
-      '''
-
 
 def main():
   '''
@@ -178,7 +159,7 @@ def main():
       values = [float(v) for v in line.split(',')]
       for i in range(min(len(values), 4)):
         if i == 0: robot.set_steering(values[i])
-        elif i == 1: robot.set_drive(values[i])
+        elif i == 1: robot.set_velocity(values[i])
   except:
     # In case of error or Ctrl-C, zero motor values
     robot.reset()

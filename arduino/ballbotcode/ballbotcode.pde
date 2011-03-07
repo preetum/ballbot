@@ -1,19 +1,17 @@
 #include <Servo.h>
-#include <AFMotor.h>
 #include "packet.h"
 #include <PID_Beta6.h>  // PID library
-//#include "WProgram.h
 
-#define SERVO_LEFT 430
-#define SERVO_CENTER 580
-#define SERVO_RIGHT 730
+#define SERVO_LEFT   60
+#define SERVO_CENTER 100
+#define SERVO_RIGHT  140
 
-// Motor deadband: 520-560
+// Motor deadband: 91-99
 #define MOTOR_FULL_FORWARD 0
-#define MOTOR_MIN_FORWARD 510
-#define MOTOR_NEUTRAL 540
-#define MOTOR_MIN_REVERSE 570
-#define MOTOR_FULL_REVERSE 1023
+#define MOTOR_MIN_FORWARD  91
+#define MOTOR_NEUTRAL      95
+#define MOTOR_MIN_REVERSE  99
+#define MOTOR_FULL_REVERSE 180
 
 // Serial state machine states
 enum {
@@ -33,7 +31,6 @@ enum {
 
 // Globals
 Servo steering, motor;
-AF_DCMotor sweeper(1, MOTOR12_64KHZ), hopper(2, MOTOR12_64KHZ);
 Packet packet;
 
 
@@ -48,10 +45,6 @@ long cummulative_count = 0;
 long distance_limit = 0;
 int vel_m = 0;
 
-
-float Aimed_steerval=590;
-float steerval = 590;
-float prev_angle = 0;
 float currentAngle = 0;          //Keep track of our current angle
 
 //--------- PID declerations ---------------------
@@ -163,22 +156,9 @@ case CMD_VALUES: {
                   unsigned int steerVal = packet.data[1] << 8 | packet.data[2],
                     motorVal = packet.data[3] << 8 | packet.data[4];
                   
-steering.write(steerVal*180/1024);
-//setDriveMotor(motorVal);
-if(motorVal == 550) // to Stop the Robot just set drive motor directly
-{
-  set_speed(0);
-  setDriveMotor(motorVal);
-}
-else  
-set_speed(0.38); // driving at 38cm/s = 0.38 m/s 
+steering.write(steerVal);
+set_speed(motorVal / 100.0);
 
-/*
-// short blink for packet received
-digitalWrite(13, HIGH);
-delay(50);
-digitalWrite(13, LOW);
-*/
 break;
         }
     }
@@ -190,7 +170,8 @@ void setup() {
   motor.attach(5);
   
   // Center the steering servo
-  steering.write(SERVO_CENTER*180/1024);
+  steering.write(SERVO_CENTER);
+  motor.write(MOTOR_NEUTRAL);
   
   attachInterrupt(0, encoder_tick, CHANGE); //interrupt to count encoder ticks  
 
@@ -200,7 +181,8 @@ void setup() {
   // PID Stuff
   pid_dist.SetOutputLimits(0,150); //tell the PID the bounds on the output
   pid_dist.SetInputLimits(0,60); //number of ticks in 150 milliseconds
-  Output = 50; //start the output at its max and let the PID adjust it from there
+  Output = 0;
+  Setpoint = 0;
   pid_dist.SetMode(AUTO); //turn on the PID
   pid_dist.SetSampleTime(100); //delay in the loop
   
@@ -226,7 +208,7 @@ void loop()
   Input =  (double) encoder_counter;
   pid_dist.Compute(); //give the PID the opportunity to compute if needed
    
-  setDriveMotor(550 - Output); 
+  setDriveMotor(MOTOR_NEUTRAL - Output*180/1024); 
     
   encoder_counter = 0;
   
@@ -248,7 +230,7 @@ void loop()
     case STATE_NORMAL:
       // In case of a reverse after driving forward
       if (driveMotorTarget >= MOTOR_MIN_REVERSE && lastDirFwd) {
-        motor.write(MOTOR_MIN_REVERSE*180/1024);
+        motor.write(MOTOR_MIN_REVERSE);
         driveMotorState = STATE_DELAY1;
         waitTime = millis() + 100;
         
@@ -257,9 +239,9 @@ void loop()
         // Deadband
         if (driveMotorTarget > MOTOR_MIN_FORWARD &&
             driveMotorTarget < MOTOR_MIN_REVERSE)
-          motor.write(MOTOR_NEUTRAL*180/1024);
+          motor.write(MOTOR_NEUTRAL);
         else
-          motor.write(driveMotorTarget*180/1024);
+          motor.write(driveMotorTarget);
         
         // Update the last direction flag
         if (driveMotorTarget <= MOTOR_MIN_FORWARD)
@@ -269,7 +251,7 @@ void loop()
       
     case STATE_DELAY1:
       if (millis() >= waitTime) {
-        motor.write(MOTOR_NEUTRAL*180/1024);
+        motor.write(MOTOR_NEUTRAL);
         driveMotorState = STATE_DELAY2;
         waitTime = millis() + 100;
       } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
@@ -279,7 +261,7 @@ void loop()
     
     case STATE_DELAY2:
       if (millis() >= waitTime) {
-        motor.write(driveMotorTarget*180/1024);
+        motor.write(driveMotorTarget);
         driveMotorState = STATE_NORMAL;
         lastDirFwd = 0;
       } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
