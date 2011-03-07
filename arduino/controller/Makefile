@@ -50,7 +50,7 @@ DEFS=
 AVR_TOOLS_PATH:=/usr/bin/
 
 # Install path of the arduino software. Requires a '/' at the end.
-ARDUINO_PATH:=/opt/arduino-0022/
+ARDUINO_PATH:=/opt/arduino/
 
 # Install path for avrdude. Requires a '/' at the end. Can be empty if avrdude is in the search path.
 AVRDUDE_PATH:= 
@@ -61,7 +61,7 @@ AVRDUDE_PATH:=
 AVRDUDE_PORT:=/dev/ttyUSB0
 
 # List of all libaries which should be included.
-EXTRA_DIRS=$(ARDUINO_PATH)libraries/AFMotor/
+EXTRA_DIRS=$(ARDUINO_PATH)libraries/Servo/
 
 #=== fetch parameter from boards.txt processor parameter ===
 # the basic idea is to get most of the information from boards.txt

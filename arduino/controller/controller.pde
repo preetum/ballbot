@@ -1,21 +1,21 @@
-#include <AFMotor.h>
-#include "hwservo.h"
+//#include <AFMotor.h>
+#include <Servo.h>
 #include "packet.h"
 
-#define SERVO_LEFT    430
-#define SERVO_CENTER  580
-#define SERVO_RIGHT   730
+#define SERVO_LEFT    60  //430
+#define SERVO_CENTER  100 //580
+#define SERVO_RIGHT   140 //730
 
 // Motor deadband: 520-560
 #define MOTOR_FULL_FORWARD 0
-#define MOTOR_MIN_FORWARD  510
-#define MOTOR_NEUTRAL      540
-#define MOTOR_MIN_REVERSE  570
-#define MOTOR_FULL_REVERSE 1023
+#define MOTOR_MIN_FORWARD  91
+#define MOTOR_NEUTRAL      95
+#define MOTOR_MIN_REVERSE  99
+#define MOTOR_FULL_REVERSE 180
 
 // Globals
 Servo steering, motor;
-AF_DCMotor sweeper(1, MOTOR12_64KHZ), hopper(2, MOTOR12_64KHZ);
+//AF_DCMotor sweeper(1, MOTOR12_64KHZ), hopper(2, MOTOR12_64KHZ);
 Packet packet;
 
 int encoder_counter = 0;
@@ -52,7 +52,6 @@ void setDriveMotor(unsigned int val) {
 
 /*
  * Sets a motor shield motor to a value from [0,255].
-*/
 void setMotorShield(AF_DCMotor *motor, unsigned char val) {
   if (val > 127) {
     motor->setSpeed((val-127) * 2);
@@ -64,6 +63,7 @@ void setMotorShield(AF_DCMotor *motor, unsigned char val) {
     motor->run(BACKWARD);
   }
 }
+*/
 
 /*
  * Called every time a byte is received.
@@ -125,10 +125,10 @@ void packetReceived () {
                   unsigned int steerVal = packet.data[1] << 8 | packet.data[2],
                     motorVal = packet.data[3] << 8 | packet.data[4];
                   
-		  steering.write10(steerVal);
+		  steering.write(steerVal);
 		  setDriveMotor(motorVal);
-                  setMotorShield(&sweeper, packet.data[5]);
-                  setMotorShield(&hopper, packet.data[6]);
+                  //setMotorShield(&sweeper, packet.data[5]);
+                  //setMotorShield(&hopper, packet.data[6]);
 /*
                   // short blink for packet received
                   digitalWrite(13, HIGH);
@@ -142,11 +142,12 @@ void packetReceived () {
 
 void setup() {
   // Initialize servo objects
-  steering.attach(9);
-  motor.attach(10);
+  steering.attach(4);
+  motor.attach(5);
   
   // Center the steering servo
-  steering.write10(SERVO_CENTER);
+  steering.write(SERVO_CENTER);
+  motor.write(MOTOR_NEUTRAL);
   
   attachInterrupt(0, encoder_tick, CHANGE); //interrupt to count encoder ticks
   
@@ -173,7 +174,7 @@ void loop() {
     case STATE_NORMAL:
       // In case of a reverse after driving forward
       if (driveMotorTarget >= MOTOR_MIN_REVERSE && lastDirFwd) {
-        motor.write10(MOTOR_MIN_REVERSE);
+        motor.write(MOTOR_MIN_REVERSE);
         driveMotorState = STATE_DELAY1;
         waitTime = millis() + 100;
         
@@ -182,9 +183,9 @@ void loop() {
         // Deadband
         if (driveMotorTarget > MOTOR_MIN_FORWARD &&
             driveMotorTarget < MOTOR_MIN_REVERSE)
-          motor.write10(MOTOR_NEUTRAL);
+          motor.write(MOTOR_NEUTRAL);
         else
-          motor.write10(driveMotorTarget);
+          motor.write(driveMotorTarget);
         
         // Update the last direction flag
         if (driveMotorTarget <= MOTOR_MIN_FORWARD)
@@ -194,7 +195,7 @@ void loop() {
       
     case STATE_DELAY1:
       if (millis() >= waitTime) {
-        motor.write10(MOTOR_NEUTRAL);
+        motor.write(MOTOR_NEUTRAL);
         driveMotorState = STATE_DELAY2;
         waitTime = millis() + 100;
       } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
@@ -204,7 +205,7 @@ void loop() {
     
     case STATE_DELAY2:
       if (millis() >= waitTime) {
-        motor.write10(driveMotorTarget);
+        motor.write(driveMotorTarget);
         driveMotorState = STATE_NORMAL;
         lastDirFwd = 0;
       } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
