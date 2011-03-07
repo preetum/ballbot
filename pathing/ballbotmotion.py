@@ -14,6 +14,9 @@ import struct
 from ballbotmotion_plot import *
 from Tkinter import *
 
+sys.path.append("/home/karthik/ballbotcode/ballbot/importfiles")
+from robot import *
+
 
 Moves = [-1,-1,-1,-1]
 forwardspeed = 0.1
@@ -227,7 +230,7 @@ def drawpoint(canvas,point):
     canvas.create_oval(x + 50 - 1,500 - (y+50-1),x + 50 +1, 500 - (y + 50 + 1),width=1,outline = 'red',fill = 'red')
     canvas.update_idletasks()
 
-class Robot:
+class Ballbot(Robot):
     START_BYTE = 0xFF
     COMMAND_BYTE = 0x42
     PLANNER_BYTE = 0x08
@@ -237,42 +240,10 @@ class Robot:
     #ROBOT_SPEED    = 38  #in cm/s
 
     def __init__(self):
-        try:
-            self.serial = serial.Serial('/dev/ttyUSB0', baudrate=115200)
-        except serial.serialutil.SerialException:
-            print "No Arduino connected."
-        #inputcommands(self)
-        self.packet = [
-            # Initialize analog bytes (4)
-            0, 0, 0, 0, 127, 127
-            ]
-        self.plannerpacket = [0,0,0,0,0,0,0,0,0]
+	Robot()
         self.distancetravelled = 0
-        theta = 45
-        distance = 100
-        self.setAnalog(CHANNEL_DRIVE,510)
-        self.sendPacket()
         self.position = (200,200,math.pi/2)
         inputcommands(self)
-        
-        self.setMotion('S',1500)
-        self.sendMotionPacket()
-
-    def setSteering(self, val):
-        val = int(val)
-        lb = val % 256
-        hb = (val >> 8) % 256
-        self.packet[0] = hb
-        self.packet[1] = lb
-        self.sendPacket()
-
-    def setMotor(self, val):
-        val = int(val)
-        lb = val % 256
-        hb = (val >> 8) % 256
-        self.packet[2] = hb
-        self.packet[3] = lb
-        self.sendPacket()
         
     def drive_straight(self,d,canvas):
         """
@@ -425,81 +396,24 @@ class Robot:
                 break
 
     def driveStraight(self):
-        # drive Robot straight at motorspeed = 510 (speed = 38cm/s)
-        self.setAnalog(CHANNEL_STEER,590)
-        self.setAnalog(CHANNEL_DRIVE,510)
-        self.sendPacket()
+        # drive Robot straight at speed = 100cm/s)
+	self.set_steering(0)
+        self.set_velocity(100)
 
     def turnRight(self):
-        # turn Robot to the right at steering = 790 (radius of turn = 58.4 cm). Drive speed remains the same.
-        self.setAnalog(CHANNEL_STEER,790)
-        self.setAnalog(CHANNEL_DRIVE,510)
-        self.sendPacket()
+        # turn Robot to the right at steering = 40 degrees (radius of turn = 58.4 cm). Drive speed = 100 cm/s
+        self.set_steering(40)
+	self.set_velocity(100)
 
     def turnLeft(self):
-        # turn Robot to the left at steering = 390 (radius of turn = 58.4 cm). Drive speed remains the same.
-        self.setAnalog(CHANNEL_STEER,390)
-        self.setAnalog(CHANNEL_DRIVE,510)
-        self.sendPacket()
-
+        # turn Robot to the left at steering = -40 (radius of turn = 58.4 cm). Drive speed = 100 cm/s
+        self.set_steering(-40)
+	self.set_velocity(100)
+ 
     def Stop(self):
         # stop the Robot
-        self.setAnalog(CHANNEL_DRIVE,550)
-        self.sendPacket()
-
-    def sendPacket(self):
-        length = len(self.packet) + 1
-        string = chr(Robot.START_BYTE) + chr(length) + chr(Robot.COMMAND_BYTE)
-        checksum = length ^ Robot.COMMAND_BYTE
-        for byte in self.packet:
-            string += chr(byte)
-            checksum ^= byte
-        string += chr(checksum)
-        
-        self.serial.write(string)
-        self.serial.flushInput()
-        self.serial.flushOutput()
-        
-    def sendMotionPacket(self):
-        length = len(self.motionpacket) + 1
-        string = chr(Robot.START_BYTE) + chr(length) + chr(Robot.PLANNER_BYTE)
-        checksum = length ^ Robot.PLANNER_BYTE
-        for byte in self.plannerpacket:
-            string += chr(byte)
-            checksum ^= byte
-        string += chr(checksum)
-
-        self.serial.write(string)
-        self.serial.flushInput()
-        self.serial.flushOutput()
-
-    def setMotion(self,action1,val1):
-        """
-        Set motion packet
-        """
-        val1 = int(val1)
-        lb   = val1 % 256
-        hb   = (val1 >> 8) % 256
-        self.plannerpacket[0] = action1
-        self.plannerpacket[1] = hb
-        self.plannerpacket[2] = lb
+        self.set_velocity(0)
 																	
-
-    def setAnalog(self, ch, val):
-        """
-        Set the value of an analog channel
-        ch in range [0,4]
-        val in range [0, 255]
-        """
-        val = int(val)
-        lb = val % 256
-        hb = (val >> 8) % 256
-        if ch == 0 or ch == 1:
-            self.packet[ch*2] = hb
-            self.packet[ch*2+1] = lb
-        else:
-            self.packet[ch+2] = lb
-
 		
 def main():
     '''
@@ -507,7 +421,7 @@ def main():
     steering, motor, sweeper, hopper
     '''
         
-    robot = Robot()
+    robot = Ballbot()
     #inputcommands()
 
 
