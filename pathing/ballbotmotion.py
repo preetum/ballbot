@@ -14,6 +14,9 @@ import struct
 from ballbotmotion_plot import *
 from Tkinter import *
 
+sys.path.append("/home/karthik/ballbotcode/ballbot/importfiles")
+from robot import *
+
 
 Moves = [-1,-1,-1,-1]
 forwardspeed = 0.1
@@ -24,7 +27,7 @@ groundspeed = 0.0348
 curve_number = -1
 CHANNEL_DRIVE  = 1
 CHANNEL_STEER  = 0
-ROBOT_RADIUS   = 58.2168  #in cm
+ROBOT_RADIUS   = 61  #in cm
 ROBOT_SPEED    = 38  #in cm/s
 			 
 def fmodr(x,y):
@@ -178,7 +181,7 @@ def startPlanner(canvas,robot,cmd,distance,theta):
     first plot the expected path. 
     Then call the correct function to drive the robot along calculated path
     """
-    d = distance
+    d = float(distance)
     distance = float(distance)/ROBOT_RADIUS
     theta = float(theta)
     cmd = cmd.get()
@@ -227,7 +230,7 @@ def drawpoint(canvas,point):
     canvas.create_oval(x + 50 - 1,500 - (y+50-1),x + 50 +1, 500 - (y + 50 + 1),width=1,outline = 'red',fill = 'red')
     canvas.update_idletasks()
 
-class Robot:
+class Ballbot(Robot):
     START_BYTE = 0xFF
     COMMAND_BYTE = 0x42
     PLANNER_BYTE = 0x08
@@ -237,51 +240,20 @@ class Robot:
     #ROBOT_SPEED    = 38  #in cm/s
 
     def __init__(self):
-        try:
-            self.serial = serial.Serial('/dev/ttyUSB0', baudrate=115200)
-        except serial.serialutil.SerialException:
-            print "No Arduino connected."
-        #inputcommands(self)
-        self.packet = [
-            # Initialize analog bytes (4)
-            0, 0, 0, 0, 127, 127
-            ]
-        self.plannerpacket = [0,0,0,0,0,0,0,0,0]
+	Robot.__init__(self)
         self.distancetravelled = 0
-        theta = 45
-        distance = 100
-        self.setAnalog(CHANNEL_DRIVE,510)
-        self.sendPacket()
         self.position = (200,200,math.pi/2)
         inputcommands(self)
         
-        self.setMotion('S',1500)
-        self.sendMotionPacket()
-
-    def setSteering(self, val):
-        val = int(val)
-        lb = val % 256
-        hb = (val >> 8) % 256
-        self.packet[0] = hb
-        self.packet[1] = lb
-        self.sendPacket()
-
-    def setMotor(self, val):
-        val = int(val)
-        lb = val % 256
-        hb = (val >> 8) % 256
-        self.packet[2] = hb
-        self.packet[3] = lb
-        self.sendPacket()
-        
     def drive_straight(self,d,canvas):
         """
-        drive straight for cm
+        drive straight for d cm
         """
         self.distancetravelled = 0
+	started = 0 #so that we send a drive command only once
         while(1):
-            serialIn = self.serial.read(1);
-            #print (ord(serialIn))
+	    #print "reading serial"	
+      	    serialIn = self.serial.read()
             if(ord(serialIn) == 0xFF): # initial byte for sensor data from arduino
                 #print "saw sensor packet"
                 distance = (ord(self.serial.read()) << 8) | ord(self.serial.read())
@@ -290,10 +262,11 @@ class Robot:
                 angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
-                print "distance ",distance," angle ",angle
+                print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+		#continue
                 # update position based on sensor readings
-                y = self.position[1] + distance*math.cos(math.radians(angle));
-                x = self.position[0] + distance*math.sin(math.radians(angle));
+                y = self.position[1] + distance*math.cos(math.radians(angle))
+                x = self.position[0] + distance*math.sin(math.radians(angle))
                 theta = self.position[2] - math.radians(angle)
 
                 if(theta < 0):
@@ -307,17 +280,23 @@ class Robot:
                 canvas.update_idletasks()
                 self.distancetravelled = self.distancetravelled + distance
             
-            if(self.distancetravelled <= d):
-                self.driveStraight()
+            if(self.distancetravelled < d):
+		if(started == 0):
+		    self.driveStraight()
+		    started = 1
+		else:		
+                    continue
             else:
                 self.Stop()
-                break
+                print "stopping"
+		break
 
     def drive_circle(self,d,canvas):
         """
         turn right for d cm
         """
         self.distancetravelled = 0
+	started = 0
         while(1):
             serialIn = self.serial.read();
             if(ord(serialIn) == 0xFF): # initial byte for sensor data from arduino
@@ -325,10 +304,12 @@ class Robot:
                 distance_lb = ord(self.serial.read())
                 distance = (distance_hb << 8)|distance_lb
                 #distance = (ord(self.serial.read()) << 8) | ord(self.serial.read());
-                angle_hb = ord(self.serial.read())
-                angle_lb = ord(self.serial.read())
-                #angle    = (ord(self.serial.read()) << 8) | ord(self.serial.read());
+                angle = self.serial.read(2)
+                angle = struct.unpack("<h",angle)
+                angle = angle[0]
                 
+		print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+
                 # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle));
                 x = self.position[0] + distance*math.sin(math.radians(angle));
@@ -344,8 +325,10 @@ class Robot:
                 drawpoint(canvas,self.position)
                 self.distancetravelled = self.distancetravelled + distance
             
-            if(self.distancetravelled <= d):
-                self.turnRight()
+            if(self.distancetravelled < d):
+		if(started == 0):
+		    started = 1	
+                    self.turnRight()
             else:
                 self.Stop()
                 break
@@ -357,15 +340,19 @@ class Robot:
         
         # drive through planned route
         self.distancetravelled = 0
-        print "driving dubins"
+        #print "driving dubins"
         segment = 0 # stores segment of dubins curve that car is executing to avoid repeating commands over serial
         while(1):
             # Read serial port for sensor inputs from Arduino
             serialIn = self.serial.read();
             if(ord(serialIn) == 0xFF): # initial byte for sensor data from arduino
                 distance = (ord(self.serial.read()) << 8) | ord(self.serial.read())
-                angle    = (ord(self.serial.read()) << 8) | ord(self.serial.read())
-                print angle
+                angle = self.serial.read(2)
+                angle = struct.unpack("<h",angle)
+                angle = angle[0]
+
+		#print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+
              # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle))
                 x = self.position[0] + distance*math.sin(math.radians(angle))
@@ -383,7 +370,8 @@ class Robot:
             
             # First action until self.distancetravelled >= Moves[1]
             if(self.distancetravelled < Moves[1]):
-                if(segment == 1):
+                #print "seg 1"
+		if(segment == 1):
                     continue
                 if((Moves[0] == 0) or (Moves[0] == 2) or (Moves[0] == 5)): #LSL,LSR,LRL
                     # turn left
@@ -395,6 +383,7 @@ class Robot:
     
             # Second action until distancetravelled >= Moves[1] + Moves[2]
             elif(self.distancetravelled < Moves[1] + Moves[2]):
+		#print "seg 2"
                 if(segment == 2):
                     continue
                 if(Moves[0] <= 3): #LSL,RSR,LSR,RSL
@@ -410,6 +399,7 @@ class Robot:
 
             # Third action until distancetravelled >= Moves[1] + Moves[2] + Moves[3]
             elif(self.distancetravelled < Moves[1] + Moves[2] + Moves[3]):
+		#print "seg 3"
                 if(segment == 3):
                     continue
                 if((Moves[0] == 0) or (Moves[0] == 3) or (Moves[0] == 5)):
@@ -425,81 +415,29 @@ class Robot:
                 break
 
     def driveStraight(self):
-        # drive Robot straight at motorspeed = 510 (speed = 38cm/s)
-        self.setAnalog(CHANNEL_STEER,590)
-        self.setAnalog(CHANNEL_DRIVE,510)
-        self.sendPacket()
+        # drive Robot straight at speed = 100cm/s)
+	self.set_steering(0)
+        self.set_velocity(100)
+	#print "driving straight"
+	self.send_arduino_packet()
 
     def turnRight(self):
-        # turn Robot to the right at steering = 790 (radius of turn = 58.4 cm). Drive speed remains the same.
-        self.setAnalog(CHANNEL_STEER,790)
-        self.setAnalog(CHANNEL_DRIVE,510)
-        self.sendPacket()
+        # turn Robot to the right at steering = 40 degrees (radius of turn = 58.4 cm). Drive speed = 100 cm/s
+        self.set_steering(40)
+	self.set_velocity(100)
+	self.send_arduino_packet()
 
     def turnLeft(self):
-        # turn Robot to the left at steering = 390 (radius of turn = 58.4 cm). Drive speed remains the same.
-        self.setAnalog(CHANNEL_STEER,390)
-        self.setAnalog(CHANNEL_DRIVE,510)
-        self.sendPacket()
-
+        # turn Robot to the left at steering = -40 (radius of turn = 58.4 cm). Drive speed = 100 cm/s
+        self.set_steering(-40)
+	self.set_velocity(100)
+	self.send_arduino_packet()
+ 
     def Stop(self):
         # stop the Robot
-        self.setAnalog(CHANNEL_DRIVE,550)
-        self.sendPacket()
-
-    def sendPacket(self):
-        length = len(self.packet) + 1
-        string = chr(Robot.START_BYTE) + chr(length) + chr(Robot.COMMAND_BYTE)
-        checksum = length ^ Robot.COMMAND_BYTE
-        for byte in self.packet:
-            string += chr(byte)
-            checksum ^= byte
-        string += chr(checksum)
-        
-        self.serial.write(string)
-        self.serial.flushInput()
-        self.serial.flushOutput()
-        
-    def sendMotionPacket(self):
-        length = len(self.motionpacket) + 1
-        string = chr(Robot.START_BYTE) + chr(length) + chr(Robot.PLANNER_BYTE)
-        checksum = length ^ Robot.PLANNER_BYTE
-        for byte in self.plannerpacket:
-            string += chr(byte)
-            checksum ^= byte
-        string += chr(checksum)
-
-        self.serial.write(string)
-        self.serial.flushInput()
-        self.serial.flushOutput()
-
-    def setMotion(self,action1,val1):
-        """
-        Set motion packet
-        """
-        val1 = int(val1)
-        lb   = val1 % 256
-        hb   = (val1 >> 8) % 256
-        self.plannerpacket[0] = action1
-        self.plannerpacket[1] = hb
-        self.plannerpacket[2] = lb
+        self.set_velocity(0)
+	self.send_arduino_packet()
 																	
-
-    def setAnalog(self, ch, val):
-        """
-        Set the value of an analog channel
-        ch in range [0,4]
-        val in range [0, 255]
-        """
-        val = int(val)
-        lb = val % 256
-        hb = (val >> 8) % 256
-        if ch == 0 or ch == 1:
-            self.packet[ch*2] = hb
-            self.packet[ch*2+1] = lb
-        else:
-            self.packet[ch+2] = lb
-
 		
 def main():
     '''
@@ -507,7 +445,7 @@ def main():
     steering, motor, sweeper, hopper
     '''
         
-    robot = Robot()
+    robot = Ballbot()
     #inputcommands()
 
 
