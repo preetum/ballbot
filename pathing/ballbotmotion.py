@@ -27,8 +27,8 @@ groundspeed = 0.0348
 curve_number = -1
 CHANNEL_DRIVE  = 1
 CHANNEL_STEER  = 0
-ROBOT_RADIUS   = 61  #in cm
-ROBOT_SPEED    = 38  #in cm/s
+ROBOT_RADIUS   = 61.0  #in cm
+ROBOT_SPEED    = 38.0  #in cm/s
 			 
 def fmodr(x,y):
     return x - y*math.floor(x/y)
@@ -217,9 +217,15 @@ def drawpath(canvas,path):
     for point in path:
         x = point[0]
         y = point[1]
-        #print x," ",y
+        #print "Drawing calc ",x," ",y
         canvas.create_oval(x + 50 - 1,500 - (y+50-1),x + 50 +1, 500 - (y + 50 + 1),width=1,outline = 'green',fill = 'green')
     canvas.update_idletasks()
+
+def encoderticks_to_distance(encoderticks):
+    """
+    Given encoderticks, returns corresponding distance in cm
+    """
+    return encoderticks*100.0/75.0
         
 def drawpoint(canvas,point):
     """
@@ -250,20 +256,21 @@ class Ballbot(Robot):
         drive straight for d cm
         """
         self.distancetravelled = 0
+	self.tickssofar = 0
 	started = 0 #so that we send a drive command only once
         while(1):
 	    #print "reading serial"	
       	    serialIn = self.serial.read()
             if(ord(serialIn) == 0xFF): # initial byte for sensor data from arduino
                 #print "saw sensor packet"
-                distance = (ord(self.serial.read()) << 8) | ord(self.serial.read())
+                ticks = (ord(self.serial.read()) << 8) | ord(self.serial.read())
+		distance = encoderticks_to_distance(ticks)
                 #distance = (int(self.serial.read()) << 8)| (int(self.serial.read()))
                 #angle    = (int(self.serial.read()) << 8) | int(self.serial.read())
                 angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
-                print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
-		#continue
+                #print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
                 # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle))
                 x = self.position[0] + distance*math.sin(math.radians(angle))
@@ -276,11 +283,13 @@ class Ballbot(Robot):
                 self.position = (x,y,theta)
                 
                 # draw position on canvas
+		#print "drawing x: ",x," y:", y
                 drawpoint(canvas,self.position)
                 canvas.update_idletasks()
                 self.distancetravelled = self.distancetravelled + distance
-            
-            if(self.distancetravelled < d):
+		self.tickssofar = self.tickssofar + ticks
+            #print "travelled ",self.distancetravelled, " ticks ", self.tickssofar
+            if(encoderticks_to_distance(self.tickssofar) < d):
 		if(started == 0):
 		    self.driveStraight()
 		    started = 1
@@ -296,19 +305,19 @@ class Ballbot(Robot):
         turn right for d cm
         """
         self.distancetravelled = 0
+	self.tickssofar = 0
 	started = 0
         while(1):
             serialIn = self.serial.read();
             if(ord(serialIn) == 0xFF): # initial byte for sensor data from arduino
-                distance_hb = ord(self.serial.read())
-                distance_lb = ord(self.serial.read())
-                distance = (distance_hb << 8)|distance_lb
+                ticks = (ord(self.serial.read()) << 8) | ord(self.serial.read())
+		distance = encoderticks_to_distance(ticks)
                 #distance = (ord(self.serial.read()) << 8) | ord(self.serial.read());
                 angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
                 
-		print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+		#print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
 
                 # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle));
@@ -324,8 +333,8 @@ class Ballbot(Robot):
                 # draw position on canvas
                 drawpoint(canvas,self.position)
                 self.distancetravelled = self.distancetravelled + distance
-            
-            if(self.distancetravelled < d):
+            	self.tickssofar = self.tickssofar + ticks
+            if(encoderticks_to_distance(self.tickssofar) < d):
 		if(started == 0):
 		    started = 1	
                     self.turnRight()
@@ -340,14 +349,16 @@ class Ballbot(Robot):
         
         # drive through planned route
         self.distancetravelled = 0
+	self.tickssofar = 0
         #print "driving dubins"
         segment = 0 # stores segment of dubins curve that car is executing to avoid repeating commands over serial
         while(1):
             # Read serial port for sensor inputs from Arduino
             serialIn = self.serial.read();
             if(ord(serialIn) == 0xFF): # initial byte for sensor data from arduino
-                distance = (ord(self.serial.read()) << 8) | ord(self.serial.read())
-                angle = self.serial.read(2)
+                ticks = (ord(self.serial.read()) << 8) | ord(self.serial.read())
+                distance = encoderticks_to_distance(ticks)
+		angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
 
@@ -367,9 +378,9 @@ class Ballbot(Robot):
                 # draw position on canvas
                 drawpoint(canvas,self.position)
                 self.distancetravelled = self.distancetravelled + distance
-            
+            	self.tickssofar = self.tickssofar + ticks
             # First action until self.distancetravelled >= Moves[1]
-            if(self.distancetravelled < Moves[1]):
+            if(encoderticks_to_distance(self.tickssofar) < Moves[1]):
                 #print "seg 1"
 		if(segment == 1):
                     continue
@@ -382,7 +393,7 @@ class Ballbot(Robot):
                 segment = 1
     
             # Second action until distancetravelled >= Moves[1] + Moves[2]
-            elif(self.distancetravelled < Moves[1] + Moves[2]):
+            elif(encoderticks_to_distance(self.tickssofar) < Moves[1] + Moves[2]):
 		#print "seg 2"
                 if(segment == 2):
                     continue
@@ -398,7 +409,7 @@ class Ballbot(Robot):
                 segment = 2
 
             # Third action until distancetravelled >= Moves[1] + Moves[2] + Moves[3]
-            elif(self.distancetravelled < Moves[1] + Moves[2] + Moves[3]):
+            elif(encoderticks_to_distance(self.tickssofar) < Moves[1] + Moves[2] + Moves[3]):
 		#print "seg 3"
                 if(segment == 3):
                     continue
