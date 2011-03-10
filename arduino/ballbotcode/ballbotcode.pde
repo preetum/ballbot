@@ -191,36 +191,44 @@ void setup() {
 
 void loop() 
 {
-  // read from Gyro and find the current angle of the car
-  float gyroRate = (analogRead(gyroPin) * gyroVoltage) / 1023;
-  gyroRate -= gyroZeroVoltage;
-  gyroRate /= gyroSensitivity;
+  static unsigned long pidLoopCount = 0;
+  long curTime;
 
- if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
-    gyroRate /= 10;
-    currentAngle += gyroRate;
+  // Run PID loop and output odometry every 100ms
+  curTime = millis();
+  if (curTime >= pidLoopCount) {
+    pidLoopCount = curTime + 100;
+
+    // read from Gyro and find the current angle of the car
+    float gyroRate = (analogRead(gyroPin) * gyroVoltage) / 1023;
+    gyroRate -= gyroZeroVoltage;
+    gyroRate /= gyroSensitivity;
+
+   if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
+      gyroRate /= 10;
+      currentAngle += gyroRate;
+    }
+
+    int tmpEncoderCount = encoder_counter;	// save encoder value
+    encoder_counter = 0;
+    cummulative_count += tmpEncoderCount;
+
+    writeOscilloscope(tmpEncoderCount*100/80, (int)currentAngle); //send for visual output
+    Input =  (double)tmpEncoderCount;
+    pid_dist.Compute(); //give the PID the opportunity to compute if needed
+  
+    setDriveMotor(MOTOR_NEUTRAL - Output*180/1024);
   }
-
-  writeOscilloscope(encoder_counter*100/80, (int)currentAngle); //send for visual output
-  Serial.print(" Current angle ");
-  Serial.print((int) currentAngle);
-  cummulative_count += encoder_counter;  
-  Input =  (double) encoder_counter;
-  pid_dist.Compute(); //give the PID the opportunity to compute if needed
-   
-  setDriveMotor(MOTOR_NEUTRAL - Output*180/1024); 
     
-  encoder_counter = 0;
-  
-  static unsigned char lastDirFwd = 1;
-  static unsigned char driveMotorState = STATE_NORMAL;
-  static unsigned long waitTime = 0;
-  
-  
   // Check the serial port for new command byte
   if (Serial.available())
     byteReceived(Serial.read());
-
+  
+  // Drive motor direction fixing
+  static unsigned char lastDirFwd = 1;
+  static unsigned char driveMotorState = STATE_NORMAL;
+  static unsigned long waitTime = 0; 
+  
   // Refresh drive motor values, handling the drive motor braking behavior
   // Need to reverse right after driving forward:
   // 1. send a reverse pulse (treated as a brake signal)
@@ -250,17 +258,19 @@ void loop()
       break;
       
     case STATE_DELAY1:
-      if (millis() >= waitTime) {
+      curTime = millis();
+      if (curTime >= waitTime) {
         motor.write(MOTOR_NEUTRAL);
         driveMotorState = STATE_DELAY2;
-        waitTime = millis() + 100;
+        waitTime = curTime + 100;
       } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
         driveMotorState = STATE_NORMAL;
       }
       break;
     
     case STATE_DELAY2:
-      if (millis() >= waitTime) {
+      curTime = millis();
+      if (curTime >= waitTime) {
         motor.write(driveMotorTarget);
         driveMotorState = STATE_NORMAL;
         lastDirFwd = 0;
@@ -270,5 +280,4 @@ void loop()
       break;
   } // switch
   
-  delay(100);
 } // loop()
