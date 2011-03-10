@@ -1,6 +1,6 @@
 import math
 
-ROBOTRADIUS = 58.2168
+ROBOTRADIUS = 61
 
 def turnLeft(x,y,theta,v=0.5):
   angle = theta + v
