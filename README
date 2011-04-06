@@ -1,0 +1,9 @@
+Sources for the Ballbot project at UC Berkeley
+
+Description of top-level directories and files
+arduino/	sources for code deployed on Arduino
+demos/		folder for random "proof of concept" code
+localization/	position estimation (e.g. particle filter, Kalman filter)
+pathing/	path planning (e.g. Dubin's curves, RRT)
+robot.py	Robot class interface for communicating with Arduino
+

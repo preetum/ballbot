@@ -1,0 +1,89 @@
+K 25
+svn:wc:ra_dav:version-url
+V 22
+/svn/!svn/ver/13/trunk
+END
+Blob.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 30
+/svn/!svn/ver/2/trunk/Blob.cpp
+END
+BlobExtraction.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 40
+/svn/!svn/ver/2/trunk/BlobExtraction.cpp
+END
+BlobLibraryConfiguration.h
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svn/!svn/ver/2/trunk/BlobLibraryConfiguration.h
+END
+BlobResult.h
+K 25
+svn:wc:ra_dav:version-url
+V 34
+/svn/!svn/ver/2/trunk/BlobResult.h
+END
+Blob.h
+K 25
+svn:wc:ra_dav:version-url
+V 28
+/svn/!svn/ver/2/trunk/Blob.h
+END
+BlobResult.i
+K 25
+svn:wc:ra_dav:version-url
+V 35
+/svn/!svn/ver/12/trunk/BlobResult.i
+END
+make_swig_shadow.sh
+K 25
+svn:wc:ra_dav:version-url
+V 42
+/svn/!svn/ver/13/trunk/make_swig_shadow.sh
+END
+Blob.i
+K 25
+svn:wc:ra_dav:version-url
+V 29
+/svn/!svn/ver/12/trunk/Blob.i
+END
+BlobExtraction.h
+K 25
+svn:wc:ra_dav:version-url
+V 38
+/svn/!svn/ver/2/trunk/BlobExtraction.h
+END
+helpers.i
+K 25
+svn:wc:ra_dav:version-url
+V 32
+/svn/!svn/ver/12/trunk/helpers.i
+END
+blob_example.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 38
+/svn/!svn/ver/2/trunk/blob_example.cpp
+END
+demo.py
+K 25
+svn:wc:ra_dav:version-url
+V 29
+/svn/!svn/ver/9/trunk/demo.py
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 30
+/svn/!svn/ver/2/trunk/Makefile
+END
+BlobResult.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 36
+/svn/!svn/ver/2/trunk/BlobResult.cpp
+END
