@@ -19,10 +19,9 @@ class Robot:
   MOTOR_NEUTRAL = 540
   MOTOR_MIN_REVERSE = 570
   MOTOR_FULL_REVERSE = 1023
-  # Special commands interpreted by the Arduino
-  MOTOR_BRAKE = 1024
 
   def __init__(self):
+  
     # Initialize Arduino COM port
     try:
       self.serial = serial.Serial('COM7', baudrate=115200)
@@ -162,13 +161,15 @@ def main():
       robot.send_arduino_packet()
           
       line = sys.stdin.readline()
+      
       values = [float(v) for v in line.split(',')]
       for i in range(min(len(values), 4)):
         if i == 0: robot.set_steering(values[i])
         elif i == 1: robot.set_drive(values[i])
-  except KeyboardInterrupt:
-    # In case of Ctrl-C, zero motor values
+  except:
+    # In case of error or Ctrl-C, zero motor values
     robot.reset()
+    raise
     
 if __name__ == '__main__':
   main()

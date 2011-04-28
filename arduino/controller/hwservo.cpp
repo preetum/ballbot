@@ -123,7 +123,9 @@ void Servo::write(int angleArg)
 void Servo::write10(unsigned int val)
 {
   uint16_t p;
-
+  
+  // check bounds
+  if (val > 1023) val = 1023;
   // save angle
   angle = 180L * val / 1024L;
 
