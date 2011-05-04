@@ -1,6 +1,14 @@
 import serial
 import sys, re, struct, time
 
+camera_params = {'height': 33.5,  # in cm
+  'offset_x': -4.5,  # offset from center of front axle, in cm
+  'offset_y': -10,
+  'tilt':  1.228,   # in radians
+  'resolution': (640, 480),
+  'radians_per_px': 0.0016
+}
+
 class Robot:
   '''
   Encapsulates the hardware functionality of the robot.
@@ -20,11 +28,11 @@ class Robot:
   MOTOR_MIN_REVERSE = 570
   MOTOR_FULL_REVERSE = 1023
 
-  def __init__(self):
+  def __init__(self, port='/dev/ttyUSB0'):
   
     # Initialize Arduino COM port
     try:
-      self.serial = serial.Serial('COM7', baudrate=115200)
+      self.serial = serial.Serial(port, baudrate=115200)
     except serial.serialutil.SerialException:
       print "No Arduino connected."
     
@@ -151,10 +159,15 @@ class Robot:
 
 def main():
   '''
-  Takes a comma separated list of values
+  Test stub: takes a comma separated list of values
   steering, motor, sweeper, hopper
+
+  Optional argument: com port
   '''
-  robot = Robot()
+  if len(sys.argv) > 1:
+    robot = Robot(sys.argv[1])
+  else:
+    robot = Robot()
 
   try:
     while (True):

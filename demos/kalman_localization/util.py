@@ -11,8 +11,7 @@ import inspect
 import heapq, random
 import numpy
 
-from localization import models
-import robot
+import models
 
 """
  Data structures useful for implementing SearchAgents
@@ -26,7 +25,7 @@ def pixelToDistance(px, imgSize=(640,480), cameraParams=None):
   Returns (x, y) where x,y are in cm measured from the camera location
   '''
   if cameraParams is None:
-    cameraParams = robot.camera_params
+    cameraParams = models.camera_params
 
   x, y = px
   xcenter = imgSize[0] / 2.0

@@ -18,6 +18,8 @@ Servo steering, motor;
 AF_DCMotor sweeper(1, MOTOR12_64KHZ), hopper(2, MOTOR12_64KHZ);
 Packet packet;
 
+int encoder_counter = 0;
+
 // State machine states
 enum {
 	WAIT,
@@ -150,6 +152,8 @@ void setup() {
   // Center the steering servo
   steering.write10(SERVO_CENTER);
   
+  attachInterrupt(0, encoder_tick, CHANGE); //interrupt to count encoder ticks
+  
   pinMode(13, OUTPUT);  // enable LED pin
   
   Serial.begin(115200);
@@ -160,4 +164,10 @@ void loop() {
   if (Serial.available())
     byteReceived(Serial.read());
 }
+
+void encoder_tick()
+{
+  encoder_counter += 1;
+}
+
 

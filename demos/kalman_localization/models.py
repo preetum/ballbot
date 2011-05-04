@@ -14,6 +14,14 @@ lines = [
   ((0, 1097/2.0), (640, 1097/2.0)),
   ((640, 137), (640, 960)),
   ]
+camera_params = {'height': 33.5,  # in cm
+  'offset_x': -4.5,  # offset from center of front axle, in cm
+  'offset_y': -10,
+  'tilt':  1.228,   # in radians
+  'resolution': (640, 480),
+  'radians_per_px': 0.0016
+  }
+
 
 def cornerProbabilityGivenParticleLocation(observation, particle):
   '''
