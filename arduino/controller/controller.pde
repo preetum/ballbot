@@ -19,8 +19,9 @@ AF_DCMotor sweeper(1, MOTOR12_64KHZ), hopper(2, MOTOR12_64KHZ);
 Packet packet;
 
 int encoder_counter = 0;
+unsigned int driveMotorTarget = MOTOR_NEUTRAL;
 
-// State machine states
+// Serial state machine states
 enum {
 	WAIT,
 	READ_LENGTH,
@@ -28,30 +29,19 @@ enum {
 	READ_CHECKSUM
 };
 
+// Drive motor states
+enum {
+    STATE_NORMAL,
+    STATE_DELAY1,  // 100ms delay to go from forward to reverse (treated as brake)
+    STATE_DELAY2   // 100ms delay to go from reverse to neutral
+};
+
 /*
  * Sets the drive motor to a value from [0,1023], while taking into account the
  * braking behavior of the hobby motor controller.
 */
 void setDriveMotor(unsigned int val) {
-  static signed char lastDirFwd = 1;
-  
-  // Need to reverse right after driving forward:
-  //  1. send a reverse pulse (treated as a brake signal)
-  //  2. send a neutral pulse
-  //  3. send a reverse pulse (now treated as a reverse signal)
-  if (val >= MOTOR_MIN_REVERSE && lastDirFwd) {
-    motor.write10(MOTOR_MIN_REVERSE);
-    delay(100);  // wait for servo refresh time
-    motor.write10(MOTOR_NEUTRAL);
-    delay(100);  // wait for servo refresh time
-    lastDirFwd = 0;
-  
-  // Update the last direction flag
-  } else if (val <= MOTOR_MIN_FORWARD) {
-    lastDirFwd = 1;
-  }
-  
-  motor.write10(val);
+  driveMotorTarget = val;
 }
 
 /*
@@ -160,10 +150,63 @@ void setup() {
 }
 
 void loop() {
+  static unsigned char lastDirFwd = 1;
+  static unsigned char driveMotorState = STATE_NORMAL;
+  static unsigned long waitTime = 0;
+  
   // Check the serial port for new command byte
   if (Serial.available())
     byteReceived(Serial.read());
-}
+
+  // Refresh drive motor values, handling the drive motor braking behavior
+  // Need to reverse right after driving forward:
+  //  1. send a reverse pulse (treated as a brake signal)
+  //  2. send a neutral pulse
+  //  3. send a reverse pulse (now treated as a reverse signal)
+  switch (driveMotorState) {
+    case STATE_NORMAL:
+      // In case of a reverse after driving forward
+      if (driveMotorTarget >= MOTOR_MIN_REVERSE && lastDirFwd) {
+        motor.write10(MOTOR_MIN_REVERSE);
+        driveMotorState = STATE_DELAY1;
+        waitTime = millis() + 100;
+        
+      // Normal operation
+      } else {
+        // Deadband
+        if (driveMotorTarget > MOTOR_MIN_FORWARD &&
+            driveMotorTarget < MOTOR_MIN_REVERSE)
+          motor.write10(MOTOR_NEUTRAL);
+        else
+          motor.write10(driveMotorTarget);
+        
+        // Update the last direction flag
+        if (driveMotorTarget <= MOTOR_MIN_FORWARD)
+          lastDirFwd = 1;
+      }
+      break;
+      
+    case STATE_DELAY1:
+      if (millis() >= waitTime) {
+        motor.write10(MOTOR_NEUTRAL);
+        driveMotorState = STATE_DELAY2;
+        waitTime = millis() + 100;
+      } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
+        driveMotorState = STATE_NORMAL; 
+      }
+      break;
+    
+    case STATE_DELAY2:
+      if (millis() >= waitTime) {
+        motor.write10(driveMotorTarget);
+        driveMotorState = STATE_NORMAL;
+        lastDirFwd = 0;
+      } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
+        driveMotorState = STATE_NORMAL; 
+      }
+      break;
+  } // switch
+} // loop()
 
 void encoder_tick()
 {

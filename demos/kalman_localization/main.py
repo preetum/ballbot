@@ -21,8 +21,7 @@ def get_pixel_center(frame, threshold=254):
 
 	for i in xrange(0, height):
 		for j in xrange(0, width):
-			a = np.asarray(frame)
-			print a
+			#a = np.asarray(frame)
 			pixel = 0#a[i,j]
 
 			if (pixel > threshold):
