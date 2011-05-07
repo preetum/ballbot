@@ -36,6 +36,12 @@ enum {
     STATE_DELAY2   // 100ms delay to go from reverse to neutral
 };
 
+void encoder_tick()
+{
+  encoder_counter += 1;
+}
+
+
 /*
  * Sets the drive motor to a value from [0,1023], while taking into account the
  * braking behavior of the hobby motor controller.
@@ -207,10 +213,5 @@ void loop() {
       break;
   } // switch
 } // loop()
-
-void encoder_tick()
-{
-  encoder_counter += 1;
-}
 
 
