@@ -213,7 +213,7 @@ void loop()
     encoder_counter = 0;
     cummulative_count += tmpEncoderCount;
 
-    writeOscilloscope(tmpEncoderCount*100/80, (int)currentAngle); //send for visual output
+    writeOscilloscope(tmpEncoderCount, (int)currentAngle); //send for visual output
     Input =  (double)tmpEncoderCount;
     pid_dist.Compute(); //give the PID the opportunity to compute if needed
   
