@@ -39,7 +39,15 @@ int gyroPin = 0;               //Gyro is connected to analog pin 0
 float gyroVoltage = 3.3;         //Gyro is running at 3.3V
 float gyroZeroVoltage = 1.211;   //Gyro is zeroed at 1.23V - given in the datasheet
 float gyroSensitivity = .00609;  //Our example gyro is 7mV/deg/sec
+<<<<<<< HEAD
 float rotationThreshold = 7.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
+=======
+<<<<<<< HEAD
+float rotationThreshold = 10.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
+=======
+float rotationThreshold = 5.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
+>>>>>>> 0f23067ee8db93657b9d9619aaef11c181b294d3
+>>>>>>> 3b907a0d346a0fa538ee654d9c565f8f94e39409
 //----------------------x-x-x---------------------------------
 long cummulative_count = 0;
 long distance_limit = 0;
