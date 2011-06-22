@@ -36,10 +36,10 @@ Packet packet;
 
 
 //--------------- Gyro declerations -------------------------
-int gyroPin = 0;               //Gyro is connected to analog pin 0
+int gyroPin = 0;                 //Gyro is connected to analog pin 0
 float gyroVoltage = 3.3;         //Gyro is running at 3.3V
 float gyroZeroVoltage = 1.215;   //Gyro is zeroed at 1.23V - given in the datasheet
-float gyroSensitivity = .01;  //*145/90 - to rescale to account for the loop
+float gyroSensitivity = .01;     // Gyro senstivity for 4 times amplified output is 10mV/deg/sec
 
 float rotationThreshold = 2.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
