@@ -66,21 +66,20 @@ Setpoint =  (long) (((vel_m*3.2808399*2.48) - 1.61)*2.89435601);   //vel_m is sp
 }
 
 // Write (encodercount, currentangle) to the serial port. This is actually (distance,dtheta) from last sample
+
 void writeOscilloscope(int value_x, int value_y) {
   
-  Serial.print( 0xff);                // send init byte
+  Serial.print(0xff);                // send init byte
+
   Serial.print( (value_x >> 8) & 0xff); // send first part
   Serial.print( value_x & 0xff);        // send second part
+  
   Serial.print( value_y & 0xff, BYTE );        // send second part
   Serial.print( (value_y >> 8) & 0xff, BYTE ); // send first part
 
+  //Serial.print("value_y");
+  //Serial.println(value_y);
 
-///  Serial.print( value_y & 0xff, BYTE );        // send second part
- // Serial.print("value_y");
-//Serial.println(value_y);
-
-
- 
 }
 
 void encoder_tick()
@@ -238,7 +237,7 @@ void loop()
     encoder_counter = 0;
     cummulative_count += tmpEncoderCount;
     // rescale the angle by 90/145; multiply by 10 for extra decimal precision
-    writeOscilloscope(tmpEncoderCount, (int)(currentAngle*10*90/145)); //send for visual output
+    writeOscilloscope(tmpEncoderCount, (int) currentAngle); //send for visual output
     Input =  (double)tmpEncoderCount;
     pid_dist.Compute(); //give the PID the opportunity to compute if needed
   
