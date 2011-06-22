@@ -174,7 +174,8 @@ def inputcommands(robot):
 
 def drawCanvas(canvas):
     canvas.create_rectangle(50,50,450,450)
-
+    canvas.create_oval(322 + 50 - 2,500 - (200+50-2),322 + 50 +2, 500 - (200 + 50 + 2),width=1,outline = 'blue',fill = 'blue')
+	
   
 def startPlanner(canvas,robot,cmd,distance,theta):
     """
@@ -258,6 +259,10 @@ class Ballbot(Robot):
         self.distancetravelled = 0
 	self.tickssofar = 0
 	started = 0 #so that we send a drive command only once
+	
+	self.initangle = 0.0
+	initangle_registered = 0
+
         while(1):
 	    #print "reading serial"	
       	    serialIn = self.serial.read()
@@ -270,12 +275,18 @@ class Ballbot(Robot):
                 angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
+		angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
+		if(initangle_registered == 0):
+		    initangle_registered = 1
+		    self.initangle = angle
+
+		angle = angle - self.initangle
                 #print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
                 # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle))
                 x = self.position[0] + distance*math.sin(math.radians(angle))
                 theta = self.position[2] - math.radians(angle)
-
+		
                 if(theta < 0):
                     theta = theta + 2*math.pi
                 elif(theta > 2*math.pi):
@@ -306,18 +317,26 @@ class Ballbot(Robot):
         """
         self.distancetravelled = 0
 	self.tickssofar = 0
+	self.initangle = 0
+	initangle_registered = 0
 	started = 0
         while(1):
+
             serialIn = self.serial.read();
-            if(ord(serialIn) == 0xFF): # initial byte for sensor data from arduino
+            if(ord(serialIn) == 0xff): # initial byte for sensor data from arduino
                 ticks = (ord(self.serial.read()) << 8) | ord(self.serial.read())
 		distance = encoderticks_to_distance(ticks)
                 #distance = (ord(self.serial.read()) << 8) | ord(self.serial.read());
                 angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
-                
-		#print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+                #angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
+
+		print "ticks so far",self.tickssofar,"distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+		if(initangle_registered == 0):
+                    initangle_registered = 1
+                    self.initangle = angle
+                angle = angle - self.initangle
 
                 # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle));
@@ -334,13 +353,16 @@ class Ballbot(Robot):
                 drawpoint(canvas,self.position)
                 self.distancetravelled = self.distancetravelled + distance
             	self.tickssofar = self.tickssofar + ticks
+
             if(encoderticks_to_distance(self.tickssofar) < d):
 		if(started == 0):
 		    started = 1	
                     self.turnRight()
             else:
                 self.Stop()
+		print "stopping"
                 break
+	
 
     def drive_dubins(self,canvas):
         """
@@ -350,6 +372,8 @@ class Ballbot(Robot):
         # drive through planned route
         self.distancetravelled = 0
 	self.tickssofar = 0
+	self.initangle = 0
+	initangle_registered = 0
         #print "driving dubins"
         segment = 0 # stores segment of dubins curve that car is executing to avoid repeating commands over serial
         while(1):
@@ -361,8 +385,13 @@ class Ballbot(Robot):
 		angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
-
+		angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
 		#print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+		if(initangle_registered == 0):
+                    initangle_registered = 1
+                    self.initangle = angle
+
+                angle = angle - self.initangle
 
              # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle))
