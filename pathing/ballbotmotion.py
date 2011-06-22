@@ -333,10 +333,6 @@ class Ballbot(Robot):
                 #angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
 
 		print "ticks so far",self.tickssofar,"distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
-		if(initangle_registered == 0):
-                    initangle_registered = 1
-                    self.initangle = angle
-                angle = angle - self.initangle
                 
 	
                 # update position based on sensor readings

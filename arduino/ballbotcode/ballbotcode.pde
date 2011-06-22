@@ -38,7 +38,11 @@ Packet packet;
 int gyroPin = 0;               //Gyro is connected to analog pin 0
 float gyroVoltage = 3.3;         //Gyro is running at 3.3V
 float gyroZeroVoltage = 1.211;   //Gyro is zeroed at 1.23V - given in the datasheet
+<<<<<<< HEAD
+float gyroSensitivity = .00609*145.0/90.0;  //Our example gyro is 7mV/deg/sec
+=======
 float gyroSensitivity = .00609;  //Our example gyro is 7mV/deg/se
+>>>>>>> b99e9c5df1a0531941302bf6ea278ffe24e19d52
 float rotationThreshold = 7.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
 
