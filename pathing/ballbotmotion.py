@@ -317,7 +317,7 @@ class Ballbot(Robot):
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
                 
-		#print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+		print "distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
 
                 # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle));
@@ -335,7 +335,7 @@ class Ballbot(Robot):
                 self.distancetravelled = self.distancetravelled + distance
             	self.tickssofar = self.tickssofar + ticks
             if(encoderticks_to_distance(self.tickssofar) < d):
-		if(started == 0):
+                if(started == 0):
 		    started = 1	
                     self.turnRight()
             else:
