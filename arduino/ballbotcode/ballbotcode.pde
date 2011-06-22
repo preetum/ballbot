@@ -1,6 +1,7 @@
 #include <Servo.h>
 #include "packet.h"
 #include <PID_Beta6.h>  // PID library
+#include "TimerOne.h"
 
 #define SERVO_LEFT   60
 #define SERVO_CENTER 100
@@ -37,13 +38,10 @@ Packet packet;
 //--------------- Gyro declerations -------------------------
 int gyroPin = 0;               //Gyro is connected to analog pin 0
 float gyroVoltage = 3.3;         //Gyro is running at 3.3V
-float gyroZeroVoltage = 1.211;   //Gyro is zeroed at 1.23V - given in the datasheet
-<<<<<<< HEAD
-float gyroSensitivity = .00609*145.0/90.0;  //Our example gyro is 7mV/deg/sec
-=======
-float gyroSensitivity = .00609;  //Our example gyro is 7mV/deg/se
->>>>>>> b99e9c5df1a0531941302bf6ea278ffe24e19d52
-float rotationThreshold = 7.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
+float gyroZeroVoltage = 1.215;   //Gyro is zeroed at 1.23V - given in the datasheet
+float gyroSensitivity = .01;  //*145/90 - to rescale to account for the loop
+
+float rotationThreshold = 2.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
 
 
@@ -73,18 +71,15 @@ void writeOscilloscope(int value_x, int value_y) {
  Serial.print( 0xff);                // send init byte
   Serial.print( (value_x >> 8) & 0xff); // send first part
   Serial.print( value_x & 0xff);        // send second part
-  /*
-  Serial.print( (value_y >> 8) & 0xff); // send first part
-  Serial.print( value_y & 0xff );        // send second part*/
- /* Serial.print( 0xff, BYTE );                // send init byte
-  Serial.print( (value_x >> 8) & 0xff, BYTE ); // send first part
-  Serial.print( value_x & 0xff, BYTE );        // send second part
-  */
   Serial.print( value_y & 0xff, BYTE );        // send second part
   Serial.print( (value_y >> 8) & 0xff, BYTE ); // send first part
-*///  Serial.print( value_y & 0xff, BYTE );        // send second part
-  //Serial.print("value_y");
-  //Serial.println(value_y);
+
+
+///  Serial.print( value_y & 0xff, BYTE );        // send second part
+ // Serial.print("value_y");
+ // Serial.println(value_y);
+
+ 
 }
 
 void encoder_tick()
@@ -171,6 +166,8 @@ break;
 }
 
 void setup() {
+  
+  
   // Initialize servo objects
   steering.attach(4);
   motor.attach(5);
@@ -193,7 +190,29 @@ void setup() {
   pid_dist.SetSampleTime(100); //delay in the loop
   
   Serial.begin(115200);
+  
+  //Initialize interrupt timer - for gyro update
+  Timer1.initialize(100000); //period = 100ms  = 100,000 us (takes period in microseconds)
+  Timer1.attachInterrupt(angle_update,100000);  //angle_update updates the currentAngle from gyro reading
+  
 }
+
+
+void angle_update()
+{
+  // read from Gyro and find the current angle of the car
+    float gyroRate = (analogRead(gyroPin) * gyroVoltage) / 1024;
+    gyroRate -= gyroZeroVoltage;
+    gyroRate /= gyroSensitivity;
+
+   if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
+      gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
+      currentAngle += gyroRate;
+    } 
+}
+
+
+
 
 void loop() 
 {
@@ -205,7 +224,7 @@ void loop()
   if (curTime >= pidLoopCount) {
     pidLoopCount = curTime + 100;
 
-    // read from Gyro and find the current angle of the car
+   /* // read from Gyro and find the current angle of the car
     float gyroRate = (analogRead(gyroPin) * gyroVoltage) / 1024;
     gyroRate -= gyroZeroVoltage;
     gyroRate /= gyroSensitivity;
@@ -213,7 +232,7 @@ void loop()
    if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
       gyroRate /= 10;
       currentAngle += gyroRate;
-    }
+    } */
 
     int tmpEncoderCount = encoder_counter;	// save encoder value
     encoder_counter = 0;
