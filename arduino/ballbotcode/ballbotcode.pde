@@ -1,7 +1,7 @@
 #include <Servo.h>
 #include "packet.h"
 #include <PID_Beta6.h>  // PID library
-#include "TimerOne.h"
+#include <MsTimer2.h>
 
 #define SERVO_LEFT   60
 #define SERVO_CENTER 100
@@ -67,17 +67,18 @@ Setpoint =  (long) (((vel_m*3.2808399*2.48) - 1.61)*2.89435601);   //vel_m is sp
 
 // Write (encodercount, currentangle) to the serial port. This is actually (distance,dtheta) from last sample
 void writeOscilloscope(int value_x, int value_y) {
-  
+  /*
  Serial.print( 0xff);                // send init byte
   Serial.print( (value_x >> 8) & 0xff); // send first part
   Serial.print( value_x & 0xff);        // send second part
   Serial.print( value_y & 0xff, BYTE );        // send second part
   Serial.print( (value_y >> 8) & 0xff, BYTE ); // send first part
-
+*/
 
 ///  Serial.print( value_y & 0xff, BYTE );        // send second part
  // Serial.print("value_y");
- // Serial.println(value_y);
+Serial.println(value_y);
+Serial.println(currentAngle);
 
  
 }
@@ -191,10 +192,11 @@ void setup() {
   
   Serial.begin(115200);
   
-  //Initialize interrupt timer - for gyro update
-  Timer1.initialize(100000); //period = 100ms  = 100,000 us (takes period in microseconds)
-  Timer1.attachInterrupt(angle_update,100000);  //angle_update updates the currentAngle from gyro reading
-  
+  //Initialize interrupt timer2 - for gyro update
+  //Timer1.initialize(100000); //period = 100ms  = 100,000 us (takes period in microseconds)
+  //Timer1.attachInterrupt(angle_update,100000);  //angle_update updates the currentAngle from gyro reading
+  MsTimer2::set(100, angle_update); // 100ms period
+  MsTimer2::start();
 }
 
 
