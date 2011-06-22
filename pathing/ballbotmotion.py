@@ -321,8 +321,7 @@ class Ballbot(Robot):
 	initangle_registered = 0
 	started = 0
         while(1):
-
-            serialIn = self.serial.read();
+            serialIn = self.serial.read()
             if(ord(serialIn) == 0xff): # initial byte for sensor data from arduino
                 ticks = (ord(self.serial.read()) << 8) | ord(self.serial.read())
 		distance = encoderticks_to_distance(ticks)
