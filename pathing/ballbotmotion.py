@@ -330,6 +330,7 @@ class Ballbot(Robot):
                 angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
+
                 #angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
 
 		print "ticks so far",self.tickssofar,"distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
@@ -337,7 +338,8 @@ class Ballbot(Robot):
                     initangle_registered = 1
                     self.initangle = angle
                 angle = angle - self.initangle
-
+                
+	
                 # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle));
                 x = self.position[0] + distance*math.sin(math.radians(angle));
@@ -355,7 +357,7 @@ class Ballbot(Robot):
             	self.tickssofar = self.tickssofar + ticks
 
             if(encoderticks_to_distance(self.tickssofar) < d):
-		if(started == 0):
+                if(started == 0):
 		    started = 1	
                     self.turnRight()
             else:
