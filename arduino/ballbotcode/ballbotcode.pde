@@ -38,9 +38,15 @@ Packet packet;
 int gyroPin = 0;               //Gyro is connected to analog pin 0
 float gyroVoltage = 3.3;         //Gyro is running at 3.3V
 float gyroZeroVoltage = 1.211;   //Gyro is zeroed at 1.23V - given in the datasheet
+<<<<<<< HEAD
 float gyroSensitivity = .00609*145.0/90.0;  //Our example gyro is 7mV/deg/sec
+=======
+float gyroSensitivity = .00609;  //Our example gyro is 7mV/deg/se
+>>>>>>> b99e9c5df1a0531941302bf6ea278ffe24e19d52
 float rotationThreshold = 7.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
+
+
 long cummulative_count = 0;
 long distance_limit = 0;
 int vel_m = 0;
@@ -63,22 +69,22 @@ Setpoint =  (long) (((vel_m*3.2808399*2.48) - 1.61)*2.89435601);   //vel_m is sp
 
 // Write (encodercount, currentangle) to the serial port. This is actually (distance,dtheta) from last sample
 void writeOscilloscope(int value_x, int value_y) {
-  /*
+  
  Serial.print( 0xff);                // send init byte
   Serial.print( (value_x >> 8) & 0xff); // send first part
   Serial.print( value_x & 0xff);        // send second part
-  
+  /*
   Serial.print( (value_y >> 8) & 0xff); // send first part
   Serial.print( value_y & 0xff );        // send second part*/
-  Serial.print( 0xff, BYTE );                // send init byte
+ /* Serial.print( 0xff, BYTE );                // send init byte
   Serial.print( (value_x >> 8) & 0xff, BYTE ); // send first part
   Serial.print( value_x & 0xff, BYTE );        // send second part
-  
+  */
   Serial.print( value_y & 0xff, BYTE );        // send second part
   Serial.print( (value_y >> 8) & 0xff, BYTE ); // send first part
-//  Serial.print( value_y & 0xff, BYTE );        // send second part
+*///  Serial.print( value_y & 0xff, BYTE );        // send second part
   //Serial.print("value_y");
-  //Serial.print(value_y);
+  //Serial.println(value_y);
 }
 
 void encoder_tick()
@@ -212,8 +218,8 @@ void loop()
     int tmpEncoderCount = encoder_counter;	// save encoder value
     encoder_counter = 0;
     cummulative_count += tmpEncoderCount;
-
-    writeOscilloscope(tmpEncoderCount, (int)currentAngle); //send for visual output
+    // rescale the angle by 90/145; multiply by 10 for extra decimal precision
+    writeOscilloscope(tmpEncoderCount, (int)(currentAngle*10*90/145)); //send for visual output
     Input =  (double)tmpEncoderCount;
     pid_dist.Compute(); //give the PID the opportunity to compute if needed
   
@@ -228,6 +234,8 @@ void loop()
   static unsigned char lastDirFwd = 1;
   static unsigned char driveMotorState = STATE_NORMAL;
   static unsigned long waitTime = 0; 
+  
+  
   
   // Refresh drive motor values, handling the drive motor braking behavior
   // Need to reverse right after driving forward:
