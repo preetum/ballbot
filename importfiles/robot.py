@@ -51,6 +51,7 @@ class Robot:
     self.reset()
 
   def reset(self):
+    print "resetting"
     self.set_steering(0)
     self.set_drive(0)
     self.send_arduino_packet()

@@ -1,6 +1,7 @@
 #include <Servo.h>
 #include "packet.h"
 #include <PID_Beta6.h>  // PID library
+#include <MsTimer2.h>
 
 #define SERVO_LEFT   60
 #define SERVO_CENTER 100
@@ -35,11 +36,13 @@ Packet packet;
 
 
 //--------------- Gyro declerations -------------------------
-int gyroPin = 0;               //Gyro is connected to analog pin 0
+int gyroPin = 0;                 //Gyro is connected to analog pin 0
 float gyroVoltage = 3.3;         //Gyro is running at 3.3V
-float gyroZeroVoltage = 1.211;   //Gyro is zeroed at 1.23V - given in the datasheet
-float gyroSensitivity = .00609;  //Our example gyro is 7mV/deg/se
-float rotationThreshold = 7.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
+
+float gyroZeroVoltage = 1.215;   //Gyro is zeroed at 1.23V - given in the datasheet
+float gyroSensitivity = .01;     // Gyro senstivity for 4 times amplified output is 10mV/deg/sec
+
+float rotationThreshold = 2.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
 
 
@@ -64,23 +67,20 @@ Setpoint =  (long) (((vel_m*3.2808399*2.48) - 1.61)*2.89435601);   //vel_m is sp
 }
 
 // Write (encodercount, currentangle) to the serial port. This is actually (distance,dtheta) from last sample
+
 void writeOscilloscope(int value_x, int value_y) {
   
- Serial.print( 0xff);                // send init byte
-  Serial.print( (value_x >> 8) & 0xff); // send first part
-  Serial.print( value_x & 0xff);        // send second part
-  /*
-  Serial.print( (value_y >> 8) & 0xff); // send first part
-  Serial.print( value_y & 0xff );        // send second part*/
- /* Serial.print( 0xff, BYTE );                // send init byte
-  Serial.print( (value_x >> 8) & 0xff, BYTE ); // send first part
-  Serial.print( value_x & 0xff, BYTE );        // send second part
-  */
+  Serial.print(0xff,BYTE);                // send init byte
+
+  Serial.print( (value_x >> 8) & 0xff,BYTE); // send first part
+  Serial.print( value_x & 0xff,BYTE);        // send second part
+
   Serial.print( value_y & 0xff, BYTE );        // send second part
   Serial.print( (value_y >> 8) & 0xff, BYTE ); // send first part
-*///  Serial.print( value_y & 0xff, BYTE );        // send second part
+  
   //Serial.print("value_y");
   //Serial.println(value_y);
+
 }
 
 void encoder_tick()
@@ -166,7 +166,24 @@ break;
     }
 }
 
+
+void angle_update()
+{
+  // read from Gyro and find the current angle of the car
+    float gyroRate = (analogRead(gyroPin) * gyroVoltage) / 1024;
+    gyroRate -= gyroZeroVoltage;
+    gyroRate /= gyroSensitivity;
+
+   if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
+      gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
+      currentAngle += gyroRate;
+    }
+}
+
+
 void setup() {
+  
+  
   // Initialize servo objects
   steering.attach(4);
   motor.attach(5);
@@ -189,7 +206,13 @@ void setup() {
   pid_dist.SetSampleTime(100); //delay in the loop
   
   Serial.begin(115200);
+  
+  //Initialize interrupt timer2 - for gyro update
+  MsTimer2::set(100, angle_update); // 100ms period
+  MsTimer2::start();
 }
+
+
 
 void loop() 
 {
@@ -197,30 +220,19 @@ void loop()
   long curTime;
 
   // Run PID loop and output odometry every 100ms
-  curTime = millis();
-  if (curTime >= pidLoopCount) {
-    pidLoopCount = curTime + 100;
-
-    // read from Gyro and find the current angle of the car
-    float gyroRate = (analogRead(gyroPin) * gyroVoltage) / 1024;
-    gyroRate -= gyroZeroVoltage;
-    gyroRate /= gyroSensitivity;
-
-   if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
-      gyroRate /= 10;
-      currentAngle += gyroRate;
-    }
-
+ 	// curTime = millis();
+	//  if (curTime >= pidLoopCount) {
+   	//	pidLoopCount = curTime +100;
+    delay(100);
     int tmpEncoderCount = encoder_counter;	// save encoder value
     encoder_counter = 0;
     cummulative_count += tmpEncoderCount;
-    // rescale the angle by 90/145; multiply by 10 for extra decimal precision
-    writeOscilloscope(tmpEncoderCount, (int)(currentAngle*10*90/145)); //send for visual output
+    
+    writeOscilloscope(tmpEncoderCount, (int) currentAngle); //send for visual output
     Input =  (double)tmpEncoderCount;
     pid_dist.Compute(); //give the PID the opportunity to compute if needed
-  
     setDriveMotor(MOTOR_NEUTRAL - Output*180/1024);
-  }
+  //}
     
   // Check the serial port for new command byte
   if (Serial.available())
