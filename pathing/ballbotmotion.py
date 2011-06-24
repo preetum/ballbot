@@ -355,14 +355,14 @@ class Ballbot(Robot):
                 self.distancetravelled = self.distancetravelled + distance
                 self.tickssofar = self.tickssofar + ticks
 
-                if(encoderticks_to_distance(self.tickssofar) < d):
-                    if(started == 0):
-                        started = 1     
-                        self.turnRight()
-            	else:
-                    self.Stop()
-                    print "stopping"
-                    break
+            if(encoderticks_to_distance(self.tickssofar) < d):
+                if(started == 0):
+                    started = 1     
+                    self.turnRight()
+            else:
+                self.Stop()
+                print "stopping"
+                break
 	
 
     def drive_dubins(self,canvas):
