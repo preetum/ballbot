@@ -27,7 +27,7 @@ groundspeed = 0.0348
 curve_number = -1
 CHANNEL_DRIVE  = 1
 CHANNEL_STEER  = 0
-ROBOT_RADIUS   = 61.0  #in cm
+ROBOT_RADIUS   = 69.6  #in cm
 ROBOT_SPEED    = 38.0  #in cm/s
 			 
 def fmodr(x,y):
@@ -320,45 +320,49 @@ class Ballbot(Robot):
 	self.initangle = 0
 	initangle_registered = 0
 	started = 0
+
         while(1):
-            serialIn = self.serial.read()
+        
+            serialIn = self.serial.read();      
             if(ord(serialIn) == 0xff): # initial byte for sensor data from arduino
+                
                 ticks = (ord(self.serial.read()) << 8) | ord(self.serial.read())
-		distance = encoderticks_to_distance(ticks)
+                distance = encoderticks_to_distance(ticks)
                 #distance = (ord(self.serial.read()) << 8) | ord(self.serial.read());
                 angle = self.serial.read(2)
                 angle = struct.unpack("<h",angle)
                 angle = angle[0]
 
-                #angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
-
-		print "ticks so far",self.tickssofar,"distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+                        #angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
                 
-	
-                # update position based on sensor readings
+                print "ticks so far",self.tickssofar,"distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+                
+        
+                        # update position based on sensor readings
                 y = self.position[1] + distance*math.cos(math.radians(angle));
                 x = self.position[0] + distance*math.sin(math.radians(angle));
                 theta = self.position[2] - math.radians(angle)
-
+                
                 if(theta < 0):
                     theta = theta + 2*math.pi
                 elif(theta > 2*math.pi):
                     theta = theta - 2*math.pi
+                    
                 self.position = (x,y,theta)
                 
                 # draw position on canvas
                 drawpoint(canvas,self.position)
                 self.distancetravelled = self.distancetravelled + distance
-            	self.tickssofar = self.tickssofar + ticks
+                self.tickssofar = self.tickssofar + ticks
 
-            if(encoderticks_to_distance(self.tickssofar) < d):
-                if(started == 0):
-		    started = 1	
-                    self.turnRight()
-            else:
-                self.Stop()
-		print "stopping"
-                break
+                if(encoderticks_to_distance(self.tickssofar) < d):
+                    if(started == 0):
+                        started = 1     
+                        self.turnRight()
+            	else:
+                    self.Stop()
+                    print "stopping"
+                    break
 	
 
     def drive_dubins(self,canvas):
@@ -454,20 +458,20 @@ class Ballbot(Robot):
     def driveStraight(self):
         # drive Robot straight at speed = 100cm/s)
 	self.set_steering(0)
-        self.set_velocity(100)
+        self.set_velocity(250)
 	#print "driving straight"
 	self.send_arduino_packet()
 
     def turnRight(self):
         # turn Robot to the right at steering = 40 degrees (radius of turn = 58.4 cm). Drive speed = 100 cm/s
         self.set_steering(40)
-	self.set_velocity(100)
+	self.set_velocity(250)
 	self.send_arduino_packet()
 
     def turnLeft(self):
         # turn Robot to the left at steering = -40 (radius of turn = 58.4 cm). Drive speed = 100 cm/s
         self.set_steering(-40)
-	self.set_velocity(100)
+	self.set_velocity(250)
 	self.send_arduino_packet()
  
     def Stop(self):
