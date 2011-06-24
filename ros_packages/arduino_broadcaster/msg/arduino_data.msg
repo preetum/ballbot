@@ -1,0 +1,2 @@
+int ticks
+int angle
