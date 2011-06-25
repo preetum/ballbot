@@ -3,14 +3,15 @@
 import roslib; roslib.load_manifest('cmd_vel_simulator')
 import rospy
 #from geometry_msgs.msg import Twist
-from goal_msg.msg import goal_msg
+from cmd_vel_simulator.msg import goal_msg
 
 def talker():
     pub = rospy.Publisher('goal', goal_msg)
     rospy.init_node('talker_simu_goal')
     #t = Twist()
-    pub.publish(100,0,1)
-
+    pub.publish(100,0,2)
+    rospy.loginfo("sent goal")
+    rospy.spin()
     """
     while not rospy.is_shutdown():
         

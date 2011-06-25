@@ -32,15 +32,15 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/karts/Ballbot/ballbot/ros_packages/ros_to_arduino_control
+CMAKE_SOURCE_DIR = /home/karthik/ballbotcode/ballbot/ros_packages/ros_to_arduino_control
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/karts/Ballbot/ballbot/ros_packages/ros_to_arduino_control/build
+CMAKE_BINARY_DIR = /home/karthik/ballbotcode/ballbot/ros_packages/ros_to_arduino_control/build
 
 # Utility rule file for clean-test-results.
 
 CMakeFiles/clean-test-results:
-	if ! rm -rf /home/karts/.ros/test_results/ros_to_arduino_control; then echo WARNING:\ failed\ to\ remove\ test-results\ directory ; fi
+	if ! rm -rf /home/karthik/.ros/test_results/ros_to_arduino_control; then echo WARNING:\ failed\ to\ remove\ test-results\ directory ; fi
 
 clean-test-results: CMakeFiles/clean-test-results
 clean-test-results: CMakeFiles/clean-test-results.dir/build.make
@@ -55,6 +55,6 @@ CMakeFiles/clean-test-results.dir/clean:
 .PHONY : CMakeFiles/clean-test-results.dir/clean
 
 CMakeFiles/clean-test-results.dir/depend:
-	cd /home/karts/Ballbot/ballbot/ros_packages/ros_to_arduino_control/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/karts/Ballbot/ballbot/ros_packages/ros_to_arduino_control /home/karts/Ballbot/ballbot/ros_packages/ros_to_arduino_control /home/karts/Ballbot/ballbot/ros_packages/ros_to_arduino_control/build /home/karts/Ballbot/ballbot/ros_packages/ros_to_arduino_control/build /home/karts/Ballbot/ballbot/ros_packages/ros_to_arduino_control/build/CMakeFiles/clean-test-results.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/karthik/ballbotcode/ballbot/ros_packages/ros_to_arduino_control/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/karthik/ballbotcode/ballbot/ros_packages/ros_to_arduino_control /home/karthik/ballbotcode/ballbot/ros_packages/ros_to_arduino_control /home/karthik/ballbotcode/ballbot/ros_packages/ros_to_arduino_control/build /home/karthik/ballbotcode/ballbot/ros_packages/ros_to_arduino_control/build /home/karthik/ballbotcode/ballbot/ros_packages/ros_to_arduino_control/build/CMakeFiles/clean-test-results.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/clean-test-results.dir/depend
 

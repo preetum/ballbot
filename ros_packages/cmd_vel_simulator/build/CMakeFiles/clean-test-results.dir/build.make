@@ -32,15 +32,15 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/ankush/ros_tutorials/cmd_vel_simulator
+CMAKE_SOURCE_DIR = /home/karthik/ballbotcode/ballbot/ros_packages/cmd_vel_simulator
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/ankush/ros_tutorials/cmd_vel_simulator/build
+CMAKE_BINARY_DIR = /home/karthik/ballbotcode/ballbot/ros_packages/cmd_vel_simulator/build
 
 # Utility rule file for clean-test-results.
 
 CMakeFiles/clean-test-results:
-	if ! rm -rf /home/ankush/.ros/test_results/cmd_vel_simulator; then echo WARNING:\ failed\ to\ remove\ test-results\ directory ; fi
+	if ! rm -rf /home/karthik/.ros/test_results/cmd_vel_simulator; then echo WARNING:\ failed\ to\ remove\ test-results\ directory ; fi
 
 clean-test-results: CMakeFiles/clean-test-results
 clean-test-results: CMakeFiles/clean-test-results.dir/build.make
@@ -55,6 +55,6 @@ CMakeFiles/clean-test-results.dir/clean:
 .PHONY : CMakeFiles/clean-test-results.dir/clean
 
 CMakeFiles/clean-test-results.dir/depend:
-	cd /home/ankush/ros_tutorials/cmd_vel_simulator/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ankush/ros_tutorials/cmd_vel_simulator /home/ankush/ros_tutorials/cmd_vel_simulator /home/ankush/ros_tutorials/cmd_vel_simulator/build /home/ankush/ros_tutorials/cmd_vel_simulator/build /home/ankush/ros_tutorials/cmd_vel_simulator/build/CMakeFiles/clean-test-results.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/karthik/ballbotcode/ballbot/ros_packages/cmd_vel_simulator/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/karthik/ballbotcode/ballbot/ros_packages/cmd_vel_simulator /home/karthik/ballbotcode/ballbot/ros_packages/cmd_vel_simulator /home/karthik/ballbotcode/ballbot/ros_packages/cmd_vel_simulator/build /home/karthik/ballbotcode/ballbot/ros_packages/cmd_vel_simulator/build /home/karthik/ballbotcode/ballbot/ros_packages/cmd_vel_simulator/build/CMakeFiles/clean-test-results.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/clean-test-results.dir/depend
 

@@ -9,7 +9,8 @@ import roslib; roslib.load_manifest('navigation')
 import rospy
 import math
 from odom_xytheta.msg import odom_data
-
+from navigation.msg import goal_msg
+from ros_to_arduino_control.msg import drive_cmd
 
 ROBOT_RADIUS   = 69.6  #in cm
 ROBOT_SPEED    = 150.0  #in cm/s
@@ -127,6 +128,7 @@ def dubins(alpha,beta,d):
 
 def plan(data):
     # read goal info from data
+    rospy.loginfo("received goal")
     cmd_distance = data.d
     theta = data.th
     cmd = data.opt
@@ -227,10 +229,11 @@ def readgoal():
     with goal_msg.d = distance to goal (cm)
     goal_msg.th = angle to goal [-90,90] degrees
     """
-    rospy.init_node('goal_listener',anonymous=True)
+    #rospy.init_node('goal_listener',anonymous=True)
     rospy.Subscriber("goal",goal_msg,plan) # call plan with data = goal_msg when a goal is seen on the "goal" topic
     rospy.spin()
     
 if __name__ == '__main__':
+    rospy.init_node('planner',anonymous = True)
     pub.publish(0,0)
     readgoal()

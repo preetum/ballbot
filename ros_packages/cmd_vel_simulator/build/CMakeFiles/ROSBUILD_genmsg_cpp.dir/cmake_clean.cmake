@@ -3,6 +3,7 @@ FILE(REMOVE_RECURSE
   "../src/cmd_vel_simulator/msg"
   "../msg_gen"
   "CMakeFiles/ROSBUILD_genmsg_cpp"
+  "../msg_gen/cpp/include/cmd_vel_simulator/goal_msg.h"
   "../msg_gen/cpp/include/cmd_vel_simulator/drive_cmd.h"
 )
 
