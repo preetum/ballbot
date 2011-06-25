@@ -21,7 +21,13 @@ def arduino_talker():
             tcks = (ord(ser.read()) << 8) | ord(ser.read())  
             agl = ser.read(2)
             agl = struct.unpack("<h",agl)
-            angle = agl[0]
+
+            if agl[0]>=360:
+                angle = agl[0]%360
+            elif agl[0] <= 0:
+                angle = ((agl[0]%360) - 360)
+            else:
+                angle = agl[0]
             
             x += tcks*math.sin(agl[0])*100/75  # the 100/75 is the scaling factor for ticks->cm
             y += tcks*math.cos(agl[0])*100/75 
