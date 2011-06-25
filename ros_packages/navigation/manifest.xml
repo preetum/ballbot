@@ -1,0 +1,18 @@
+<package>
+  <description brief="Navigation">
+
+     Navigation
+
+  </description>
+  <author>DELL</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/Navigation</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="tf"/>
+  <depend package="odomxytheta"/>
+
+</package>
+
+
