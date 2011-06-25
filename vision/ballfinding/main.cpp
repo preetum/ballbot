@@ -113,13 +113,13 @@ void process(Mat &img, Mat& out)
   }
 
   if (largest != NULL) {
-
     // Distance to target
     double theta = (double)(largest->centroid.y - frame_height/2)
       * RADIANS_PER_PX,
       y = camera_height / tan(theta + camera_angle);
     // Angle/X offset to target
-    double phi = (double)(frame_width/2 - largest->centroid.x) * RADIANS_PER_PX,
+    double phi = (double)(frame_width/2 - largest->centroid.x)
+      * RADIANS_PER_PX,
       x = -y * tan(phi);
     
     printf("Ball at x,y = %.2f, %.2f cm\n", x, y);
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
     webcam_device = c_open_device(webcam_name);
     CControlValue control_value = {CC_TYPE_BYTE, {1}};
     c_set_control(webcam_device, CC_PAN_RESET, &control_value);
-    sleep(2);
+    sleep(3);
     c_set_control(webcam_device, CC_TILT_RESET, &control_value);
     sleep(1);
     control_value.type = CC_TYPE_WORD;
