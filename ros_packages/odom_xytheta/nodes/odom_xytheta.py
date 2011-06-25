@@ -13,6 +13,7 @@ def arduino_talker():
     x = 0
     y = 0
     angle = 0
+    dist = 0
     ser = serial.Serial("/dev/ttyUSB0", 115200)
     
     while not rospy.is_shutdown():
@@ -31,8 +32,8 @@ def arduino_talker():
             
             x += tcks*math.sin(agl[0])*100/75  # the 100/75 is the scaling factor for ticks->cm
             y += tcks*math.cos(agl[0])*100/75 
-           
-            pub.publish(x,y,angle)
+            dist = tcks*100/75
+            pub.publish(x,y,dist,angle)
             # x,y in cm | angle in degrees
 
 
