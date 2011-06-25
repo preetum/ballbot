@@ -17,6 +17,11 @@ using namespace cvb;
 
 #define RADIANS_PER_PX (0.0016)
 
+int frame_width = 320,
+  frame_height = 240;
+double camera_height = 33.5, // in cm
+  camera_angle = 0.349; // in radians
+
 bool display = false,
   verbose = false;
 
@@ -91,12 +96,35 @@ void process(Mat &img, Mat& out)
   cvReleaseImage(&labelImg);
   print_time("find blobs");
 
+
+  CvBlob *largest = NULL;
   // Print blobs
+  // Find largest blob
   for (CvBlobs::const_iterator it=blobs.begin(); it!=blobs.end(); ++it) {
-    cout << "Blob #" << it->second->label;
-    cout << ": Area=" << it->second->area;
-    cout << ", Centroid=(" << it->second->centroid.x <<
-      ", " << it->second->centroid.y << ")" << endl;
+    if (verbose) {
+      cout << "Blob #" << it->second->label;
+      cout << ": Area=" << it->second->area;
+      cout << ", Centroid=(" << it->second->centroid.x <<
+	", " << it->second->centroid.y << ")" << endl;
+    }
+
+    if (largest == NULL || it->second->area > largest->area)
+      largest = it->second;
+  }
+
+  if (largest != NULL) {
+
+    // Distance to target
+    double theta = (double)(largest->centroid.y - frame_height/2)
+      * RADIANS_PER_PX,
+      y = camera_height / tan(theta + camera_angle);
+    // Angle/X offset to target
+    double phi = (double)(frame_width/2 - largest->centroid.x) * RADIANS_PER_PX,
+      x = -y * tan(phi);
+    
+    printf("Ball at x,y = %.2f, %.2f cm\n", x, y);
+  } else {
+    printf("No ball found\n");
   }
 
   out = mask;
