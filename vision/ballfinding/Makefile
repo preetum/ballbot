@@ -1,7 +1,7 @@
 CC = g++
 CFLAGS = -I/usr/local/include/opencv
-CFLAGS += -g -Wall
-LDFLAGS = -lopencv_core -lopencv_imgproc -lopencv_highgui 
+CFLAGS += -g -Wall -O
+LDFLAGS = -lopencv_core -lopencv_imgproc -lopencv_highgui -lwebcam
 LDFLAGS += `pkg-config cvblob --libs`
 SOURCES = main.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
