@@ -1,4 +1,7 @@
 FILE(REMOVE_RECURSE
+  "../msg_gen"
+  "../src/cmd_vel_simulator/msg"
+  "../msg_gen"
   "CMakeFiles/test-results-run"
 )
 
