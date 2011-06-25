@@ -3,6 +3,8 @@
           X
           Y-VAL
           Y
+          DIST-VAL
+          DIST
           ANGLE-VAL
           ANGLE
 ))

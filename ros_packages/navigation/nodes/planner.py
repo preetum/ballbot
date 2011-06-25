@@ -5,7 +5,7 @@ No obstacles, dubins curve based planner
 """
 
 
-import roslib; roslib.load_manifest('odom_xytheta')
+import roslib; roslib.load_manifest('navigation')
 import rospy
 import math
 from odom_xytheta.msg import odom_data

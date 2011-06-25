@@ -32,10 +32,10 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/ankush/ros_tutorials/odom_xytheta
+CMAKE_SOURCE_DIR = /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/ankush/ros_tutorials/odom_xytheta/build
+CMAKE_BINARY_DIR = /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta/build
 
 # Utility rule file for rosbuild_precompile.
 
@@ -54,6 +54,6 @@ CMakeFiles/rosbuild_precompile.dir/clean:
 .PHONY : CMakeFiles/rosbuild_precompile.dir/clean
 
 CMakeFiles/rosbuild_precompile.dir/depend:
-	cd /home/ankush/ros_tutorials/odom_xytheta/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ankush/ros_tutorials/odom_xytheta /home/ankush/ros_tutorials/odom_xytheta /home/ankush/ros_tutorials/odom_xytheta/build /home/ankush/ros_tutorials/odom_xytheta/build /home/ankush/ros_tutorials/odom_xytheta/build/CMakeFiles/rosbuild_precompile.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta/build /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta/build /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta/build/CMakeFiles/rosbuild_precompile.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/rosbuild_precompile.dir/depend
 

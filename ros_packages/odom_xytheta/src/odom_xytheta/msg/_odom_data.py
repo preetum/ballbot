@@ -4,15 +4,16 @@ import struct
 
 
 class odom_data(roslib.message.Message):
-  _md5sum = "74648301fd514bb2e89c9793dd81e57b"
+  _md5sum = "eb075f195d7b4ffca1d8fa2c45908892"
   _type = "odom_xytheta/odom_data"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """float32 x
 float32 y
+float32 dist
 int16 angle
 """
-  __slots__ = ['x','y','angle']
-  _slot_types = ['float32','float32','int16']
+  __slots__ = ['x','y','dist','angle']
+  _slot_types = ['float32','float32','float32','int16']
 
   def __init__(self, *args, **kwds):
     """
@@ -22,7 +23,7 @@ int16 angle
     changes.  You cannot mix in-order arguments and keyword arguments.
     
     The available fields are:
-       x,y,angle
+       x,y,dist,angle
     
     @param args: complete set of field values, in .msg order
     @param kwds: use keyword arguments corresponding to message field names
@@ -35,11 +36,14 @@ int16 angle
         self.x = 0.
       if self.y is None:
         self.y = 0.
+      if self.dist is None:
+        self.dist = 0.
       if self.angle is None:
         self.angle = 0
     else:
       self.x = 0.
       self.y = 0.
+      self.dist = 0.
       self.angle = 0
 
   def _get_types(self):
@@ -56,7 +60,7 @@ int16 angle
     """
     try:
       _x = self
-      buff.write(_struct_2fh.pack(_x.x, _x.y, _x.angle))
+      buff.write(_struct_3fh.pack(_x.x, _x.y, _x.dist, _x.angle))
     except struct.error, se: self._check_types(se)
     except TypeError, te: self._check_types(te)
 
@@ -70,8 +74,8 @@ int16 angle
       end = 0
       _x = self
       start = end
-      end += 10
-      (_x.x, _x.y, _x.angle,) = _struct_2fh.unpack(str[start:end])
+      end += 14
+      (_x.x, _x.y, _x.dist, _x.angle,) = _struct_3fh.unpack(str[start:end])
       return self
     except struct.error, e:
       raise roslib.message.DeserializationError(e) #most likely buffer underfill
@@ -87,7 +91,7 @@ int16 angle
     """
     try:
       _x = self
-      buff.write(_struct_2fh.pack(_x.x, _x.y, _x.angle))
+      buff.write(_struct_3fh.pack(_x.x, _x.y, _x.dist, _x.angle))
     except struct.error, se: self._check_types(se)
     except TypeError, te: self._check_types(te)
 
@@ -103,11 +107,11 @@ int16 angle
       end = 0
       _x = self
       start = end
-      end += 10
-      (_x.x, _x.y, _x.angle,) = _struct_2fh.unpack(str[start:end])
+      end += 14
+      (_x.x, _x.y, _x.dist, _x.angle,) = _struct_3fh.unpack(str[start:end])
       return self
     except struct.error, e:
       raise roslib.message.DeserializationError(e) #most likely buffer underfill
 
 _struct_I = roslib.message.struct_I
-_struct_2fh = struct.Struct("<2fh")
+_struct_3fh = struct.Struct("<3fh")

@@ -3,12 +3,15 @@
 import roslib; roslib.load_manifest('cmd_vel_simulator')
 import rospy
 #from geometry_msgs.msg import Twist
-from cmd_vel_simulator.msg import drive_cmd
+from goal_msg.msg import goal_msg
 
 def talker():
-    pub = rospy.Publisher('vel_cmd', drive_cmd)
-    rospy.init_node('talker_simu_cmd_vel')
+    pub = rospy.Publisher('goal', goal_msg)
+    rospy.init_node('talker_simu_goal')
     #t = Twist()
+    pub.publish(100,0,1)
+
+    """
     while not rospy.is_shutdown():
         
         '''
@@ -24,7 +27,7 @@ def talker():
 
         pub.publish(drv_speed,steer)
         rospy.sleep(1.0)
-
+      """
 if __name__ == '__main__':
     try:
         talker()

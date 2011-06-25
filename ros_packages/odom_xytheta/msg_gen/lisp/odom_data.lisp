@@ -17,6 +17,11 @@
     :initarg :y
     :type cl:float
     :initform 0.0)
+   (dist
+    :reader dist
+    :initarg :dist
+    :type cl:float
+    :initform 0.0)
    (angle
     :reader angle
     :initarg :angle
@@ -42,6 +47,11 @@
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader odom_xytheta-msg:y-val is deprecated.  Use odom_xytheta-msg:y instead.")
   (y m))
 
+(cl:ensure-generic-function 'dist-val :lambda-list '(m))
+(cl:defmethod dist-val ((m <odom_data>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader odom_xytheta-msg:dist-val is deprecated.  Use odom_xytheta-msg:dist instead.")
+  (dist m))
+
 (cl:ensure-generic-function 'angle-val :lambda-list '(m))
 (cl:defmethod angle-val ((m <odom_data>))
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader odom_xytheta-msg:angle-val is deprecated.  Use odom_xytheta-msg:angle instead.")
@@ -54,6 +64,11 @@
     (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream))
   (cl:let ((bits (roslisp-utils:encode-single-float-bits (cl:slot-value msg 'y))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream))
+  (cl:let ((bits (roslisp-utils:encode-single-float-bits (cl:slot-value msg 'dist))))
     (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
@@ -77,6 +92,12 @@
       (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
     (cl:setf (cl:slot-value msg 'y) (roslisp-utils:decode-single-float-bits bits)))
+    (cl:let ((bits 0))
+      (cl:setf (cl:ldb (cl:byte 8 0) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 8) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
+    (cl:setf (cl:slot-value msg 'dist) (roslisp-utils:decode-single-float-bits bits)))
     (cl:let ((unsigned 0))
       (cl:setf (cl:ldb (cl:byte 8 0) unsigned) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 8) unsigned) (cl:read-byte istream))
@@ -91,18 +112,19 @@
   "odom_xytheta/odom_data")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<odom_data>)))
   "Returns md5sum for a message object of type '<odom_data>"
-  "74648301fd514bb2e89c9793dd81e57b")
+  "eb075f195d7b4ffca1d8fa2c45908892")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'odom_data)))
   "Returns md5sum for a message object of type 'odom_data"
-  "74648301fd514bb2e89c9793dd81e57b")
+  "eb075f195d7b4ffca1d8fa2c45908892")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<odom_data>)))
   "Returns full string definition for message of type '<odom_data>"
-  (cl:format cl:nil "float32 x~%float32 y~%int16 angle~%~%"))
+  (cl:format cl:nil "float32 x~%float32 y~%float32 dist~%int16 angle~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'odom_data)))
   "Returns full string definition for message of type 'odom_data"
-  (cl:format cl:nil "float32 x~%float32 y~%int16 angle~%~%"))
+  (cl:format cl:nil "float32 x~%float32 y~%float32 dist~%int16 angle~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <odom_data>))
   (cl:+ 0
+     4
      4
      4
      2
@@ -112,5 +134,6 @@
   (cl:list 'odom_data
     (cl:cons ':x (x msg))
     (cl:cons ':y (y msg))
+    (cl:cons ':dist (dist msg))
     (cl:cons ':angle (angle msg))
 ))
