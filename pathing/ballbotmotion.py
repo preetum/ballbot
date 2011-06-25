@@ -322,47 +322,47 @@ class Ballbot(Robot):
 	started = 0
 
         while(1):
-	
-		serialIn = self.serial.read();	    
-        	if(ord(serialIn) == 0xff): # initial byte for sensor data from arduino
+        
+            serialIn = self.serial.read();      
+            if(ord(serialIn) == 0xff): # initial byte for sensor data from arduino
                 
-			ticks = (ord(self.serial.read()) << 8) | ord(self.serial.read())
-			distance = encoderticks_to_distance(ticks)
-              		  #distance = (ord(self.serial.read()) << 8) | ord(self.serial.read());
-               	        angle = self.serial.read(2)
-                	angle = struct.unpack("<h",angle)
-                	angle = angle[0]
+                ticks = (ord(self.serial.read()) << 8) | ord(self.serial.read())
+                distance = encoderticks_to_distance(ticks)
+                #distance = (ord(self.serial.read()) << 8) | ord(self.serial.read());
+                angle = self.serial.read(2)
+                angle = struct.unpack("<h",angle)
+                angle = angle[0]
 
-        	        #angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
-	
-			print "ticks so far",self.tickssofar,"distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
+                        #angle = float(angle)/10.0   # gyro sends angle*10, so we divide to get the actual angle
                 
-	
-               		# update position based on sensor readings
-              		y = self.position[1] + distance*math.cos(math.radians(angle));
-            		x = self.position[0] + distance*math.sin(math.radians(angle));
-            		theta = self.position[2] - math.radians(angle)
-
-                	if(theta < 0):
-                   		theta = theta + 2*math.pi
-                	elif(theta > 2*math.pi):
-                    		theta = theta - 2*math.pi
-               	
-	       		self.position = (x,y,theta)
+                print "ticks so far",self.tickssofar,"distance ",distance," angle ",angle," distance travelled ", self.distancetravelled, " goal ", d
                 
-                	# draw position on canvas
-                	drawpoint(canvas,self.position)
-                	self.distancetravelled = self.distancetravelled + distance
-            		self.tickssofar = self.tickssofar + ticks
+        
+                        # update position based on sensor readings
+                y = self.position[1] + distance*math.cos(math.radians(angle));
+                x = self.position[0] + distance*math.sin(math.radians(angle));
+                theta = self.position[2] - math.radians(angle)
+                
+                if(theta < 0):
+                    theta = theta + 2*math.pi
+                elif(theta > 2*math.pi):
+                    theta = theta - 2*math.pi
+                    
+                self.position = (x,y,theta)
+                
+                # draw position on canvas
+                drawpoint(canvas,self.position)
+                self.distancetravelled = self.distancetravelled + distance
+                self.tickssofar = self.tickssofar + ticks
 
-            	if(encoderticks_to_distance(self.tickssofar) < d):
-                	if(started == 0):
-		    		started = 1	
-                   	        self.turnRight()
-            	else:
-                	self.Stop()
-			print "stopping"
-                	break
+            if(encoderticks_to_distance(self.tickssofar) < d):
+                if(started == 0):
+                    started = 1     
+                    self.turnRight()
+            else:
+                self.Stop()
+                print "stopping"
+                break
 	
 
     def drive_dubins(self,canvas):
