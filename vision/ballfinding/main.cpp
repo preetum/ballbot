@@ -3,6 +3,9 @@
 #include <math.h>
 #include <sys/timeb.h>
 #include <iostream>
+#include <unistd.h>
+
+#include <webcam.h>
 
 #include <cvblob.h>
 #include <cv.h>
@@ -14,7 +17,29 @@ using namespace cvb;
 
 #define RADIANS_PER_PX (0.0016)
 
-bool display = true;
+bool display = false,
+  verbose = false;
+
+// Webcam control
+char *webcam_name = "/dev/video0";
+CHandle webcam_device;
+
+void print_time(string label)
+{
+  if (verbose) {
+    static struct timeb prev = {0,0};
+    struct timeb cur;
+    double diff = 0;
+    ftime(&cur);
+    if (prev.time) {
+      diff  =  cur.time    - prev.time;
+      diff += (cur.millitm - prev.millitm)/1000.0;
+    }
+    fprintf(stderr, "%30s  start = %d.%-3hu (+%5.3f)\n",
+	    label.c_str(), (int)cur.time, cur.millitm, diff);
+    prev = cur;
+  }
+}
 
 void open(InputArray src, OutputArray dst, InputArray element)
 {
@@ -28,47 +53,9 @@ void close(InputArray src, OutputArray dst, InputArray element)
   erode (src, dst, element);
 }
 
-bool getPixelCenter(IplImage *frame, IplImage *img,
-                    uint8_t threshold, int *x, int *y)
-{
-  int height, width, channels, pxPerRow;
-  uint8_t *data;
-  uint32_t xsum = 0, ysum = 0, count = 0;
-
-  height = frame->height;
-  width = frame->width;
-  pxPerRow = frame->widthStep;
-  channels = frame->nChannels;
-  data = (uint8_t*)frame->imageData;
-
-  for (int i = 0; i < height; i += 1)         // y-coordinate
-    for (int j = 0; j < width; j += 1) {    // x-coordinate
-      uint8_t* pixel = (uint8_t*)(data + i*pxPerRow + j*channels);
-
-      // Single channel
-      if (*pixel > threshold) {
-        // highlight in blue
-        uint8_t* imgPx = (uint8_t*)(img->imageData + img->widthStep*i + j*img->nChannels);
-        imgPx[0] = 0xFF;
-        imgPx[1] = imgPx[2] = 0;
-                                
-        xsum += j;
-        ysum += i;
-        count += 1;
-      }
-    }
-        
-  if (count > 0) {
-    *x = xsum/count;
-    *y = ysum/count;
-    return true;
-  }
-
-  return false;
-}
-
 void process(Mat &img, Mat& out)
 {
+  print_time("get frame");
   // Convert to HSV
   Size size = img.size();
   Mat hsv(size, CV_8UC3);
@@ -80,16 +67,19 @@ void process(Mat &img, Mat& out)
   Mat mask(size, CV_8UC1);
   inRange(hsv, Scalar(0.11*255, 0.3*255, 0.20*255, 0),
 	  Scalar(0.15*255, 1.00*255, 1.00*255, 0), mask);
+  print_time("convert to hsv & threshold");
 
-  if (display) imshow("mask", mask);
+  if (display) {
+    IplImage maskCopy = mask;
+    cvShowImage("mask", &maskCopy);
+  }
 
   // Clean up noise
   static Mat closeElement = getStructuringElement(MORPH_RECT, Size(21, 21));
   static Mat openElement = getStructuringElement(MORPH_RECT, Size(3, 3));
   open(mask, mask, openElement);
   close(mask, mask, closeElement);
-
-  out = mask;
+  print_time("morphological ops");
 
   // Find blobs
   CvBlobs blobs;
@@ -98,41 +88,42 @@ void process(Mat &img, Mat& out)
   IplImage *labelImg = cvCreateImage(size, IPL_DEPTH_LABEL, 1);
   cvLabel(&maskCopy, labelImg, blobs);
   cvRenderBlobs(labelImg, blobs, &imgCopy, &imgCopy);
+  cvReleaseImage(&labelImg);
+  print_time("find blobs");
+
+  // Print blobs
   for (CvBlobs::const_iterator it=blobs.begin(); it!=blobs.end(); ++it) {
     cout << "Blob #" << it->second->label;
     cout << ": Area=" << it->second->area;
     cout << ", Centroid=(" << it->second->centroid.x <<
       ", " << it->second->centroid.y << ")" << endl;
   }
-  cvReleaseImage(&labelImg);
 
-  /*
-  // Apply Gaussian blur
-  vector<Vec3f> circles;
-  GaussianBlur(mask, mask, Size(5, 5), 2);
-
-  // Detect circles using Hough transform
-  HoughCircles(mask, circles, CV_HOUGH_GRADIENT, 4, size.height/10, 100, 40, 0, 0);
-  for (uint i = 0; i < circles.size(); i += 1) {
-    Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
-    int radius = cvRound(circles[i][2]);
-    // draw the circle center
-    circle( img, center, 3, Scalar(0,255,0), -1, 8, 0 );
-    // draw the circle outline
-    circle( img, center, radius, Scalar(0,0,255), 3, 8, 0 );
-  }
-  */
-}
-
-void test_live(CvCapture *cam)
-{
-
+  out = mask;
 }
 
 int main(int argc, char **argv)
 {
   bool run = true;
   Mat frame, out;
+
+  // Parse command line args
+  int c;
+  while ((c = getopt(argc, argv, "c:dv")) != -1) {
+    switch (c) {
+    case 'c':
+      webcam_name = optarg;
+      break;
+    case 'd':
+      display = true;
+      break;
+    case 'v':
+      verbose = true;
+      break;
+    default:
+      return -1;
+    }
+  }
 
   // Create windows
   if (display) {
@@ -146,9 +137,13 @@ int main(int argc, char **argv)
     cvMoveWindow("out", 400, 350);
   }
 
-  if (argc > 1) {
-    // Use image file
-    frame = imread(argv[1]);
+  // Arguments remaining: load image file
+  if (optind < argc) {
+    frame = imread(argv[optind]);
+    if (frame.data == NULL) {
+      printf("could not open file: %s\n", argv[optind]);
+      return -1;
+    }
     resize(frame, frame, Size(640, 480));
     process(frame, out);
     if (display) {
@@ -156,12 +151,35 @@ int main(int argc, char **argv)
       imshow("out", out);
     }
     cvWaitKey(0);
-  } else {
+  }
+
+  // Use webcam
+  else {
     VideoCapture cam(0);
     if (!cam.isOpened()) {
-      printf("could not open camera\n");
+      fprintf(stderr, "could not open camera\n");
       return -1;
     }
+    cam.set(CV_CAP_PROP_FRAME_WIDTH, 320);
+    cam.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
+    printf("initialized camera\n");
+    cam >> frame;
+    printf("frame size: %dx%d channels: %d\n", frame.cols, frame.rows,
+	   frame.channels());
+
+    // Initialize webcam position
+    c_init();
+    printf("opening %s using libwebcam\n", webcam_name);
+    webcam_device = c_open_device(webcam_name);
+    CControlValue control_value = {CC_TYPE_BYTE, {1}};
+    c_set_control(webcam_device, CC_PAN_RESET, &control_value);
+    sleep(2);
+    c_set_control(webcam_device, CC_TILT_RESET, &control_value);
+    sleep(1);
+    control_value.type = CC_TYPE_WORD;
+    // Point webcam at 64*20 degrees down
+    control_value.value = 1280;
+    c_set_control(webcam_device, CC_TILT_RELATIVE, &control_value);
 
     while (run) {
       cam >> frame;
@@ -170,7 +188,7 @@ int main(int argc, char **argv)
         imshow("img", frame);
         imshow("out", out);
       }
-      if ((char)cvWaitKey(33) == 'q')
+      if ((char)cvWaitKey(10) == 'q')
         run = false;
     }
   }
