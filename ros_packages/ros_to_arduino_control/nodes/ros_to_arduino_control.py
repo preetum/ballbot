@@ -20,13 +20,14 @@ def callback(nav_velocity_msg): #this function is called when the listener catch
     drive_speed = ((vx**2)+(vy**2))**2  #drive_speed is in cm/s
     steer_angle = math.degrees(math.atan(vy/vx)) # steer_angle is in degrees
     '''
+    
     drv_spd = nav_velocity_msg.drive_speed
     str_agl = nav_velocity_msg.steer_angle
-
+    rospy.loginfo("speed %d angle %d",drv_spd,str_agl)
     robot.set_steering(str_agl)
     robot.set_velocity(drv_spd)
     robot.send_arduino_packet()
-
+    rospy.loginfo("sent speeds to arduino")
 
 def rosnav_listener():
     rospy.init_node('rosnav_listener',anonymous=False)

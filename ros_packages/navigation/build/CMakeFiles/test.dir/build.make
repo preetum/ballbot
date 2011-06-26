@@ -32,10 +32,10 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/karthik/ballbotcode/ballbot/ros_packages/navigation
+CMAKE_SOURCE_DIR = /home/karts/Ballbot/ballbot/ros_packages/navigation
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/karthik/ballbotcode/ballbot/ros_packages/navigation/build
+CMAKE_BINARY_DIR = /home/karts/Ballbot/ballbot/ros_packages/navigation/build
 
 # Utility rule file for test.
 
@@ -54,6 +54,6 @@ CMakeFiles/test.dir/clean:
 .PHONY : CMakeFiles/test.dir/clean
 
 CMakeFiles/test.dir/depend:
-	cd /home/karthik/ballbotcode/ballbot/ros_packages/navigation/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/karthik/ballbotcode/ballbot/ros_packages/navigation /home/karthik/ballbotcode/ballbot/ros_packages/navigation /home/karthik/ballbotcode/ballbot/ros_packages/navigation/build /home/karthik/ballbotcode/ballbot/ros_packages/navigation/build /home/karthik/ballbotcode/ballbot/ros_packages/navigation/build/CMakeFiles/test.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/karts/Ballbot/ballbot/ros_packages/navigation/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/karts/Ballbot/ballbot/ros_packages/navigation /home/karts/Ballbot/ballbot/ros_packages/navigation /home/karts/Ballbot/ballbot/ros_packages/navigation/build /home/karts/Ballbot/ballbot/ros_packages/navigation/build /home/karts/Ballbot/ballbot/ros_packages/navigation/build/CMakeFiles/test.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/test.dir/depend
 

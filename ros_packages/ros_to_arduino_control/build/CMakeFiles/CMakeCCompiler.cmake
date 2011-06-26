@@ -41,4 +41,4 @@ SET(CMAKE_C_HAS_ISYSROOT "")
 
 
 SET(CMAKE_C_IMPLICIT_LINK_LIBRARIES "c")
-SET(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "/usr/lib/gcc/arm-linux-gnueabi/4.4.5;/usr/lib")
+SET(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "/usr/lib/i386-linux-gnu/gcc/i686-linux-gnu/4.5.2;/usr/lib/i386-linux-gnu")

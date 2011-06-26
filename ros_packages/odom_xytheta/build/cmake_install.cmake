@@ -1,4 +1,4 @@
-# Install script for directory: /home/karthik/ballbotcode/ballbot/ros_packages/odom_xytheta
+# Install script for directory: /home/karts/Ballbot/ballbot/ros_packages/odom_xytheta
 
 # Set the install prefix
 IF(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -38,7 +38,7 @@ ELSE(CMAKE_INSTALL_COMPONENT)
   SET(CMAKE_INSTALL_MANIFEST "install_manifest.txt")
 ENDIF(CMAKE_INSTALL_COMPONENT)
 
-FILE(WRITE "/home/karthik/ballbotcode/ballbot/ros_packages/odom_xytheta/build/${CMAKE_INSTALL_MANIFEST}" "")
+FILE(WRITE "/home/karts/Ballbot/ballbot/ros_packages/odom_xytheta/build/${CMAKE_INSTALL_MANIFEST}" "")
 FOREACH(file ${CMAKE_INSTALL_MANIFEST_FILES})
-  FILE(APPEND "/home/karthik/ballbotcode/ballbot/ros_packages/odom_xytheta/build/${CMAKE_INSTALL_MANIFEST}" "${file}\n")
+  FILE(APPEND "/home/karts/Ballbot/ballbot/ros_packages/odom_xytheta/build/${CMAKE_INSTALL_MANIFEST}" "${file}\n")
 ENDFOREACH(file)
