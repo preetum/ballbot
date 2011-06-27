@@ -5,14 +5,15 @@ No obstacles, dubins curve based planner
 """
 
 
-import roslib; roslib.load_manifest('odom_xytheta')
+import roslib; roslib.load_manifest('navigation')
 import rospy
 import math
 from odom_xytheta.msg import odom_data
-
+from navigation.msg import goal_msg
+from ros_to_arduino_control.msg import drive_cmd
 
 ROBOT_RADIUS   = 69.6  #in cm
-ROBOT_SPEED    = 150.0  #in cm/s
+ROBOT_SPEED    = 100.0  #in cm/s
 
 # Globals
 curve_number = -1
@@ -20,12 +21,14 @@ Moves = [-1,-1,-1,-1]
 cmd_distance = 0
 pub = rospy.Publisher('vel_cmd', drive_cmd)
 
+robot_setpoint_steering = 0
+robot_setpoint_speed =  0
 
 def fmodr(x,y):
     return x - y*math.floor(x/y)
 
 def mod2pi(theta):
-    return fmodr(theta,2*math.pi)
+    return fmodr(theta,2*math.pi) 
 
 def dubins(alpha,beta,d):
     # find distance between start and end points
@@ -127,6 +130,8 @@ def dubins(alpha,beta,d):
 
 def plan(data):
     # read goal info from data
+    rospy.loginfo("received goal d = %d opt = %d ",data.d,data.opt)
+    global cmd_distance
     cmd_distance = data.d
     theta = data.th
     cmd = data.opt
@@ -156,8 +161,10 @@ def drive_straight(data):
 
 def drive_circle(data):
     if((data.dist) < cmd_distance):
+        rospy.loginfo("calling turnRight")
         turnRight()
     else:
+        rospy.loginfo("calling stop because d = %d and goal = %d",data.dist,cmd_distance)
         Stop()
 
 def drive_dubins(data):
@@ -196,27 +203,54 @@ def drive_dubins(data):
 
 
 def driveStraight():
-    pub.publish(ROBOT_SPEED,0)
+    global robot_setpoint_speed
+    global robot_setpoint_steering
+    if((robot_setpoint_steering == 0) and (robot_setpoint_speed == ROBOT_SPEED)):
+        return
+    else:
+        robot_setpoint_speed = ROBOT_SPEED
+        robot_setpoint_steering = 0
+        pub.publish(ROBOT_SPEED,0)
 
 def turnLeft():
-    pub.publish(ROBOT_SPEED,-40)
+    global robot_setpoint_speed
+    global robot_setpoint_steering
+    if((robot_setpoint_steering == -40) and (robot_setpoint_speed == ROBOT_SPEED)):
+        return
+    else:
+        robot_setpoint_speed = ROBOT_SPEED
+        robot_setpoint_steering = -40
+        pub.publish(ROBOT_SPEED,-40)
 
 def turnRight():
-    pub.publish(ROBOT_SPEED,40)
+    global robot_setpoint_speed
+    global robot_setpoint_steering
+    if((robot_setpoint_steering == 40) and (robot_setpoint_speed == ROBOT_SPEED)):
+        return
+    else:
+        robot_setpoint_speed = ROBOT_SPEED
+        robot_setpoint_steering = 40
+        pub.publish(ROBOT_SPEED,40)
 
 def Stop():
-    pub.publish(0,0)
-
+    global robot_setpoint_speed
+    global robot_setpoint_steering
+    if((robot_setpoint_steering == 0) and (robot_setpoint_speed == 0)):
+        return
+    else:
+        robot_setpoint_speed = 0
+        robot_setpoint_steering = 0
+        pub.publish(0,0)
 
 def listener(cmd):
-    rospy.init_node('planner', anonymous=True)
+    #rospy.init_node('planner', anonymous=True)
+    rospy.loginfo("in listener %d", cmd)
     if(cmd == 1):
         callback = drive_straight
     elif(cmd == 2):
         callback = drive_circle
     elif(cmd == 3):
         callback = drive_dubins
-
     rospy.Subscriber("odom", odom_data, callback)
     rospy.spin()    
 
@@ -227,10 +261,11 @@ def readgoal():
     with goal_msg.d = distance to goal (cm)
     goal_msg.th = angle to goal [-90,90] degrees
     """
-    rospy.init_node('goal_listener',anonymous=True)
+    #rospy.init_node('goal_listener',anonymous=True)
     rospy.Subscriber("goal",goal_msg,plan) # call plan with data = goal_msg when a goal is seen on the "goal" topic
     rospy.spin()
     
 if __name__ == '__main__':
+    rospy.init_node('planner',anonymous = True)
     pub.publish(0,0)
     readgoal()

@@ -46,7 +46,7 @@ float rotationThreshold = 2.0;   //Minimum deg/sec to keep track of - helps with
 //----------------------x-x-x---------------------------------
 
 
-long cummulative_count = 0;
+//long cummulative_count = 0;
 long distance_limit = 0;
 int vel_m = 0;
 
@@ -63,7 +63,17 @@ unsigned int driveMotorTarget = MOTOR_NEUTRAL;
 // fix the setpoint for PID control of speed
 void  set_speed(float vel_m)
 {
-Setpoint =  (long) (((vel_m*3.2808399*2.48) - 1.61)*2.89435601);   //vel_m is speed in meters/second, we convert it into feet/s->multiply by ticks/second and then scale the setpoint.
+long temp_Setpoint =  (long) (((vel_m*7.5) - 1.61)*2.89435601);
+
+if(temp_Setpoint <=0)
+     Setpoint = 0;
+else 
+     Setpoint  = temp_Setpoint;
+
+
+
+   //vel_m is speed in meters/second, we convert it into ticks/pd_loop_count and then compensate the offset by subtracting the intercept and multipying by slope inverse (1/m = 2.89435601) //assuming it takes 75 ticks for 100cm, then for 100cm/s => 10cm / 100milliseconds => 7.5 ticks/100milliseconds (100milliseconds is the time of pid_loop length aka. running time of one cycle of void_loop())
+
 }
 
 // Write (encodercount, currentangle) to the serial port. This is actually (distance,dtheta) from last sample
@@ -159,7 +169,7 @@ case CMD_VALUES: {
                     motorVal = packet.data[3] << 8 | packet.data[4];
                   
 steering.write(steerVal);
-set_speed(motorVal / 100.0);
+set_speed(motorVal / 100.0);  //we divide by 100 as motorval is intended speed in cm/s while set_speed takes it in m/s
 
 break;
         }
@@ -199,11 +209,11 @@ void setup() {
 
   // PID Stuff
   pid_dist.SetOutputLimits(0,150); //tell the PID the bounds on the output
-  pid_dist.SetInputLimits(0,60); //number of ticks in 150 milliseconds
+  pid_dist.SetInputLimits(0,60); //number of ticks in 100 milliseconds
   Output = 0;
   Setpoint = 0;
   pid_dist.SetMode(AUTO); //turn on the PID
-  pid_dist.SetSampleTime(100); //delay in the loop
+  pid_dist.SetSampleTime(10); //delay in the loop
   
   Serial.begin(115200);
   
@@ -223,10 +233,10 @@ void loop()
  	// curTime = millis();
 	//  if (curTime >= pidLoopCount) {
    	//	pidLoopCount = curTime +100;
-    delay(100);
+    delay(95);
     int tmpEncoderCount = encoder_counter;	// save encoder value
     encoder_counter = 0;
-    cummulative_count += tmpEncoderCount;
+    //cummulative_count += tmpEncoderCount;
     
     writeOscilloscope(tmpEncoderCount, (int) currentAngle); //send for visual output
     Input =  (double)tmpEncoderCount;

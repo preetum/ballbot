@@ -36,7 +36,10 @@ class Robot:
     try:
       self.serial = serial.Serial(port, baudrate=115200)
     except serial.serialutil.SerialException:
-      print "No Arduino connected."
+      try:
+        self.serial = serial.Serial('/dev/ttyUSB1',baudrate=115200)
+      except serial.serialutil.SerialException:
+        print "No Arduino connected."
     
     # Initialize Arduino command packet
     # Command packet format: 
