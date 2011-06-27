@@ -1,6 +1,6 @@
 // Based on http://www.linuxconfig.org/introduction-to-computer-vision-with-opencv-on-linux
 
-#include "highgui.h"
+#include <highgui.h>
 int main( int argc, char** argv ) {
   cvNamedWindow( "Example2", CV_WINDOW_AUTOSIZE );
 
