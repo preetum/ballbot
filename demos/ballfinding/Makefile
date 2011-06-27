@@ -1,5 +1,5 @@
-CFLAGS = -I/usr/local/include/opencv  -L/usr/local/lib -lcv -lhighgui 
-#CFLAGS += -I/home/ballbot/cvblobslib
+CFLAGS = -I/usr/local/include/opencv  -L/usr/local/lib -lopencv_core
+CFLAGS += -lopencv_highgui
 CFLAGS += -g -Wall
 
 SRCS = main.cpp
