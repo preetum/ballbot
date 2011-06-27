@@ -2,31 +2,35 @@
 #include <stdbool.h>
 #include <math.h>
 #include <sys/timeb.h>
-#include <iostream>
 #include <unistd.h>
 
 #include <webcam.h>
 
 #include <cvblob.h>
-#include <cv.h>
-#include <highgui.h>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 
-using namespace std;
+#include <ros/ros.h>
+#include "navigation/goal_msg.h"
+
 using namespace cv;
 using namespace cvb;
 
-#define RADIANS_PER_PX (0.0016)
+#define PI 3.14159265358979
 
 int frame_width = 320,
   frame_height = 240;
 double camera_height = 33.5, // in cm
-  camera_angle = 0.349; // in radians
+  camera_tilt_angle = 0.323, // in radians (20 deg - 1.5 deg tilt)
+  camera_pan_angle = 0.0723,
+  radians_per_px = 0.0032;
 
 bool display = false,
-  verbose = false;
+  verbose = false,
+  single = false;
 
 // Webcam control
-char *webcam_name = "/dev/video0";
+const char *webcam_name = "/dev/video0";
 CHandle webcam_device;
 
 void print_time(string label)
@@ -58,7 +62,7 @@ void close(InputArray src, OutputArray dst, InputArray element)
   erode (src, dst, element);
 }
 
-void process(Mat &img, Mat& out)
+CvBlob* find_ball(Mat &img, Mat& out)
 {
   print_time("get frame");
   // Convert to HSV
@@ -102,32 +106,20 @@ void process(Mat &img, Mat& out)
   // Find largest blob
   for (CvBlobs::const_iterator it=blobs.begin(); it!=blobs.end(); ++it) {
     if (verbose) {
-      cout << "Blob #" << it->second->label;
-      cout << ": Area=" << it->second->area;
-      cout << ", Centroid=(" << it->second->centroid.x <<
-	", " << it->second->centroid.y << ")" << endl;
+      ROS_INFO("Blob #%d: Area=%d, Centroid=(%f, %f)\n",
+	       it->second->label,
+	       it->second->area,
+	       it->second->centroid.x,
+	       it->second->centroid.y);
     }
 
     if (largest == NULL || it->second->area > largest->area)
       largest = it->second;
   }
 
-  if (largest != NULL) {
-    // Distance to target
-    double theta = (double)(largest->centroid.y - frame_height/2)
-      * RADIANS_PER_PX,
-      y = camera_height / tan(theta + camera_angle);
-    // Angle/X offset to target
-    double phi = (double)(frame_width/2 - largest->centroid.x)
-      * RADIANS_PER_PX,
-      x = -y * tan(phi);
-    
-    printf("Ball at x,y = %.2f, %.2f cm\n", x, y);
-  } else {
-    printf("No ball found\n");
-  }
-
+  // Output the final image as well as the largest blob found (may be NULL)
   out = mask;
+  return largest;
 }
 
 int main(int argc, char **argv)
@@ -135,18 +127,25 @@ int main(int argc, char **argv)
   bool run = true;
   Mat frame, out;
 
+  ros::init(argc, argv, "tracker");
+  ros::NodeHandle n;
+  ros::Publisher goal_pub = n.advertise<navigation::goal_msg>("goal", 100);
+
   // Parse command line args
   int c;
-  while ((c = getopt(argc, argv, "c:dv")) != -1) {
+  while ((c = getopt(argc, argv, "c:dv1")) != -1) {
     switch (c) {
-    case 'c':
+    case 'c':  // specify camera path
       webcam_name = optarg;
       break;
-    case 'd':
+    case 'd':  // turn on GUI display
       display = true;
       break;
-    case 'v':
+    case 'v':  // turn on verbose output
       verbose = true;
+      break;
+    case '1':  // output only one goal message
+      single = true;
       break;
     default:
       return -1;
@@ -173,7 +172,7 @@ int main(int argc, char **argv)
       return -1;
     }
     resize(frame, frame, Size(640, 480));
-    process(frame, out);
+    find_ball(frame, out);
     if (display) {
       imshow("img", frame);
       imshow("out", out);
@@ -209,15 +208,49 @@ int main(int argc, char **argv)
     control_value.value = 1280;
     c_set_control(webcam_device, CC_TILT_RELATIVE, &control_value);
 
-    while (run) {
+    while (run && ros::ok()) {
+
+      // Grab new frame
       cam >> frame;
-      process(frame, out);
+
+      // Find the largest blob
+      CvBlob *blob = find_ball(frame, out);
+
+      if (blob != NULL) {
+	// Distance to target
+	double theta = (double)(blob->centroid.y - frame_height/2)
+	  * radians_per_px,
+	  y = camera_height / tan(theta + camera_tilt_angle);
+	// Angle/X offset to target
+	double phi = (double)(blob->centroid.x - frame_width/2)
+	  * radians_per_px + camera_pan_angle,
+	  x = y * tan(phi);
+	double d = sqrt(x*x + y*y);
+	
+	ROS_INFO("Ball at r,theta = %.2f cm, %.2f deg\n", d, phi*180/PI);
+
+	// Publish goal message
+	navigation::goal_msg msg;
+	msg.d = d;
+	msg.th = phi;
+	goal_pub.publish(msg);
+      } else {
+	ROS_INFO("No ball found\n");
+      }
+
+      // Process ROS callbacks 'n stuff
+      ros::spinOnce();
+
       if (display) {
         imshow("img", frame);
         imshow("out", out);
       }
+
       if ((char)cvWaitKey(10) == 'q')
         run = false;
+
+      if (single)
+	run = false;
     }
   }
 }

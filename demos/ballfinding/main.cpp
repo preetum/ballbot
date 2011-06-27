@@ -3,7 +3,7 @@
 #include <err.h>
 #include <errno.h>
 #include <math.h>
-#include <X11/keysym.h>
+//#include <X11/keysym.h>
 #include <sys/timeb.h>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
@@ -257,7 +257,7 @@ void test_live(CvCapture *cam)
 		cvShowImage("img", img);
 		cvShowImage("out", out);
 #endif
-		if (cvWaitKey(23) == XK_q)
+		if ((char)cvWaitKey(23) == 'q')
 			return;
 		//cvReleaseImage(&img);
 		cvReleaseImage(&out);
