@@ -32,10 +32,10 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/karts/Ballbot/ballbot/ros_packages/navigation
+CMAKE_SOURCE_DIR = /home/ankush/ros_packages/navigation
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/karts/Ballbot/ballbot/ros_packages/navigation/build
+CMAKE_BINARY_DIR = /home/ankush/ros_packages/navigation/build
 
 # Utility rule file for ROSBUILD_gensrv_lisp.
 
@@ -54,6 +54,6 @@ CMakeFiles/ROSBUILD_gensrv_lisp.dir/clean:
 .PHONY : CMakeFiles/ROSBUILD_gensrv_lisp.dir/clean
 
 CMakeFiles/ROSBUILD_gensrv_lisp.dir/depend:
-	cd /home/karts/Ballbot/ballbot/ros_packages/navigation/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/karts/Ballbot/ballbot/ros_packages/navigation /home/karts/Ballbot/ballbot/ros_packages/navigation /home/karts/Ballbot/ballbot/ros_packages/navigation/build /home/karts/Ballbot/ballbot/ros_packages/navigation/build /home/karts/Ballbot/ballbot/ros_packages/navigation/build/CMakeFiles/ROSBUILD_gensrv_lisp.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/ankush/ros_packages/navigation/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ankush/ros_packages/navigation /home/ankush/ros_packages/navigation /home/ankush/ros_packages/navigation/build /home/ankush/ros_packages/navigation/build /home/ankush/ros_packages/navigation/build/CMakeFiles/ROSBUILD_gensrv_lisp.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/ROSBUILD_gensrv_lisp.dir/depend
 

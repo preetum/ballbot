@@ -36,10 +36,10 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/karts/Ballbot/ballbot/ros_packages/cmd_vel_simulator
+CMAKE_SOURCE_DIR = /home/ankush/ros_packages/cmd_vel_simulator
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/karts/Ballbot/ballbot/ros_packages/cmd_vel_simulator/build
+CMAKE_BINARY_DIR = /home/ankush/ros_packages/cmd_vel_simulator/build
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -66,9 +66,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/karts/Ballbot/ballbot/ros_packages/cmd_vel_simulator/build/CMakeFiles /home/karts/Ballbot/ballbot/ros_packages/cmd_vel_simulator/build/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/ankush/ros_packages/cmd_vel_simulator/build/CMakeFiles /home/ankush/ros_packages/cmd_vel_simulator/build/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/karts/Ballbot/ballbot/ros_packages/cmd_vel_simulator/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/ankush/ros_packages/cmd_vel_simulator/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target

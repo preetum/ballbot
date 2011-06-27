@@ -8,18 +8,21 @@ No obstacles, dubins curve based planner
 import roslib; roslib.load_manifest('navigation')
 import rospy
 import math
+import sys
 from odom_xytheta.msg import odom_data
 from navigation.msg import goal_msg
 from ros_to_arduino_control.msg import drive_cmd
 
 ROBOT_RADIUS   = 69.6  #in cm
-ROBOT_SPEED    = 100.0  #in cm/s
+ROBOT_SPEED    = 50.0  #in cm/s
 
 # Globals
 curve_number = -1
 Moves = [-1,-1,-1,-1]
 cmd_distance = 0
 pub = rospy.Publisher('vel_cmd', drive_cmd)
+first_loop = 1
+init_dist = 0
 
 robot_setpoint_steering = 0
 robot_setpoint_speed =  0
@@ -148,30 +151,46 @@ def plan(data):
         beta = 45
         # calculate dubins curves
         dubins(math.radians(alpha),math.radians(beta),cmd_distance)
-        path = return_path_dubins(Moves[0],Moves[1],Moves[2],Moves[3])
+        #path = return_path_dubins(Moves[0],Moves[1],Moves[2],Moves[3])
         #drawpath(canvas,path)
     
     listener(cmd)
 
 def drive_straight(data):
-    if((data.dist) < cmd_distance):
+    global first_loop, init_dist
+    if first_loop ==1:
+        init_dist = data.dist
+        first_loop = 0
+    if((data.dist - init_dist) < cmd_distance):
         driveStraight()
     else:
         Stop()
+        first_loop =1
 
 def drive_circle(data):
-    if((data.dist) < cmd_distance):
+    global first_loop,init_dist
+    if first_loop ==1:
+        init_dist = data.dist
+        first_loop = 0
+    if((data.dist - init_dist) < cmd_distance):
         rospy.loginfo("calling turnRight")
         turnRight()
     else:
         rospy.loginfo("calling stop because d = %d and goal = %d",data.dist,cmd_distance)
         Stop()
+        first_loop = 1
 
 def drive_dubins(data):
     """
     follow calculated dubins curve, stored in Moves[]            
     """
-    if((data.dist) < Moves[1]):
+    global first_loop, init_dist
+
+    if first_loop ==1:
+        init_dist = data.dist
+        first_loop = 0
+
+    if((data.dist - init_dist) < Moves[1]):
         if((Moves[0] == 0) or (Moves[0] == 2) or (Moves[0] == 5)): #LSL,LSR,LRL
             # turn left
             turnLeft()
@@ -198,8 +217,10 @@ def drive_dubins(data):
             # turn right
             turnRight()
     else:
+        first_loop = 1
+        rospy.loginfo("calling stop because d = %d and goal = %d",data.dist,cmd_distance)
         Stop()
-                
+        sys.exit(0)       
 
 
 def driveStraight():
@@ -243,7 +264,6 @@ def Stop():
         pub.publish(0,0)
 
 def listener(cmd):
-    #rospy.init_node('planner', anonymous=True)
     rospy.loginfo("in listener %d", cmd)
     if(cmd == 1):
         callback = drive_straight
