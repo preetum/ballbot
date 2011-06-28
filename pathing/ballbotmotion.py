@@ -15,7 +15,7 @@ from ballbotmotion_plot import *
 from Tkinter import *
 
 sys.path.append("/home/karthik/ballbotcode/ballbot/importfiles")
-from robot import *
+#from robot import *
 
 
 Moves = [-1,-1,-1,-1]
@@ -38,7 +38,7 @@ def mod2pi(theta):
 
 def dubins(alpha,beta,d):
     # find distance between start and end points
-    print "dubins d ",d," alpha ",alpha, " beta ", beta
+    #print "dubins d ",d," alpha ",alpha, " beta ", beta
     lengths = [-1.0,-1.0,-1.0,-1.0,-1.0,-1.0]
     t       = [-1.0,-1.0,-1.0,-1.0,-1.0,-1.0]
     p       = [-1.0,-1.0,-1.0,-1.0,-1.0,-1.0]
@@ -132,7 +132,7 @@ def dubins(alpha,beta,d):
     Moves[2] = ROBOT_RADIUS * p[curve_number]
     Moves[3] = ROBOT_RADIUS * q[curve_number]
 
-    print "Shortest path is curve #",curve_number," ",Moves[1]," ",Moves[2]," ",Moves[3]
+    #print "Shortest path is curve #",curve_number," ",Moves[1]," ",Moves[2]," ",Moves[3]
 
 def inputcommands(robot):
     """
@@ -182,6 +182,7 @@ def startPlanner(canvas,robot,cmd,distance,theta):
     first plot the expected path. 
     Then call the correct function to drive the robot along calculated path
     """
+    global Moves
     d = float(distance)
     distance = float(distance)/ROBOT_RADIUS
     theta = float(theta)
@@ -203,13 +204,38 @@ def startPlanner(canvas,robot,cmd,distance,theta):
         else:
             alpha = theta
         
-        # final orientation is arbitrarily set to 45 degrees
-        beta = 45
         # calculate dubins curves
-        dubins(math.radians(alpha),math.radians(beta),distance)
+
+        dubins(math.radians(alpha),math.radians(45),distance)
         path = return_path_dubins(Moves[0],Moves[1],Moves[2],Moves[3])
+        min_dubins = [Moves[0],Moves[1],Moves[2],Moves[3]]
+        min_length = Moves[1] + Moves[2] + Moves[3]
+        """
+        for beta in range(0,360,10):
+            # calculate dubins curves for a variety of approach angles. choose the shortest path
+            dubins(math.radians(alpha),math.radians(beta),distance)
+            length = Moves[1] + Moves[2] + Moves[3]
+            if (length < min_length):
+                min_length = length
+                min_dubins = [Moves[0],Moves[1],Moves[2],Moves[3]]            
+        
+        Moves = min_dubins
+        path = []
+        path = return_path_dubins(Moves[0],Moves[1],Moves[2],Moves[3])
+        """
         drawpath(canvas,path)
-        robot.drive_dubins(canvas)
+
+        """ Draw all dubins curves
+        for beta in range(0,360,20):
+            dubins(math.radians(alpha),math.radians(beta),distance)
+            path = []
+            path = return_path_dubins(Moves[0],Moves[1],Moves[2],Moves[3])          
+            drawpath(canvas,path)
+            print beta
+            time.sleep(1)
+            canvas.delete(ALL)
+        """    
+        #robot.drive_dubins(canvas)
 
 def drawpath(canvas,path):
     """
@@ -237,7 +263,8 @@ def drawpoint(canvas,point):
     canvas.create_oval(x + 50 - 1,500 - (y+50-1),x + 50 +1, 500 - (y + 50 + 1),width=1,outline = 'red',fill = 'red')
     canvas.update_idletasks()
 
-class Ballbot(Robot):
+#class Ballbot(Robot):
+class Ballbot():
     START_BYTE = 0xFF
     COMMAND_BYTE = 0x42
     PLANNER_BYTE = 0x08
@@ -247,7 +274,7 @@ class Ballbot(Robot):
     #ROBOT_SPEED    = 38  #in cm/s
 
     def __init__(self):
-	Robot.__init__(self)
+	#Robot.__init__(self)
         self.distancetravelled = 0
         self.position = (200,200,math.pi/2)
         inputcommands(self)

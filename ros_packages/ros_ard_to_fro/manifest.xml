@@ -1,16 +1,14 @@
 <package>
-  <description brief="odom_xytheta">
+  <description brief="ros_ard_to_fro">
 
-     odom_xytheta
+     ros_ard_to_fro
 
   </description>
   <author>Ankush Gupta</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/odom_xytheta</url>
+  <url>http://ros.org/wiki/ros_ard_to_fro</url>
   <depend package="rospy"/>
-  <depend package="roscpp"/>
-  <depend package="std_msgs"/>
 
 </package>
 

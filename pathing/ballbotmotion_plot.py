@@ -1,6 +1,6 @@
 import math
 
-ROBOTRADIUS = 61.0
+ROBOTRADIUS = 69.6
 
 def turnLeft(x,y,theta,v=0.5):
   angle = theta + v
@@ -74,7 +74,7 @@ def return_path_dubins(curve_number,t,p,q):
   p = p/ROBOTRADIUS
   q = q/ROBOTRADIUS
   # first action
-  print "curve number ",curve_number
+  #print "curve number ",curve_number
   if((curve_number == 0) or (curve_number == 2) or (curve_number == 5)):
     #turn left
     action = turnLeft

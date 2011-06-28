@@ -42,7 +42,7 @@ float gyroVoltage = 3.3;         //Gyro is running at 3.3V
 float gyroZeroVoltage = 1.215;   //Gyro is zeroed at 1.23V - given in the datasheet
 float gyroSensitivity = .01;     // Gyro senstivity for 4 times amplified output is 10mV/deg/sec
 
-float rotationThreshold = 2.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
+float rotationThreshold = 3.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
 
 
@@ -57,7 +57,7 @@ double Input, Output, Setpoint;
 PID pid_dist(&Input, &Output, &Setpoint,0.8,0.00000,0.001);  //pid(,,, kP, kI, kd)
 //---------------x-x-x----------------------------
 
-int encoder_counter = 0;
+int encoder_counter1 = 0, encoder_counter2 = 0;
 unsigned int driveMotorTarget = MOTOR_NEUTRAL;
 
 // fix the setpoint for PID control of speed
@@ -65,14 +65,11 @@ void  set_speed(float vel_m)
 {
 long temp_Setpoint =  (long) (((vel_m*7.5) - 1.61)*2.89435601);
 
-if(temp_Setpoint <=0)
+if(temp_Setpoint <= 0)
      Setpoint = 0;
 else 
      Setpoint  = temp_Setpoint;
-
-
-
-   //vel_m is speed in meters/second, we convert it into ticks/pd_loop_count and then compensate the offset by subtracting the intercept and multipying by slope inverse (1/m = 2.89435601) //assuming it takes 75 ticks for 100cm, then for 100cm/s => 10cm / 100milliseconds => 7.5 ticks/100milliseconds (100milliseconds is the time of pid_loop length aka. running time of one cycle of void_loop())
+//vel_m is speed in meters/second, we convert it into ticks/pd_loop_count and then compensate the offset by subtracting the intercept and multipying by slope inverse (1/m = 2.89435601) //assuming it takes 75 ticks for 100cm, then for 100cm/s => 10cm / 100milliseconds => 7.5 ticks/100milliseconds (100milliseconds is the time of pid_loop length aka. running time of one cycle of void_loop())
 
 }
 
@@ -85,8 +82,8 @@ void writeOscilloscope(int value_x, int value_y) {
   Serial.print( (value_x >> 8) & 0xff,BYTE); // send first part
   Serial.print( value_x & 0xff,BYTE);        // send second part
 
-  Serial.print( value_y & 0xff, BYTE );        // send second part
   Serial.print( (value_y >> 8) & 0xff, BYTE ); // send first part
+  Serial.print( value_y & 0xff, BYTE );        // send second part
   
   //Serial.print("value_y");
   //Serial.println(value_y);
@@ -95,7 +92,8 @@ void writeOscilloscope(int value_x, int value_y) {
 
 void encoder_tick()
 {
-  encoder_counter += 1;
+  encoder_counter1 += 1;
+  encoder_counter2 += 1;
 }
 
 
@@ -173,6 +171,17 @@ set_speed(motorVal / 100.0);  //we divide by 100 as motorval is intended speed i
 
 break;
         }
+        
+case DATA_REQUESTED:
+     {
+      int tmpEncoderCount = encoder_counter2;	// save encoder value
+      encoder_counter2 = 0;
+      writeOscilloscope(tmpEncoderCount, (int) currentAngle); //send for visual output
+      setDriveMotor(MOTOR_NEUTRAL - Output*MOTOR_NEUTRAL/180);
+      
+      break;
+     }
+  
     }
 }
 
@@ -188,6 +197,14 @@ void angle_update()
       gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
       currentAngle += gyroRate;
     }
+    
+    
+    Input =  (double) encoder_counter1;
+    encoder_counter1 = 0;
+    pid_dist.Compute(); //give the PID the opportunity to compute if needed
+    //Serial.print("PID_Output = ");
+    //Serial.println(Output);
+   
 }
 
 
@@ -208,65 +225,48 @@ void setup() {
   pinMode(13, OUTPUT); // enable LED pin
 
   // PID Stuff
-  pid_dist.SetOutputLimits(0,150); //tell the PID the bounds on the output
+  pid_dist.SetOutputLimits(0,180); //tell the PID the bounds on the output
   pid_dist.SetInputLimits(0,60); //number of ticks in 100 milliseconds
   Output = 0;
-  Setpoint = 0;
   pid_dist.SetMode(AUTO); //turn on the PID
-  pid_dist.SetSampleTime(10); //delay in the loop
+  pid_dist.SetSampleTime(100); //delay in the loop
   
   Serial.begin(115200);
   
   //Initialize interrupt timer2 - for gyro update
   MsTimer2::set(100, angle_update); // 100ms period
   MsTimer2::start();
+  
+  
 }
 
 
 
 void loop() 
-{
-  static unsigned long pidLoopCount = 0;
+{ 
   long curTime;
-
-  // Run PID loop and output odometry every 100ms
- 	// curTime = millis();
-	//  if (curTime >= pidLoopCount) {
-   	//	pidLoopCount = curTime +100;
-    delay(95);
-    int tmpEncoderCount = encoder_counter;	// save encoder value
-    encoder_counter = 0;
-    //cummulative_count += tmpEncoderCount;
-    
-    writeOscilloscope(tmpEncoderCount, (int) currentAngle); //send for visual output
-    Input =  (double)tmpEncoderCount;
-    pid_dist.Compute(); //give the PID the opportunity to compute if needed
-    setDriveMotor(MOTOR_NEUTRAL - Output*180/1024);
-  //}
-    
-  // Check the serial port for new command byte
-  if (Serial.available())
-    byteReceived(Serial.read());
   
+  if (Serial.available())
+     byteReceived(Serial.read());
+   
   // Drive motor direction fixing
   static unsigned char lastDirFwd = 1;
   static unsigned char driveMotorState = STATE_NORMAL;
   static unsigned long waitTime = 0; 
-  
-  
   
   // Refresh drive motor values, handling the drive motor braking behavior
   // Need to reverse right after driving forward:
   // 1. send a reverse pulse (treated as a brake signal)
   // 2. send a neutral pulse
   // 3. send a reverse pulse (now treated as a reverse signal)
+
   switch (driveMotorState) {
     case STATE_NORMAL:
       // In case of a reverse after driving forward
       if (driveMotorTarget >= MOTOR_MIN_REVERSE && lastDirFwd) {
         motor.write(MOTOR_MIN_REVERSE);
         driveMotorState = STATE_DELAY1;
-        waitTime = millis() + 100;
+        waitTime = millis() + 100;  //was 100
         
       // Normal operation
       } else {
@@ -288,7 +288,7 @@ void loop()
       if (curTime >= waitTime) {
         motor.write(MOTOR_NEUTRAL);
         driveMotorState = STATE_DELAY2;
-        waitTime = curTime + 100;
+        waitTime = curTime + 100;         // ------>> was 100
       } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
         driveMotorState = STATE_NORMAL;
       }
@@ -305,5 +305,6 @@ void loop()
       }
       break;
   } // switch
+  
   
 } // loop()

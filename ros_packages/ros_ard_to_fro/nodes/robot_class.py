@@ -1,13 +1,12 @@
+import struct
+import time
 import serial
-import sys, re, struct, time
 
-camera_params = {'height': 33.5,  # in cm
-  'offset_x': -4.5,  # offset from center of front axle, in cm
-  'offset_y': -10,
-  'tilt':  1.228,   # in radians
-  'resolution': (640, 480),
-  'radians_per_px': 0.0016
-}
+
+
+'''******************************************************************************
+                        ROBOT Class
+******************************************************************************'''
 
 class Robot:
   '''
@@ -16,7 +15,8 @@ class Robot:
   '''
   START_BYTE = 0xFF
   COMMAND_BYTE = 0x42
-  
+  REQUEST_DATA = 0x21
+
   SERVO_LEFT = 60
   SERVO_CENTER = 100
   SERVO_RIGHT = 140
@@ -29,17 +29,22 @@ class Robot:
   MOTOR_FULL_REVERSE = 180
 
   MAX_VELOCITY = 300
+  ser = serial.Serial()
 
-  def __init__(self, port='/dev/ttyUSB0'):
-  
-    # Initialize Arduino COM port
+  def __init__(self):
+    
     try:
-      self.serial = serial.Serial(port, baudrate=115200)
+        self.ser.port = "/dev/ttyUSB0"
+        self.ser.baudrate = 115200
+        self.ser.timeout = 0.005
+        self.ser.open()
     except serial.serialutil.SerialException:
-      try:
-        self.serial = serial.Serial('/dev/ttyUSB1',baudrate=115200)
-      except serial.serialutil.SerialException:
-        print "No Arduino connected."
+        try:
+            self.ser.port = "/dev/ttyUSB1"
+            self.ser.open()
+        except serial.serialutil.SerialException:
+            print "no arduino connected!"
+    
     
     # Initialize Arduino command packet
     # Command packet format: 
@@ -49,6 +54,7 @@ class Robot:
     self.cmd_packet_format = struct.Struct('>BHHBB')
     self.cmd_packet = [Robot.COMMAND_BYTE, 0, 0, 0, 0]
     
+
     # Wait for Arduino to initialize, then set initial values
     time.sleep(2)
     self.reset()
@@ -84,10 +90,15 @@ class Robot:
     # Construct full packet
     string = chr(Robot.START_BYTE) + chr(length) + \
               data_string + chr(checksum)
-    
-    self.serial.write(string)
-    self.serial.flushInput()
-    self.serial.flushOutput()
+    #global ser
+    self.ser.write(string)
+    self.ser.flushInput()
+    self.ser.flushOutput()
+
+  def send_getpacket(self):
+      self.cmd_packet[0] = Robot.REQUEST_DATA
+      self.send_arduino_packet()
+  
   
   def set_steering(self, angle):
     '''
@@ -104,6 +115,7 @@ class Robot:
     elif value < Robot.SERVO_LEFT:
       value = Robot.SERVO_LEFT
     
+    self.cmd_packet[0] = Robot.COMMAND_BYTE
     self.cmd_packet[1] = int(value)
 
   def set_velocity(self, velocity):
@@ -114,60 +126,9 @@ class Robot:
 	velocity = 0
     elif velocity > Robot.MAX_VELOCITY:
 	velocity = Robot.MAX_VELOCITY
+    self.cmd_packet[0] = Robot.COMMAND_BYTE
     self.cmd_packet[2] = int(velocity)
-    
+
   def set_drive(self, duty_cycle):
-    '''
-    Set the drive motor to the given % duty cycle, ranging from -100 to 100.
-    0 is stop, a positive value is forward, and a negative value is reverse
-    
-    if duty_cycle == 0:
-      value = Robot.MOTOR_NEUTRAL
-    else:
-      if duty_cycle > 0:
-        value = duty_cycle * (Robot.MOTOR_FULL_FORWARD -
-                  Robot.MOTOR_MIN_FORWARD) / 100 + Robot.MOTOR_MIN_FORWARD
-      else:   # duty_cycle < 0
-        value = -duty_cycle * (Robot.MOTOR_FULL_REVERSE - 
-                  Robot.MOTOR_MIN_REVERSE) / 100 + Robot.MOTOR_MIN_REVERSE
-                  
-    # check that output value is in valid range
-    if value < 0:
-      value = 0
-    elif value > 1023:
-      value = 1023
-    
-    value = duty_cycle
-    self.cmd_packet[2] = int(value)
-    ''' 
     pass
-
-def main():
-  '''
-  Test stub: takes a comma separated list of values
-  steering, motor, sweeper, hopper
-
-  Optional argument: com port
-  '''
-  if len(sys.argv) > 1:
-    robot = Robot(sys.argv[1])
-  else:
-    robot = Robot()
-
-  try:
-    while (True):
-      robot.send_arduino_packet()
-          
-      line = sys.stdin.readline()
-      
-      values = [float(v) for v in line.split(',')]
-      for i in range(min(len(values), 4)):
-        if i == 0: robot.set_steering(values[i])
-        elif i == 1: robot.set_velocity(values[i])
-  except:
-    # In case of error or Ctrl-C, zero motor values
-    robot.reset()
-    raise
-    
-if __name__ == '__main__':
-  main()
+#*******************************************************

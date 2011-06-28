@@ -23,6 +23,14 @@ cmd_distance = 0
 pub = rospy.Publisher('vel_cmd', drive_cmd)
 first_loop = 1
 init_dist = 0
+x = 0
+y = 0
+dist = 0
+theta  = 0
+cmd_dist = 0
+cmd_theta = 0
+
+
 
 robot_setpoint_steering = 0
 robot_setpoint_speed =  0
@@ -131,66 +139,47 @@ def dubins(alpha,beta,d):
     Moves[3] = ROBOT_RADIUS * q[curve_number]
 
 
-def plan(data):
-    # read goal info from data
-    rospy.loginfo("received goal d = %d opt = %d ",data.d,data.opt)
-    global cmd_distance
-    cmd_distance = data.d
-    theta = data.th
-    cmd = data.opt
+def drive_straight():
+    global first_loop, init_dist,cmd_dist, dist
     
-    if(cmd == 3): # Dubins curve
+    if first_loop ==1:
+        init_dist = dist
+        first_loop = 0
+    driveStraight()
+    while((dist - init_dist) < cmd_dist):
+        continue
+    first_loop =1
+    Stop()
         
-        # Calculate current orientation of robot, taking line to target as the x-axis
-        if(theta <0):
-            alpha = theta + 360
-        else:
-            alpha = theta
-        
-        # final orientation is arbitrarily set to 45 degrees
-        beta = 45
-        # calculate dubins curves
-        dubins(math.radians(alpha),math.radians(beta),cmd_distance)
-        #path = return_path_dubins(Moves[0],Moves[1],Moves[2],Moves[3])
-        #drawpath(canvas,path)
+
+def drive_circle():
+    global first_loop,init_dist,cmd_dist,dist
+    if first_loop ==1:
+        init_dist = dist
+        first_loop = 0
+
+    turnRight()
+    rospy.loginfo("calling turnRight")
+
+    while((dist - init_dist) < cmd_dist):
+        continue
     
-    listener(cmd)
+    rospy.loginfo("calling stop because d = %d and goal = %d",(dist-init_dist),cmd_dist)
+    first_loop = 1
+    Stop()
+        
 
-def drive_straight(data):
-    global first_loop, init_dist
-    if first_loop ==1:
-        init_dist = data.dist
-        first_loop = 0
-    if((data.dist - init_dist) < cmd_distance):
-        driveStraight()
-    else:
-        Stop()
-        first_loop =1
-
-def drive_circle(data):
-    global first_loop,init_dist
-    if first_loop ==1:
-        init_dist = data.dist
-        first_loop = 0
-    if((data.dist - init_dist) < cmd_distance):
-        rospy.loginfo("calling turnRight")
-        turnRight()
-    else:
-        rospy.loginfo("calling stop because d = %d and goal = %d",data.dist,cmd_distance)
-        Stop()
-        first_loop = 1
-
-def drive_dubins(data):
+def drive_dubins():
     """
     follow calculated dubins curve, stored in Moves[]            
     """
-    global first_loop, init_dist
+    global first_loop, init_dist,cmd_dist,dist
 
     if first_loop ==1:
-        init_dist = data.dist
+        init_dist = dist
         first_loop = 0
 
-    if((data.dist - init_dist) < Moves[1]):
+    while((dist - init_dist) < Moves[1]):
         if((Moves[0] == 0) or (Moves[0] == 2) or (Moves[0] == 5)): #LSL,LSR,LRL
             # turn left
             turnLeft()
@@ -198,7 +187,7 @@ def drive_dubins(data):
             # turn right
             turnRight()
 
-    elif((data.dist) < Moves[1] + Moves[2]):
+    while((dist - init_dist) < Moves[1] + Moves[2]):
         if(Moves[0] <= 3): #LSL,RSR,LSR,RSL
             # go forward
             driveStraight()
@@ -209,20 +198,20 @@ def drive_dubins(data):
             # turn right
             turnRight()
 
-    elif((data.dist) < Moves[1] + Moves[2] + Moves[3]):
+    while((dist - init_dist) < Moves[1] + Moves[2] + Moves[3]):
         if((Moves[0] == 0) or (Moves[0] == 3) or (Moves[0] == 5)):
             # turn left
             turnLeft()
         elif((Moves[0] == 1) or (Moves[0] == 2) or (Moves[0] == 5)):
             # turn right
             turnRight()
-    else:
-        first_loop = 1
-        rospy.loginfo("calling stop because d = %d and goal = %d",data.dist,cmd_distance)
-        Stop()
-        sys.exit(0)       
+    
+    first_loop = 1
+    rospy.loginfo("calling stop because d = %d and goal = %d  Moves=%d",(dist-init_dist),cmd_dist,Moves[1]+Moves[2]+Moves[3])
+    Stop()
+    
 
-
+#############################################
 def driveStraight():
     global robot_setpoint_speed
     global robot_setpoint_steering
@@ -262,19 +251,45 @@ def Stop():
         robot_setpoint_speed = 0
         robot_setpoint_steering = 0
         pub.publish(0,0)
+#####################################################
 
-def listener(cmd):
-    rospy.loginfo("in listener %d", cmd)
-    if(cmd == 1):
-        callback = drive_straight
-    elif(cmd == 2):
-        callback = drive_circle
-    elif(cmd == 3):
-        callback = drive_dubins
-    rospy.Subscriber("odom", odom_data, callback)
-    rospy.spin()    
+def received_goal(data):
+    global cmd_dist, cmd_theta
+    cmd_dist = data.d
+    cmd_theta = data.th
+    rospy.loginfo("in listener %d", data.opt)
+    if(data.opt == 1):
+        drive_straight()
+    elif(data.opt == 2):
+        drive_circle()
+    elif(data.opt == 3):
+        # Calculate current orientation of robot, taking line to target as the x-axis
+        if(cmd_theta <0):
+            alpha = cmd_theta + 360
+        else:
+            alpha = cmd_theta
+        
+        # final orientation is arbitrarily set to 45 degrees
+        beta = 45
+        # calculate dubins curves
+        dubins(math.radians(alpha),math.radians(beta),cmd_dist)
+        #path = return_path_dubins(Moves[0],Moves[1],Moves[2],Moves[3])
+        #drawpath(canvas,path)
+        drive_dubins()
+        
 
-def readgoal():
+def odom_callback(data):
+    global x,y,dist,theta
+    x = data.x
+    y = data.y
+    dist = data.dist
+    theta = data.angle
+
+
+
+if __name__ == '__main__':
+    rospy.init_node('planner',anonymous = True)
+    pub.publish(0,0)
     """
     spins until a goal is received.
     goal is the form goal_msg
@@ -282,10 +297,6 @@ def readgoal():
     goal_msg.th = angle to goal [-90,90] degrees
     """
     #rospy.init_node('goal_listener',anonymous=True)
-    rospy.Subscriber("goal",goal_msg,plan) # call plan with data = goal_msg when a goal is seen on the "goal" topic
+    rospy.Subscriber("goal",goal_msg,received_goal) # call plan with data = goal_msg when a goal is seen on the "goal" 
+    rospy.Subscriber("odom", odom_data, odom_callback)
     rospy.spin()
-    
-if __name__ == '__main__':
-    rospy.init_node('planner',anonymous = True)
-    pub.publish(0,0)
-    readgoal()
