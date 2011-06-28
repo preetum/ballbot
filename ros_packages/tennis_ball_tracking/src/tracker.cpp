@@ -126,6 +126,7 @@ int main(int argc, char **argv)
 {
   bool run = true;
   Mat frame, out;
+  int hz = 0;
 
   ros::init(argc, argv, "tracker");
   ros::NodeHandle n;
@@ -133,10 +134,13 @@ int main(int argc, char **argv)
 
   // Parse command line args
   int c;
-  while ((c = getopt(argc, argv, "c:dv1")) != -1) {
+  while ((c = getopt(argc, argv, "c:r:dv1")) != -1) {
     switch (c) {
     case 'c':  // specify camera path
       webcam_name = optarg;
+      break;
+    case 'r':  // refresh rate
+      hz = atoi(optarg);
       break;
     case 'd':  // turn on GUI display
       display = true;
@@ -208,6 +212,7 @@ int main(int argc, char **argv)
     control_value.value = 1280;
     c_set_control(webcam_device, CC_TILT_RELATIVE, &control_value);
 
+    ros::Rate rate(hz);
     while (run && ros::ok()) {
 
       // Grab new frame
@@ -232,8 +237,12 @@ int main(int argc, char **argv)
 	// Publish goal message
 	navigation::goal_msg msg;
 	msg.d = d;
-	msg.th = phi;
+	msg.th = phi*180/PI;
+	msg.opt = 3;
+
 	goal_pub.publish(msg);
+	if (hz > 0)
+	  rate.sleep();
       } else {
 	ROS_INFO("No ball found\n");
       }
