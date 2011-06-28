@@ -10,8 +10,7 @@
   <url>http://ros.org/wiki/Navigation</url>
   <depend package="roscpp"/>
   <depend package="rospy"/>
-  <depend package="odom_xytheta"/>
-  <depend package="ros_to_arduino_control"/>
+  <depend package="ros_ard_to_fro"/>
 </package>
 
 
