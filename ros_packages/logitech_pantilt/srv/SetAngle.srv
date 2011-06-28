@@ -1,0 +1,3 @@
+int16 angle
+---
+std_msgs/Duration move_time

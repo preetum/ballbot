@@ -1,0 +1,14 @@
+<package>
+  <description brief="logitech_pantilt">
+
+     logitech_pantilt
+
+  </description>
+  <author></author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/logitech_pantilt</url>
+  <depend package="roscpp"/>
+</package>
+
+
