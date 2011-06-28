@@ -11,7 +11,6 @@
 #include "logitech_pantilt/Orientation2.h"
 #include "logitech_pantilt/SetAngle.h"
 #include "logitech_pantilt/Reset.h"
-#include "std_msgs/Duration.h"
 
 using namespace ros;
 using namespace logitech_pantilt;
@@ -99,16 +98,12 @@ Duration webcam_set_tilt(int new_tilt) {
 }
 
 bool set_pan_callback(SetAngle::Request &req, SetAngle::Response &res) {
-  std_msgs::Duration move_time;
-  move_time.data = webcam_set_pan(req.angle);
-  res.move_time = move_time;
+  res.move_time = webcam_set_pan(req.angle);
   return true;
 }
 
 bool set_tilt_callback(SetAngle::Request &req, SetAngle::Response &res) {
-  std_msgs::Duration move_time;
-  move_time.data = webcam_set_tilt(req.angle);
-  res.move_time = move_time;
+  res.move_time = webcam_set_tilt(req.angle);
   return true;
 }
 
