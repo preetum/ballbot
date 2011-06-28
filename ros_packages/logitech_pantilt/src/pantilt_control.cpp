@@ -58,7 +58,7 @@ Duration webcam_set_pan(int new_pan) {
 
   if (new_pan != pan) {
 
-    int relative_angle = (new_pan - pan) * 64;
+    int relative_angle = -64 * (new_pan - pan);
     ROS_INFO("-> set pan relative by %d", relative_angle);
     CControlValue control_value = {CC_TYPE_WORD, {relative_angle}};
     c_set_control(webcam_device, CC_PAN_RELATIVE, &control_value);
@@ -81,7 +81,7 @@ Duration webcam_set_tilt(int new_tilt) {
   ROS_INFO("setting tilt to %d", new_tilt);
 
   if (new_tilt != tilt) {
-    int relative_angle = -1 * (new_tilt - tilt) * 64;
+    int relative_angle = -64 * (new_tilt - tilt);
     ROS_INFO("-> set tilt relative by %d", relative_angle);
     CControlValue control_value = {CC_TYPE_WORD, {relative_angle}};
     c_set_control(webcam_device, CC_TILT_RELATIVE, &control_value);
