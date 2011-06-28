@@ -1,10 +1,17 @@
+/*
+  Remarks:
+  Pan/tilt only work for small changes for some reason.
+  For pan, try not to move more than 20 degrees at once.
+  For tilt, set and forget should be good enough for now.
+ */
 #include <webcam.h>
 #include <unistd.h>
 
-#include <ros/ros.h>
+#include "ros/ros.h"
 #include "logitech_pantilt/Orientation2.h"
 #include "logitech_pantilt/SetAngle.h"
 #include "logitech_pantilt/Reset.h"
+#include "std_msgs/Duration.h"
 
 using namespace ros;
 using namespace logitech_pantilt;
@@ -35,10 +42,12 @@ inline void sleep_ms(ulong ms) {
 /* Resets both pan and tilt */
 void webcam_reset(void) {
   CControlValue control_value = {CC_TYPE_BYTE, {1}};
+  is_moving = true;
   c_set_control(webcam_device, CC_PAN_RESET, &control_value);
   sleep(3);
   c_set_control(webcam_device, CC_TILT_RESET, &control_value);
   sleep_ms(1700);
+  is_moving = false;
 }
 
 /* Set pan angle in degrees */
@@ -46,15 +55,21 @@ Duration webcam_set_pan(int new_pan) {
   if (new_pan > pan_max) new_pan = pan_max;
   else if (new_pan < pan_min) new_pan = pan_min;
 
-  int relative_angle = (new_pan - pan) * 64;
-  CControlValue control_value = {CC_TYPE_WORD, {relative_angle}};
-  c_set_control(webcam_device, CC_PAN_RELATIVE, &control_value);
+  ROS_INFO("setting pan to %d", new_pan);
 
-  pan_target = new_pan;
-  is_moving = true;
-  move_start = Time::now();
+  if (new_pan != pan) {
 
-  Duration estimate = Duration((new_pan - pan) / pan_angular_velocity);
+    int relative_angle = (new_pan - pan) * 64;
+    ROS_INFO("-> set pan relative by %d", relative_angle);
+    CControlValue control_value = {CC_TYPE_WORD, {relative_angle}};
+    c_set_control(webcam_device, CC_PAN_RELATIVE, &control_value);
+
+    pan_target = new_pan;
+    is_moving = true;
+    move_start = Time::now();
+  }
+
+  Duration estimate = Duration(abs(new_pan - pan) / pan_angular_velocity);
   move_stop = move_start + estimate;
   return estimate;
 }
@@ -64,31 +79,40 @@ Duration webcam_set_tilt(int new_tilt) {
   if (new_tilt > tilt_max) new_tilt = tilt_max;
   else if (new_tilt < tilt_min) new_tilt = tilt_min;
 
-  int relative_angle = (new_tilt - tilt) * 64;
-  CControlValue control_value = {CC_TYPE_WORD, {relative_angle}};
-  c_set_control(webcam_device, CC_TILT_RELATIVE, &control_value);
+  ROS_INFO("setting tilt to %d", new_tilt);
 
-  tilt_target = new_tilt;
-  is_moving = true;
-  move_start = Time::now();
+  if (new_tilt != tilt) {
+    int relative_angle = -1 * (new_tilt - tilt) * 64;
+    ROS_INFO("-> set tilt relative by %d", relative_angle);
+    CControlValue control_value = {CC_TYPE_WORD, {relative_angle}};
+    c_set_control(webcam_device, CC_TILT_RELATIVE, &control_value);
+    
+    tilt_target = new_tilt;
+    is_moving = true;
+    move_start = Time::now();
+  }
 
   // Calculate and return time estimate
-  Duration estimate = Duration((new_tilt - tilt) / tilt_angular_velocity);
+  Duration estimate = Duration(abs(new_tilt - tilt) / tilt_angular_velocity);
   move_stop = move_start + estimate;
   return estimate;
 }
 
 bool set_pan_callback(SetAngle::Request &req, SetAngle::Response &res) {
-  res.move_time = webcam_set_pan(req.angle);
+  std_msgs::Duration move_time;
+  move_time.data = webcam_set_pan(req.angle);
+  res.move_time = move_time;
   return true;
 }
 
 bool set_tilt_callback(SetAngle::Request &req, SetAngle::Response &res) {
-  res.move_time = webcam_set_tilt(req.angle);
+  std_msgs::Duration move_time;
+  move_time.data = webcam_set_tilt(req.angle);
+  res.move_time = move_time;
   return true;
 }
 
-void reset_callback(Reset::Request &req, Reset::Response &res) {
+bool reset_callback(Reset::Request &req, Reset::Response &res) {
   webcam_reset();
   return true;
 }
@@ -136,13 +160,15 @@ int main(int argc, char **argv)
       if (pan_target != pan) {
 	// If we've reached our goal
 	if (now > move_stop) {
+	  ROS_INFO("finished panning");
 	  is_moving = false;
 	  current_pan = pan = pan_target;
 	} 
 	// Otherwise try estimating the pan angle based on measured velocity
 	else {
+	  int pan_dir = (pan_target > pan) ? 1 : -1;
 	  current_pan = 
-	    pan + (int)(elapsed.toSec()*pan_angular_velocity + 0.5);
+	    pan + pan_dir * (int)(elapsed.toSec()*pan_angular_velocity + 0.5);
 	}
       }
 
@@ -150,13 +176,15 @@ int main(int argc, char **argv)
       else if (tilt_target != tilt) {
 	// If we've reached our goal
 	if (now > move_stop) {
+	  ROS_INFO("finished tilting");
 	  is_moving = false;
 	  current_tilt = tilt = tilt_target;
 	} 
 	// Otherwise try estimating the pan angle based on measured velocity
 	else {
+	  int tilt_dir = (tilt_target > tilt) ? 1 : -1;
 	  current_tilt = 
-	    tilt + (int)(elapsed.toSec()*tilt_angular_velocity + 0.5);
+	    tilt + tilt_dir * (int)(elapsed.toSec()*tilt_angular_velocity + 0.5);
 	}
       }
     }
