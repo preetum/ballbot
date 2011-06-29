@@ -4,16 +4,15 @@
 No obstacles, dubins curve based planner
 """
 
-
 import roslib; roslib.load_manifest('navigation')
 import rospy
 import math
 import sys
-from odom_xytheta.msg import odom_data
+from navigation.msg import odom_data
 from navigation.msg import goal_msg
-from ros_to_arduino_control.msg import drive_cmd
+from navigation.msg import drive_cmd
 
-ROBOT_RADIUS   = 69.6  #in cm
+ROBOT_RADIUS   = 60.96  #in cm
 ROBOT_SPEED    = 50.0  #in cm/s
 
 # Globals
@@ -31,7 +30,8 @@ cmd_dist = 0
 cmd_theta = 0
 
 
-
+new_Plan = 1 # = 1 when we want to generate a new plan, 0 otherwise
+isRunning_Plan = 1 # = 1 when a plan is being executed, 0 otherwise
 robot_setpoint_steering = 0
 robot_setpoint_speed =  0
 
@@ -140,20 +140,21 @@ def dubins(alpha,beta,d):
 
 
 def drive_straight():
-    global first_loop, init_dist,cmd_dist, dist
+    global first_loop, init_dist,cmd_dist, dist,new_Plan,isRunning_Plan
     
     if first_loop ==1:
         init_dist = dist
         first_loop = 0
     driveStraight()
-    while((dist - init_dist) < cmd_dist):
+    while((dist - init_dist)/0.845 < cmd_dist):
         continue
     first_loop =1
     Stop()
-        
+    new_Plan = 1
+    isRunning_Plan = 0
 
 def drive_circle():
-    global first_loop,init_dist,cmd_dist,dist
+    global first_loop,init_dist,cmd_dist,dist,new_Plan,isRunning_Plan
     if first_loop ==1:
         init_dist = dist
         first_loop = 0
@@ -161,55 +162,72 @@ def drive_circle():
     turnRight()
     rospy.loginfo("calling turnRight")
 
-    while((dist - init_dist) < cmd_dist):
+    while((dist - init_dist)/0.9187 < cmd_dist):
         continue
     
     rospy.loginfo("calling stop because d = %d and goal = %d",(dist-init_dist),cmd_dist)
     first_loop = 1
     Stop()
-        
-
+    new_Plan = 1
+    isRunning_Plan = 0
+ 
 def drive_dubins():
     """
     follow calculated dubins curve, stored in Moves[]            
     """
-    global first_loop, init_dist,cmd_dist,dist
+    global first_loop, init_dist,cmd_dist,dist,new_Plan,isRunning_Plan
 
     if first_loop ==1:
         init_dist = dist
         first_loop = 0
 
-    while((dist - init_dist) < Moves[1]):
-        if((Moves[0] == 0) or (Moves[0] == 2) or (Moves[0] == 5)): #LSL,LSR,LRL
-            # turn left
-            turnLeft()
-        elif((Moves[0] == 1) or (Moves[0] == 3) or (Moves[0] == 4)): #RSR,RSL,RLR
-            # turn right
-            turnRight()
+    ticks_per_cm = 1.0
+    action = None
+    if((Moves[0] == 0) or (Moves[0] == 2) or (Moves[0] == 5)): #LSL,LSR,LRL                                                                              
+            # turn left                                                                                                                                     
+            action = turnLeft
+            ticks_per_cm = 0.8163
+    elif((Moves[0] == 1) or (Moves[0] == 3) or (Moves[0] == 4)): #RSR,RSL,RLR                                                                            
+            # turn right                                                                                                                                    
+            action = turnRight
+            ticks_per_cm = 0.9187
 
-    while((dist - init_dist) < Moves[1] + Moves[2]):
-        if(Moves[0] <= 3): #LSL,RSR,LSR,RSL
-            # go forward
-            driveStraight()
-        elif(Moves[0] == 4): #RLR
-            # turn left
-            turnLeft()
-        elif(Moves[0] == 5): #LRL
-            # turn right
-            turnRight()
+    while((dist - init_dist)/ticks_per_cm < Moves[1]):
+        action()
 
-    while((dist - init_dist) < Moves[1] + Moves[2] + Moves[3]):
-        if((Moves[0] == 0) or (Moves[0] == 3) or (Moves[0] == 5)):
-            # turn left
-            turnLeft()
-        elif((Moves[0] == 1) or (Moves[0] == 2) or (Moves[0] == 5)):
-            # turn right
-            turnRight()
+    if(Moves[0] <= 3): #LSL,RSR,LSR,RSL                                                                                                                  
+            # go forward                                                                                                                                    
+            action = driveStraight
+            ticks_per_cm = 0.845
+    elif(Moves[0] == 4): #RLR                                                                                                                            
+            # turn left                                                                                                                                     
+            action = turnLeft
+            ticks_per_cm = 0.8163
+    elif(Moves[0] == 5): #LRL                                                                                                                            
+            # turn right                                                                                                                                    
+            action = turnRight
+            ticks_per_cm = 0.9187
+        
+    while((dist - init_dist)/ticks_per_cm < Moves[1] + Moves[2]):
+        action()
+
+    if((Moves[0] == 0) or (Moves[0] == 3) or (Moves[0] == 5)):
+            # turn left                                                                                                                                     
+            action = turnLeft
+            ticks_per_cm = 0.8163
+    elif((Moves[0] == 1) or (Moves[0] == 2) or (Moves[0] == 5)):
+            # turn right                                                                                                                                    
+            action = turnRight
+            ticks_per_cm = 0.9187
+
+    while((dist - init_dist)/ticks_per_cm < Moves[1] + Moves[2] + Moves[3]):
+        action()
     
     first_loop = 1
     rospy.loginfo("calling stop because d = %d and goal = %d  Moves=%d",(dist-init_dist),cmd_dist,Moves[1]+Moves[2]+Moves[3])
     Stop()
-    
+    new_Plan = 1
+    isRunning_Plan = 0
 
 #############################################
 def driveStraight():
@@ -235,16 +253,17 @@ def turnLeft():
 def turnRight():
     global robot_setpoint_speed
     global robot_setpoint_steering
-    if((robot_setpoint_steering == 40) and (robot_setpoint_speed == ROBOT_SPEED)):
+    if((robot_setpoint_steering == 29) and (robot_setpoint_speed == ROBOT_SPEED)):
         return
     else:
         robot_setpoint_speed = ROBOT_SPEED
-        robot_setpoint_steering = 40
-        pub.publish(ROBOT_SPEED,40)
+        robot_setpoint_steering = 29
+        pub.publish(ROBOT_SPEED,29)
 
 def Stop():
     global robot_setpoint_speed
     global robot_setpoint_steering
+
     if((robot_setpoint_steering == 0) and (robot_setpoint_speed == 0)):
         return
     else:
@@ -254,7 +273,14 @@ def Stop():
 #####################################################
 
 def received_goal(data):
-    global cmd_dist, cmd_theta
+    global cmd_dist, cmd_theta,Moves,new_Plan,isRunning_Plan
+    #if(data.d < 60) and (isRunning_Plan == 1):
+    if False: # do not want this right now
+        print "ignoring distance < 60"
+        new_Plan = 0 # dont replan until current goal is reached
+        return
+
+    isRunning_Plan = 1 # bot is running a plan
     cmd_dist = data.d
     cmd_theta = data.th
     rospy.loginfo("in listener %d", data.opt)
@@ -272,9 +298,21 @@ def received_goal(data):
         # final orientation is arbitrarily set to 45 degrees
         beta = 45
         # calculate dubins curves
-        dubins(math.radians(alpha),math.radians(beta),cmd_dist)
+
+        dubins(math.radians(alpha),math.radians(45),cmd_dist)
         #path = return_path_dubins(Moves[0],Moves[1],Moves[2],Moves[3])
-        #drawpath(canvas,path)
+        min_dubins = [Moves[0],Moves[1],Moves[2],Moves[3]]
+        min_length = Moves[1] + Moves[2] + Moves[3]
+                                                                                                                                                                  
+        for beta in range(0,360,10):                                                                                                                                   
+            # calculate dubins curves for a variety of approach angles. choose the shortest path                                                                       
+            dubins(math.radians(alpha),math.radians(beta),cmd_dist)                                                                                                    
+            length = Moves[1] + Moves[2] + Moves[3]                                                                                                                    
+            if (length < min_length):                                                                                                                                  
+                min_length = length                                                                                                                                    
+                min_dubins = [Moves[0],Moves[1],Moves[2],Moves[3]]                                                                                                     
+                Moves = min_dubins                                          
+        print "dubins ",Moves[0],Moves[1],Moves[2],Moves[3]
         drive_dubins()
         
 

@@ -51,16 +51,16 @@ def initializer():
                         continue
                     tcks,agl = struct.unpack(">hh",s)
                     
-                    if agl>=360:
-                        angle = agl%360
-                    elif agl < 0:
-                        angle = ((agl%360) - 360)
-                    else:
-                        angle = agl            
-                    x += tcks*math.sin(agl)*100/75  # the 100/75 is the scaling factor for ticks->cm
-                    y += tcks*math.cos(agl)*100/75 
-                    dist += tcks*100.0/75.0
+                    angle = ((agl + 180)%360) - 180
+                    #x += tcks*math.sin(agl)*100/75*180.55/203.5 
+                    #y += tcks*math.cos(agl)*100/75*180.55/203.5
+                    #dist += tcks*100.0/75.0*180.55/203.5
             
+                    
+                    x += tcks*math.sin(agl) # publish ticks directly
+                    y += tcks*math.cos(agl)
+                    dist += tcks
+
                     pub.publish(x,y,dist,angle)
                     waiter.sleep()
                 #rospy.loginfo("Distance moved %f",dist)
