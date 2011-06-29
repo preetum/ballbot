@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="logitech_pantilt" type="pantilt_control" name="logitech" />
+  <node pkg="ros_ard_to_fro" type="ros_ard_to_fro.py" name="arduino" />
+  <node pkg="tennis_ball_tracking" type="tracker" name="tracker"/>
+</launch>

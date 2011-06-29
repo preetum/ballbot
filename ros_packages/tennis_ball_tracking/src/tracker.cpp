@@ -4,8 +4,6 @@
 #include <sys/timeb.h>
 #include <unistd.h>
 
-#include <webcam.h>
-
 #include <cvblob.h>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
