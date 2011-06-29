@@ -12,31 +12,34 @@
 
 #include <ros/ros.h>
 #include "navigation/goal_msg.h"
+#include "logitech_pantilt/SetAngle.h"
+#include "logitech_pantilt/Orientation2.h"
 
 using namespace cv;
 using namespace cvb;
 
 #define PI 3.14159265358979
+#define RAD2DEG(x)  ((x) * 180.0 / PI)
+#define DEG2RAD(x)  ((x) * PI / 180.0)
 
 int frame_width = 320,
   frame_height = 240;
 double camera_height = 33.5, // in cm
-  camera_tilt_angle = 0.323, // in radians (20 deg - 1.5 deg tilt)
-  camera_pan_angle = 0.0723,
+  camera_pan_angle = 0.0,    // in radians
+  camera_tilt_angle = 0.0,
+  camera_mount_pan_angle = 0.0723,
+  camera_mount_tilt_angle = 0, //0.0262 = 1.5 degrees, this is a fudge factor
+                               // determined from calibration measurements
   radians_per_px = 0.0032;
 
 bool display = false,
   verbose = false,
   single = false;
 
-// Webcam control
-const char *webcam_name = "/dev/video0";
-CHandle webcam_device;
-
-void print_time(string label)
+void print_time(const char* label)
 {
   if (verbose) {
-    static struct timeb prev = {0,0};
+    static struct timeb prev = {0,0,0,0};
     struct timeb cur;
     double diff = 0;
     ftime(&cur);
@@ -44,8 +47,8 @@ void print_time(string label)
       diff  =  cur.time    - prev.time;
       diff += (cur.millitm - prev.millitm)/1000.0;
     }
-    fprintf(stderr, "%30s  start = %d.%-3hu (+%5.3f)\n",
-	    label.c_str(), (int)cur.time, cur.millitm, diff);
+    ROS_INFO("%30s  start = %d.%-3hu (+%5.3f)\n",
+	    label, (int)cur.time, cur.millitm, diff);
     prev = cur;
   }
 }
@@ -60,6 +63,17 @@ void close(InputArray src, OutputArray dst, InputArray element)
 {
   dilate(src, dst, element);
   erode (src, dst, element);
+}
+
+/* Updates camera angle */
+void pantilt_callback(const logitech_pantilt::Orientation2::ConstPtr&
+		      orientation)
+{
+  camera_pan_angle = DEG2RAD(orientation->pan) + camera_mount_pan_angle;
+  camera_tilt_angle = DEG2RAD(orientation->tilt) + camera_mount_tilt_angle;
+
+  ROS_INFO("pan: %.2f,\ttilt %.2f deg", 
+	   RAD2DEG(camera_pan_angle), RAD2DEG(camera_tilt_angle));
 }
 
 CvBlob* find_ball(Mat &img, Mat& out)
@@ -106,7 +120,7 @@ CvBlob* find_ball(Mat &img, Mat& out)
   // Find largest blob
   for (CvBlobs::const_iterator it=blobs.begin(); it!=blobs.end(); ++it) {
     if (verbose) {
-      ROS_INFO("Blob #%d: Area=%d, Centroid=(%f, %f)\n",
+      ROS_INFO("Blob #%d: Area=%d, Centroid=(%f, %f)",
 	       it->second->label,
 	       it->second->area,
 	       it->second->centroid.x,
@@ -124,6 +138,7 @@ CvBlob* find_ball(Mat &img, Mat& out)
 
 int main(int argc, char **argv)
 {
+  int cam_index = 0;
   bool run = true;
   Mat frame, out;
   int hz = 0;
@@ -137,7 +152,7 @@ int main(int argc, char **argv)
   while ((c = getopt(argc, argv, "c:r:dv1")) != -1) {
     switch (c) {
     case 'c':  // specify camera path
-      webcam_name = optarg;
+      cam_index = atoi(optarg);
       break;
     case 'r':  // refresh rate
       hz = atoi(optarg);
@@ -186,9 +201,9 @@ int main(int argc, char **argv)
 
   // Use webcam
   else {
-    VideoCapture cam(0);
+    VideoCapture cam(cam_index);
     if (!cam.isOpened()) {
-      fprintf(stderr, "could not open camera\n");
+      ROS_ERROR("could not open camera %d", cam_index);
       return -1;
     }
     cam.set(CV_CAP_PROP_FRAME_WIDTH, 320);
@@ -199,18 +214,21 @@ int main(int argc, char **argv)
 	   frame.channels());
 
     // Initialize webcam position
-    c_init();
-    printf("opening %s using libwebcam\n", webcam_name);
-    webcam_device = c_open_device(webcam_name);
-    CControlValue control_value = {CC_TYPE_BYTE, {1}};
-    c_set_control(webcam_device, CC_PAN_RESET, &control_value);
-    sleep(3);
-    c_set_control(webcam_device, CC_TILT_RESET, &control_value);
-    sleep(1);
-    control_value.type = CC_TYPE_WORD;
-    // Point webcam at 64*20 degrees down
-    control_value.value = 1280;
-    c_set_control(webcam_device, CC_TILT_RELATIVE, &control_value);
+    ros::ServiceClient pan_client = 
+      n.serviceClient<logitech_pantilt::SetAngle>("set_pan"),
+      tilt_client = n.serviceClient<logitech_pantilt::SetAngle>("set_tilt");
+    logitech_pantilt::SetAngle srv;
+    srv.request.angle = 0;
+    if (pan_client.call(srv)) {
+      srv.response.move_time.sleep();
+    }
+    srv.request.angle = -20;
+    if (tilt_client.call(srv)) {
+      srv.response.move_time.sleep();
+    }
+
+    // Subscribe to webcam position updates
+    ros::Subscriber sub = n.subscribe("orientation", 100, pantilt_callback);
 
     ros::Rate rate(hz);
     while (run && ros::ok()) {
@@ -224,27 +242,27 @@ int main(int argc, char **argv)
       if (blob != NULL) {
 	// Distance to target
 	double theta = (double)(blob->centroid.y - frame_height/2)
-	  * radians_per_px,
-	  y = camera_height / tan(theta + camera_tilt_angle);
+	  * radians_per_px - camera_tilt_angle,
+	  y = camera_height / tan(theta);
 	// Angle/X offset to target
 	double phi = (double)(blob->centroid.x - frame_width/2)
 	  * radians_per_px + camera_pan_angle,
 	  x = y * tan(phi);
 	double d = sqrt(x*x + y*y);
 	
-	ROS_INFO("Ball at r,theta = %.2f cm, %.2f deg\n", d, phi*180/PI);
+	ROS_INFO("Ball at r,theta = %.2f cm, %.2f deg", d, RAD2DEG(phi));
 
 	// Publish goal message
 	navigation::goal_msg msg;
 	msg.d = d;
-	msg.th = phi*180/PI;
+	msg.th = RAD2DEG(phi);
 	msg.opt = 3;
 
 	goal_pub.publish(msg);
 	if (hz > 0)
 	  rate.sleep();
       } else {
-	ROS_INFO("No ball found\n");
+	ROS_INFO("No ball found");
       }
 
       // Process ROS callbacks 'n stuff

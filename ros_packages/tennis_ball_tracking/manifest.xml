@@ -12,7 +12,7 @@
   <depend package="std_msgs"/>
   <depend package="tf"/>
   <depend package="navigation"/>
-
+  <depend package="logitech_pantilt"/>
 </package>
 
 
