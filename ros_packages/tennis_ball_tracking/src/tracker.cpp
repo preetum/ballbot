@@ -88,7 +88,7 @@ CvBlob* find_ball(Mat &img, Mat& out)
 
   // Filter by hue
   Mat mask(size, CV_8UC1);
-  inRange(hsv, Scalar(0.11*255, 0.3*255, 0.20*255, 0),
+  inRange(hsv, Scalar(0.11*255, 0.58*255, 0.20*255, 0),
 	  Scalar(0.15*255, 1.00*255, 1.00*255, 0), mask);
   print_time("convert to hsv & threshold");
 

@@ -131,6 +131,17 @@ int main(int argc, char **argv)
   webcam_device = c_open_device(webcam_name);
   webcam_reset();
 
+  CControlValue control_value = {CC_TYPE_BYTE, {1}};
+  c_set_control(webcam_device, CC_AUTO_EXPOSURE_MODE, &control_value);
+  control_value.value = 160;
+  c_set_control(webcam_device, CC_EXPOSURE_TIME_ABSOLUTE, &control_value);
+  control_value.value = 96;
+  c_set_control(webcam_device, CC_BRIGHTNESS, &control_value);
+  control_value.value = 16;
+  c_set_control(webcam_device, CC_CONTRAST, &control_value);
+  control_value.value = 200;
+  c_set_control(webcam_device, CC_GAIN, &control_value);
+
   // Advertise services
   ServiceServer pan_service = n.advertiseService("set_pan", set_pan_callback);
   ServiceServer tilt_service = n.advertiseService("set_tilt", set_tilt_callback);
