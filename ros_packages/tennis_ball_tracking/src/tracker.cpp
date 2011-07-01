@@ -274,7 +274,7 @@ int main(int argc, char **argv)
       if ((char)cvWaitKey(10) == 'q')
         run = false;
 
-      if (single)
+      if (single && blob != NULL)
 	run = false;
     }
   }

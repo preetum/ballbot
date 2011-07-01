@@ -195,6 +195,8 @@ def drive_dubins():
     while((dist - init_dist)/ticks_per_cm < Moves[1]):
         action()
 
+    init_ticks1 = dist  # ticks seen at end of first segment
+
     if(Moves[0] <= 3): #LSL,RSR,LSR,RSL                                                                                                                  
             # go forward                                                                                                                                    
             action = driveStraight
@@ -208,8 +210,10 @@ def drive_dubins():
             action = turnRight
             ticks_per_cm = 0.9187
         
-    while((dist - init_dist)/ticks_per_cm < Moves[1] + Moves[2]):
+    while((dist-init_ticks1)/ticks_per_cm <  Moves[2]):
         action()
+
+    init_ticks2 = dist  # ticks seen at end of second segment
 
     if((Moves[0] == 0) or (Moves[0] == 3) or (Moves[0] == 5)):
             # turn left                                                                                                                                     
@@ -219,8 +223,9 @@ def drive_dubins():
             # turn right                                                                                                                                    
             action = turnRight
             ticks_per_cm = 0.9187
+    
 
-    while((dist - init_dist)/ticks_per_cm < Moves[1] + Moves[2] + Moves[3]):
+    while((dist - init_ticks2)/ticks_per_cm  < Moves[3]):
         action()
     
     first_loop = 1
@@ -253,12 +258,12 @@ def turnLeft():
 def turnRight():
     global robot_setpoint_speed
     global robot_setpoint_steering
-    if((robot_setpoint_steering == 29) and (robot_setpoint_speed == ROBOT_SPEED)):
+    if((robot_setpoint_steering == 40) and (robot_setpoint_speed == ROBOT_SPEED)):
         return
     else:
         robot_setpoint_speed = ROBOT_SPEED
-        robot_setpoint_steering = 29
-        pub.publish(ROBOT_SPEED,29)
+        robot_setpoint_steering = 40
+        pub.publish(ROBOT_SPEED,40)
 
 def Stop():
     global robot_setpoint_speed

@@ -57,8 +57,8 @@ def initializer():
                     #dist += tcks*100.0/75.0*180.55/203.5
             
                     
-                    x += tcks*math.sin(agl) # publish ticks directly
-                    y += tcks*math.cos(agl)
+                    x += tcks*math.sin(math.radians(agl)) # publish ticks directly
+                    y += tcks*math.cos(math.radians(agl))
                     dist += tcks
 
                     pub.publish(x,y,dist,angle)
