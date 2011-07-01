@@ -37,8 +37,8 @@ def odom_callback(data):
     Callback for topic /odom. Update globals relating to Ballbot's odometry
     """
     global Ballbot_x,Ballbot_y,Ballbot_encoderticks,Ballbot_th
-    Ballbot_x = data.x
-    Ballbot_y = data.y
+    Ballbot_x = 304.8 #+ data.x
+    Ballbot_y = 304.8 #+ data.y
     Ballbot_encoderticks = data.dist
     Ballbot_th = data.angle
 

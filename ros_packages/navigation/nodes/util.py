@@ -42,6 +42,16 @@ def newState(p):
 
   x = p[0]*ROBOT_RADIUS
   y = p[1]*ROBOT_RADIUS
+  """ 
+  right now, care only about red dot in sim.
+  This is a 1ft x 1ft obstacle centered at (10.5ft,12.5ft)
+  """
+  if(x >= 10) and (x <= 11) and (y >= 12) and (y <= 13):
+      print "checking ",x,y
+      return False
+  else:
+      return True
+
   if(x<0 or x>60):
       return False
   elif(y<0 or y>120):
