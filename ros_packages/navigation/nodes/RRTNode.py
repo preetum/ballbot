@@ -163,7 +163,7 @@ def build_RRT(x1,y1,th1,x2,y2,th2,Tree):
   global RRT_goalfound
   p_init = (x1,y1,th1)
   p_goal = (x2,y2,th2)
-  print ("init ",p_init," goal ", p_goal)
+  #print ("init ",p_init," goal ", p_goal)
   init_Node = RRTNode(p_init)
   Tree.append(init_Node)
   for i in range(1000):
@@ -199,7 +199,7 @@ def build_RRT(x1,y1,th1,x2,y2,th2,Tree):
       min_d = dubinscurve[1] + dubinscurve[2] + dubinscurve[3]
 
       if(min_d >= 0):
-        print "goal node ",success_vertex," start node ",p_goal, "curve number ",dubinscurve[0]
+        #print "goal node ",success_vertex," start node ",p_goal, "curve number ",dubinscurve[0]
         RRT_goalfound = True
         Tree_end = success
 
@@ -225,10 +225,10 @@ def query_RRT(p_goal,Tree):
   """  
   p_start = Tree[0]
   p_end = p_goal
-  print "p_start"
+  #print "p_start"
   p_start.display()
 
-  print "p_end"
+  #print "p_end"
   p_end.display()
 
   path = []
@@ -239,5 +239,5 @@ def query_RRT(p_goal,Tree):
     node = node.getParent()
     count = count+1
   path.append(node)
-  print "Found path of length ",count
+  #print "Found path of length ",count
   return path

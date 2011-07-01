@@ -265,7 +265,7 @@ def appendDubins(path,curve_number,t,p,q):
   
   # first action
 
-  print "curve number ",curve_number
+  #print "curve number ",curve_number
   if((curve_number == 0) or (curve_number == 2) or (curve_number == 5)):
     #turn left
     action = util.turnLeft_sim

@@ -2,10 +2,6 @@
 # Global planner - based on RRTs and Dubins curves. Simulated in globalplanner_sim.py
 # Returns a plan that looks like [[action1,distance1],[action2,distance2]....] where distance is in cm, action is one of L,S,R
 """
-Map definition: 
-total size = 12m x 6m
-one obstacle in rectangle (1.2,5.95,4.8,6.05)
-
 Each Tree is a list of vertices. 
 Each Node is [(x,y,theta),[(neighbor1,action1),(neighbor2,action2)....]
 
@@ -81,8 +77,8 @@ def startPlanner(X1,Y1,TH1,D_goal,TH_goal):
   global Tree_start_to_right,Tree_start_to_left,Tree_right_to_goal,Tree_right_to_left,Tree_start_to_goal
   D_goal = data.d
   TH_goal = data.th
-  X1 = cm_to_feet(X1)
-  Y1 = cm_to_feet(Y1)
+  X1 = util.cm_to_feet(X1)
+  Y1 = util.cm_to_feet(Y1)
   
   Tree_start_to_right = []
   Tree_right_to_goal = []
@@ -99,9 +95,9 @@ def startPlanner(X1,Y1,TH1,D_goal,TH_goal):
 
   # compute start and end points in the global coordinate frame.
 
-  X = float(X1)
-  Y = float(Y1)
-  TH1 = math.radians(float(TH1))
+  X = X1
+  Y = Y1
+  TH1 = math.radians(TH1)
   
   D_goal = util.cm_to_feet(float(D_goal))
   TH_goal = float(TH_goal)
@@ -181,7 +177,7 @@ def startPlanner(X1,Y1,TH1,D_goal,TH_goal):
   t1 = time.time() - t1
  #---------- draw path -------------- #
   
-  print("Time to complete Planning ",t1," s case",case)
+  #print("Time to complete Planning ",t1," s case",case)
   i = 0
   
   return finalplan

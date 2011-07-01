@@ -163,7 +163,7 @@ def path_to_drivecmds(path):
 
     for node in path:
         if node.getParent() == None: # first node
-            print "first node"
+            #print "first node"
             continue
         else:
             action_toNode = node.getAction_toreachNode()
