@@ -75,8 +75,6 @@ def plan(X,Y,TH,X2,Y2,TH2,Tree):
 
 def startPlanner(X1,Y1,TH1,D_goal,TH_goal):
   global Tree_start_to_right,Tree_start_to_left,Tree_right_to_goal,Tree_right_to_left,Tree_start_to_goal
-  D_goal = data.d
-  TH_goal = data.th
   X1 = util.cm_to_feet(X1)
   Y1 = util.cm_to_feet(Y1)
   
@@ -107,6 +105,7 @@ def startPlanner(X1,Y1,TH1,D_goal,TH_goal):
   Y2 = Y + D_goal*math.sin(TH)
   TH2 = math.radians(45.0)
 
+  print "start ",X,Y,TH1," end ",X2,Y2,TH2,"radius",ROBOT_RADIUS
   # rescale X and Y to Computation coordinate frame (Turning radius = 1)
   X = X/ROBOT_RADIUS
   Y = Y/ROBOT_RADIUS
@@ -133,6 +132,7 @@ def startPlanner(X1,Y1,TH1,D_goal,TH_goal):
   else:
     case = 3
 
+  print " case ",case
   if(case == 1):
     angle_net = math.pi/2
   elif(case == 2):
@@ -180,5 +180,5 @@ def startPlanner(X1,Y1,TH1,D_goal,TH_goal):
   #print("Time to complete Planning ",t1," s case",case)
   i = 0
   
-  return finalplan
+  return finalplan[0]
   

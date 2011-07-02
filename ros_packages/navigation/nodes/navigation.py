@@ -5,16 +5,16 @@ Then drive along that path
 """
 import roslib; roslib.load_manifest('navigation')
 import rospy
-from odom_xytheta.msg import odom_data
+from navigation.msg import odom_data
 from navigation.msg import goal_msg
-from ros_to_arduino_control.msg import drive_cmd
+from navigation.msg import drive_cmd
 import globalplanner
 
 """ 
 position of Ballbot in global coordinate frame
 """
-Ballbot_x = 0
-Ballbot_y = 0
+Ballbot_x = 304.8
+Ballbot_y = 304.8
 Ballbot_th = 0
 Ballbot_encoderticks = 0
 pub = rospy.Publisher('vel_cmd', drive_cmd)
@@ -29,7 +29,7 @@ def received_goal(data):
     cmd_d = data.d
     cmd_th = data.th
     rospy.loginfo("received goal")
-    globalplan = globalplanner.startPlanner(Ballbot_x,Ballbot_y,Ballbot_th,cmd_d,cmd_th)
+    globalplan = globalplanner.startPlanner(Ballbot_x,Ballbot_y,90.0,cmd_d,cmd_th)
     executeplan()
 
 def odom_callback(data):
@@ -56,33 +56,38 @@ def executeplan():
             driveStraight(distance)
         else:
             Stop()
-            
+    Stop()
 
 #############################################
 def driveStraight(distance):
+    print "straight for ",distance
     ticks_per_cm = 0.845
     init_encoderticks = Ballbot_encoderticks
     pub.publish(ROBOT_SPEED,0)
     
     while ((Ballbot_encoderticks - init_encoderticks)/ticks_per_cm < distance):
         continue
-    
+    Stop()
 
-def turnLeft():
+def turnLeft(distance):
+    print "left for ",distance
     ticks_per_cm = 0.8163
     init_encoderticks = Ballbot_encoderticks
     pub.publish(ROBOT_SPEED,-40)
     
     while ((Ballbot_encoderticks - init_encoderticks)/ticks_per_cm < distance):
         continue
+    Stop()
 
-def turnRight():
+def turnRight(distance):
+    print "right for ",distance
     ticks_per_cm = 0.9187
     init_encoderticks = Ballbot_encoderticks
     pub.publish(ROBOT_SPEED,40)
 
     while ((Ballbot_encoderticks - init_encoderticks)/ticks_per_cm < distance):
         continue
+    Stop()
 
 def Stop():
     pub.publish(0,0)
