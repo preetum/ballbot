@@ -225,12 +225,11 @@ def find_lines(frame):
             x1 = x + 50*np.cos(angle)
             y1 = y + 50*np.sin(angle)
             # Enforce limits
-            x1 = min(max(0, x1), frame_size[0])
-            y1 = min(max(0, y1), frame_size[1])
+            x1 = min(max(0, x1), frame_size[0]-1)
+            y1 = min(max(0, y1), frame_size[1]-1)
             srchPt = cv.Round(x1), cv.Round(y1)
-            print srchPt, threshold[srchPt]
 
-            if threshold[srchPt] == 0:
+            if threshold[srchPt[1], srchPt[0]] == 0:
               x1 = x + 50*np.cos(angle + cv.CV_PI)
               y1 = y + 50*np.sin(angle + cv.CV_PI)
               invSrchPt = cv.Round(x1), cv.Round(y1)
@@ -248,11 +247,20 @@ def main():
     cv.NamedWindow('edges', cv.CV_WINDOW_AUTOSIZE)
     cv.MoveWindow('edges', 600, 10)
 
-    frame = cv.LoadImage(sys.argv[1])
-    if frame is None:
+    if len(sys.argv) > 1:
+      # Use image
+      frame = cv.LoadImage(sys.argv[1])
+      if frame is None:
         print 'Error loading image %s' % sys.argv[1]
         return
-    find_lines(frame)
+      find_lines(frame)
+    else:
+      cam = cv.CreateCameraCapture(0);
+      frame = cv.QueryFrame(cam)
+      if frame is None:
+        print 'Error opening camera'
+        return
+      find_lines(frame)
 
     # Pause for key press
     while True:
