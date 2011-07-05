@@ -194,7 +194,7 @@ void angle_update()
     gyroRate /= gyroSensitivity;
 
    if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
-      gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
+      gyroRate /= 50; // we divide by 50 as gyro updates every 20ms
       currentAngle += gyroRate;
     }
     
@@ -234,7 +234,7 @@ void setup() {
   Serial.begin(115200);
   
   //Initialize interrupt timer2 - for gyro update
-  MsTimer2::set(100, angle_update); // 100ms period
+  MsTimer2::set(20, angle_update); // 20ms period
   MsTimer2::start();
   
   
