@@ -9,7 +9,7 @@ def talker():
     pub = rospy.Publisher('goal', goal_msg)
     rospy.init_node('talker_simu_goal')
     #t = Twist()
-    pub.publish(100,0,2)
+    pub.publish(320,45,2)
     rospy.loginfo("sent goal")
     rospy.spin()
     """
