@@ -1,6 +1,9 @@
 import sys
 import numpy as np
 import cv
+from optparse import OptionParser
+
+verbose = False
 
 def cvOpen(src, dst, element):
   cv.Erode (src, dst, element)
@@ -93,7 +96,7 @@ def find_lines(frame):
       frame_small = frame
 
     # Threshold by distance: blank out all top pixels
-    cv.Rectangle(frame_small, (0,0), (640, 180), (0,0,0,0), cv.CV_FILLED)
+    cv.Rectangle(frame_small, (0,0), (640, 80), (0,0,0,0), cv.CV_FILLED)
 
     # Convert to grayscale
     frame_size = cv.GetSize(frame_small)
@@ -102,127 +105,126 @@ def find_lines(frame):
 
     # Use color thresholding to get white lines
     threshold = cv.CreateImage(frame_size, cv.IPL_DEPTH_8U, 1)
-    cv.Threshold(frame_gray, threshold, 160, 255, cv.CV_THRESH_BINARY)
+    cv.Threshold(frame_gray, threshold, 190, 255, cv.CV_THRESH_BINARY)
 
-    openElement = cv.CreateStructuringElementEx(11,11,5,5,
+    # Morphological ops to reduce noise
+    # TODO try to reduce sizes to increase detection of faraway lines
+    openElement = cv.CreateStructuringElementEx(7, 7, 3, 3,
                                                 cv.CV_SHAPE_RECT)
-    closeElement = cv.CreateStructuringElementEx(21, 21, 10, 10,
+    closeElement = cv.CreateStructuringElementEx(11, 11, 5, 5,
                                                  cv.CV_SHAPE_RECT)
     cvOpen(threshold, threshold, openElement)
     cvClose(threshold, threshold, closeElement)
     
     # Use Canny edge detection to find edges
     edges = cv.CreateImage(frame_size, cv.IPL_DEPTH_8U, 1)
-    cv.Canny(threshold, edges, 400, 400)
+    cv.Canny(threshold, edges, 100, 200)
 
     # Use Hough transform to find equations for lines
     line_storage = cv.CreateMemStorage()
-    probabilistic = False
-    if probabilistic:     # Probabilistic
-        lines = cv.HoughLines2(edges, line_storage, cv.CV_HOUGH_PROBABILISTIC,
-                               1, cv.CV_PI/180.0, 120, 50, 40)
-        print len(lines), 'lines found'
-        for i in range(len(lines)):
-            line = lines[i]
-            cv.Line(frame_small, line[0], line[1],
-                    hv2rgb(360.0*i/len(lines), 1.0), 3, 8)
 
-    else:        # Classic
-        lines = cv.HoughLines2(edges, line_storage, cv.CV_HOUGH_STANDARD,
+    lines = cv.HoughLines2(edges, line_storage, cv.CV_HOUGH_STANDARD,
                                1, cv.CV_PI/180.0, 120)
-        lines = list(lines)
+    lines = list(lines)
 
-        # Remove spurious line from the black rectangle up top
-        for line in lines[:]:
-          if (abs(180 - line[0]) < 10 and
-              abs(angle_difference(cv.CV_PI/2, line[1])) < 0.01):
-            lines.remove(line)
+    # Remove spurious line from the black rectangle up top
+    for line in lines[:]:
+      if (abs(180 - line[0]) < 10 and
+          abs(angle_difference(cv.CV_PI/2, line[1])) < 0.01):
+        lines.remove(line)
 
-        # Group lines that are within r +/-10 and theta +/- 2 degrees
-        grouped_lines = []
-        while len(lines) > 0:
-            line1 = normalize_line(lines.pop())
-            avg_line = line1
-            matched_lines = [line1]
-            for j in range(len(lines)-1, -1, -1):
-                line2 = normalize_line(lines[j])
-                if (abs(avg_line[0] - line2[0]) < 12):
-                    print 1,
-                if (abs(avg_line[1] - line2[1]) < cv.CV_PI*2/180 or
-                     abs(avg_line[1] - line2[1]) > cv.CV_PI * (2 - 2.0/180)): 
-                    print 2,
-                print avg_line, line2
-                if (abs(avg_line[0] - line2[0]) < 12 and
-                    # Different signs: handle discontinuity between 0 and 2pi
-                    (abs(avg_line[1] - line2[1]) < cv.CV_PI*2/180 or
-                     abs(avg_line[1] - line2[1]) > cv.CV_PI * (2 - 2.0/180))):
-                    matched_lines.append(line2)
-                    avg_line = avg_lines(matched_lines)
-                    lines.pop(j)
-            print matched_lines
-            
-            grouped_lines.append(avg_line)
-        lines = grouped_lines
-        
-        # Print lines
-        for i in range(len(lines)):
-            print lines[i]
-            rho, theta = lines[i]
-            a, b = np.cos(theta), np.sin(theta)
-            x0, y0 = a*rho, b*rho
-            pt1 = (cv.Round(x0 + 1000*(-b)),
-                   cv.Round(y0 + 1000*(a)))
-            pt2 = (cv.Round(x0 - 1000*(-b)),
-                   cv.Round(y0 - 1000*(a)));
-            cv.Line(frame_small, pt1, pt2,
-                    hv2rgb(360.0*i/len(lines), 1.0), 1, 8)
+    # Group lines that are within r +/-12 and theta +/- 5 degrees
+    grouped_lines = []
+    r_threshold = 12                      # in px
+    theta_threshold = cv.CV_PI * 5 / 180  # in radians
+    while len(lines) > 0:
+        line1 = normalize_line(lines.pop())
+        avg_line = line1
+        matched_lines = [line1]
+        for j in range(len(lines)-1, -1, -1):
+            line2 = normalize_line(lines[j])
+            if verbose:
+              # Print which criteria were matched
+              if (abs(avg_line[0] - line2[0]) < r_threshold):
+                print 1,
+              if (abs(angle_difference(avg_line[1], line2[1])) < 
+                  theta_threshold):
+                print 2,
+              print avg_line, line2
+            if (abs(avg_line[0] - line2[0]) < r_threshold and
+                abs(angle_difference(avg_line[1],line2[1])) < theta_threshold):
+                matched_lines.append(line2)
+                avg_line = avg_lines(matched_lines)
+                lines.pop(j)
+        if verbose: print matched_lines
+        grouped_lines.append(avg_line)
+    lines = grouped_lines
 
-        # Pair up lines by smallest angle difference
-        lines = list(lines)
-        grouped_lines = []
-        while len(lines) > 0:
-            line1 = normalize_line(lines.pop())
-            closest = None
-            for j in range(len(lines)-1, -1, -1):
-                line2 = normalize_line(lines[j])
-                # Find the closest match
-                if ((closest is None
-                     or abs(angle_difference(line1[1], line2[1])) < \
-                         abs(angle_difference(line1[1], closest[1])))
-                    # Make sure difference < pi/4 to reduce errors
-                    and abs(angle_difference(line1[1], line2[1])) < \
-                        cv.CV_PI / 4):
-                    closest = line2
-            if closest is not None:
-                lines.remove(closest)
-                # Sort list by line[0] (radius)
-                if line1[0] > closest[0]:
-                    line1, closest = closest, line1
-            # Make a tuple (line1, line2) or (line, None) if no match found
+    # Group possible pairs of lines by smallest angle difference
+    grouped_lines = []
+    while len(lines) > 0:
+        line1 = normalize_line(lines.pop())
+        closest = None
+        for j in range(len(lines)-1, -1, -1):
+            line2 = normalize_line(lines[j])
+            # Find the closest match
+            if ((closest is None
+                 or abs(angle_difference(line1[1], line2[1])) < \
+                     abs(angle_difference(line1[1], closest[1])))
+                # Make sure difference < pi/4 to reduce errors
+                and abs(angle_difference(line1[1], line2[1])) < \
+                    cv.CV_PI / 4):
+                closest = line2
+
+        if closest is not None:
+            lines.remove(closest)
+            # Sort list by line[0] (radius)
+            if line1[0] > closest[0]:
+                line1, closest = closest, line1
+            # Make a tuple (line1, line2) or (line,) if no match found
             grouped_lines.append((line1, closest))
-        print 'Pairs of lines:', grouped_lines
+        else:
+          grouped_lines.append((line1,))
 
-        # If 2+ pairs of lines, find corners (intersection point of lines)
-        if len(grouped_lines) > 1:
-          x, y = 0, 0
-          count = 0
-          for i in range(len(grouped_lines)):
-            pair1 = grouped_lines[i]
-            for j in range(i+1, len(grouped_lines)): 
-              pair2 = grouped_lines[j]
-              pts = []
-              for line1 in pair1:
-                if line1 is not None:
-                  for line2 in pair2:
-                    if line2 is not None:
-                      pts.append(line_intersection(line1, line2))
-              for pt in pts:
-                x += pt[0]
-                y += pt[1]
-                count += 1
-          x /= count
-          y /= count
-          print 'Intersection:', (x, y)
+    # Print lines
+    if len(grouped_lines) > 0:
+      print 'Groups of lines:', grouped_lines
+    i = 0
+    for group in grouped_lines:
+      for j in range(len(group)):
+        rho, theta = group[j]
+        a, b = np.cos(theta), np.sin(theta)
+        x0, y0 = a*rho, b*rho
+        pt1 = (cv.Round(x0 + 1000*(-b)),
+               cv.Round(y0 + 1000*(a)))
+        pt2 = (cv.Round(x0 - 1000*(-b)),
+               cv.Round(y0 - 1000*(a)));
+        cv.Line(frame_small, pt1, pt2,
+                hv2rgb(360.0*i/len(grouped_lines), 1.0), 1, 8)
+      i += 1
+
+    # If 2+ groups of lines, find corners (intersection point of lines)
+    if len(grouped_lines) > 1:
+      for i in range(len(grouped_lines)):
+        pair1 = grouped_lines[i]
+        for j in range(i+1, len(grouped_lines)): 
+          pair2 = grouped_lines[j]
+
+          # Make sure their angles differ by more than 10 deg to
+          #  reduce errors
+          if (abs(angle_difference(pair1[0][1], pair2[0][1])) < 
+              cv.CV_PI*10/180):
+            break
+
+          # Enumerate intersection points
+          pts = []
+          for line1 in pair1:
+            for line2 in pair2:
+              pts.append(line_intersection(line1, line2))
+          # Find average of intersection points
+          x = sum(pt[0] for pt in pts)/len(pts)
+          y = sum(pt[1] for pt in pts)/len(pts)
+          print 'Intersection:', (x, y),
           pt = cv.Round(x), cv.Round(y)
           cv.Circle(frame_small, pt, 4, (0,255,0,0))
 
@@ -259,12 +261,23 @@ def main():
     cv.NamedWindow('edges', cv.CV_WINDOW_AUTOSIZE)
     cv.MoveWindow('edges', 600, 10)
 
-    if len(sys.argv) > 2:
-      if sys.argv[1] == '-i':
+    parser = OptionParser()
+    parser.add_option('-s', '--seek', action='store', type='int', dest='seek',
+                      default=0)
+    parser.add_option('-i', '--image', action='store_true', dest='image',
+                      default=False)
+    parser.add_option('-v', '--verbose', action='store_true', dest='verbose',
+                      default=False)
+    options, args = parser.parse_args()
+
+    global verbose
+    verbose = options.verbose
+
+    if options.image:
         # Use image
-        frame = cv.LoadImage(sys.argv[1])
+        frame = cv.LoadImage(args[0])
         if frame is None:
-          print 'Error loading image %s' % sys.argv[1]
+          print 'Error loading image %s' % args[0]
           return
         find_lines(frame)
 
@@ -274,23 +287,31 @@ def main():
           if k == ord('q'):
             break
     else:
-      if len(sys.argv) > 1:
+      if len(args) > 0:
         # Use video
-        cam = cv.CaptureFromFile(sys.argv[1])
+        cam = cv.CaptureFromFile(args[0])
         if cam is None:
           print 'Error opening file'
           return
       else:
+        # Use webcam
         cam = cv.CreateCameraCapture(1);
         if cam is None:
           print 'Error opening camera'
           return
 
+      # Seek to initial position by discarding frames
+      for i in range(options.seek):
+        cv.GrabFrame(cam)
+
       while True:
         frame = cv.QueryFrame(cam)
+        if frame is None:
+          print 'End of video'
+          break
         find_lines(frame)
         
-        k = cv.WaitKey(33)
+        k = cv.WaitKey(10)
         if k == ord('q'):
           break
       cv.ReleaseCapture(cam)
