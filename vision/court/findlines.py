@@ -85,11 +85,15 @@ def line_intersection(line1, line2):
 
 def find_lines(frame):
     # Resize to 640x480
-    frame_small = cv.CreateMat(480, 640, cv.CV_8UC3)
-    cv.Resize(frame, frame_small)
+    frame_size = cv.GetSize(frame)
+    if frame_size[0] != 640:
+      frame_small = cv.CreateMat(480, 640, cv.CV_8UC3)
+      cv.Resize(frame, frame_small)
+    else:
+      frame_small = frame
 
     # Threshold by distance: blank out all top pixels
-    cv.Rectangle(frame_small, (0,0), (640, 80), (0,0,0,0), cv.CV_FILLED)
+    cv.Rectangle(frame_small, (0,0), (640, 180), (0,0,0,0), cv.CV_FILLED)
 
     # Convert to grayscale
     frame_size = cv.GetSize(frame_small)
@@ -98,7 +102,7 @@ def find_lines(frame):
 
     # Use color thresholding to get white lines
     threshold = cv.CreateImage(frame_size, cv.IPL_DEPTH_8U, 1)
-    cv.Threshold(frame_gray, threshold, 200, 255, cv.CV_THRESH_BINARY)
+    cv.Threshold(frame_gray, threshold, 160, 255, cv.CV_THRESH_BINARY)
 
     openElement = cv.CreateStructuringElementEx(11,11,5,5,
                                                 cv.CV_SHAPE_RECT)
@@ -126,9 +130,15 @@ def find_lines(frame):
     else:        # Classic
         lines = cv.HoughLines2(edges, line_storage, cv.CV_HOUGH_STANDARD,
                                1, cv.CV_PI/180.0, 120)
+        lines = list(lines)
+
+        # Remove spurious line from the black rectangle up top
+        for line in lines[:]:
+          if (abs(180 - line[0]) < 10 and
+              abs(angle_difference(cv.CV_PI/2, line[1])) < 0.01):
+            lines.remove(line)
 
         # Group lines that are within r +/-10 and theta +/- 2 degrees
-        lines = list(lines)
         grouped_lines = []
         while len(lines) > 0:
             line1 = normalize_line(lines.pop())
@@ -200,10 +210,12 @@ def find_lines(frame):
             pair1 = grouped_lines[i]
             for j in range(i+1, len(grouped_lines)): 
               pair2 = grouped_lines[j]
-              pts = [line_intersection(pair1[0], pair2[0]),
-                     line_intersection(pair1[0], pair2[1]),
-                     line_intersection(pair1[1], pair2[0]),
-                     line_intersection(pair1[1], pair2[1])]
+              pts = []
+              for line1 in pair1:
+                if line1 is not None:
+                  for line2 in pair2:
+                    if line2 is not None:
+                      pts.append(line_intersection(line1, line2))
               for pt in pts:
                 x += pt[0]
                 y += pt[1]
@@ -247,26 +259,42 @@ def main():
     cv.NamedWindow('edges', cv.CV_WINDOW_AUTOSIZE)
     cv.MoveWindow('edges', 600, 10)
 
-    if len(sys.argv) > 1:
-      # Use image
-      frame = cv.LoadImage(sys.argv[1])
-      if frame is None:
-        print 'Error loading image %s' % sys.argv[1]
-        return
-      find_lines(frame)
-    else:
-      cam = cv.CreateCameraCapture(0);
-      frame = cv.QueryFrame(cam)
-      if frame is None:
-        print 'Error opening camera'
-        return
-      find_lines(frame)
+    if len(sys.argv) > 2:
+      if sys.argv[1] == '-i':
+        # Use image
+        frame = cv.LoadImage(sys.argv[1])
+        if frame is None:
+          print 'Error loading image %s' % sys.argv[1]
+          return
+        find_lines(frame)
 
-    # Pause for key press
-    while True:
+        # Pause for key press
+        while True:
+          k = cv.WaitKey(33)
+          if k == ord('q'):
+            break
+    else:
+      if len(sys.argv) > 1:
+        # Use video
+        cam = cv.CaptureFromFile(sys.argv[1])
+        if cam is None:
+          print 'Error opening file'
+          return
+      else:
+        cam = cv.CreateCameraCapture(1);
+        if cam is None:
+          print 'Error opening camera'
+          return
+
+      while True:
+        frame = cv.QueryFrame(cam)
+        find_lines(frame)
+        
         k = cv.WaitKey(33)
         if k == ord('q'):
-            break
+          break
+      cv.ReleaseCapture(cam)
+
 
 if __name__ == '__main__':
     main()
