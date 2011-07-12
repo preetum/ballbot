@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import cv
+import util
 from optparse import OptionParser
 
 verbose = False
@@ -61,20 +62,48 @@ def to_xy(r_theta):
     r, theta = r_theta
     return (r * np.cos(theta), r * np.sin(theta))
 
-def line_intersection(line1, line2):
+def line_to_slope_intercept(line):
     '''
-    Finds the intersection point of two 2D lines in (r, theta) form,
-     where the line is parallel to the vector denoted by (r, theta)
+    Converts a line in (r, theta) to slope-intercept (mx + b)
+    '''
+    x1, y1 = to_xy(line)
+    #x2, y2 = x1-y1, x1+y1
+    #m = (y2-y1) / (x2-x1)
+    if y1 == 0:
+      inf = float('inf')
+      return inf, inf
+
+    m = x1 / -y1
+    b = m * -x1 + y1
+
+    return m, b
+
+def line_to_visible_segment(line, frame_size=(640,480)):
+    '''
+    Returns the two points at which this line is visible in the frame
+    line is in (r, theta) form
+    '''
+    # TODO finish
+    m, b = line_to_slope_intercept(line)
+    width, height = frame_size
+    if m == float('inf'):
+      pass
+    elif 0 <= b <= height:  # (0, b) is a point
+      p1a = x1, y1 = to_xy(line1)
+      p1b = x1-y1, x1+y1
+      line_intersection_points(p1a, p1b, (0,0), (0, width))
+
+def line_intersection_points(p1a, p1b, p2a, p2b):
+    '''
+    Finds the intersection point of two 2D lines given
+     two points on each line. (p1a and p1b belong to line 1, etc.)
     Returns intersection point as (x, y)
     See http://mathworld.wolfram.com/Line-LineIntersection.html
     '''
-    x1, y1 = to_xy(line1)
-    x2, y2 = x1-y1, x1+y1
-    x3, y3 = to_xy(line2)
-    x4, y4 = x3-y3, x3+y3
-
-    print x1, y1
-    print x3, y3
+    x1, y1 = p1a
+    x2, y2 = p1b
+    x3, y3 = p2a
+    x4, y4 = p2b
 
     a = np.linalg.det([[x1, y1], [x2, y2]])
     b = np.linalg.det([[x3, y3], [x4, y4]])
@@ -82,9 +111,65 @@ def line_intersection(line1, line2):
     x = np.linalg.det([[a, x1-x2], [b, x3-x4]]) / d
     y = np.linalg.det([[a, y1-y2], [b, y3-y4]]) / d
 
-    print 'center of', line1, line2, 'is', (x,y)
-
     return (x, y)
+
+def line_intersection(line1, line2):
+    '''
+    Finds the intersection point of two 2D lines in (r, theta) form,
+     where the line is parallel to the vector denoted by (r, theta)
+    '''
+    p1a = x1, y1 = to_xy(line1)
+    p1b = x1-y1, x1+y1
+    p2a = x3, y3 = to_xy(line2)
+    p2b = x3-y3, x3+y3
+
+    return line_intersection_points(p1a, p1b, p2a, p2b)
+
+def distance_to_line(line):
+  '''
+  Returns real distance reading to the line, where line is a camera line
+  '''
+  # Get two points on the (camera) line
+  x1, y1 = to_xy(line)
+  x2, y2 = x1-y1, x1+y1
+
+  # Convert to points in real space
+  x1, y1 = camera_point_to_xy(x1, y1)
+  x2, y2 = camera_point_to_xy(x2, y2)
+
+  if y1 == y2:
+    # Handle vertical line
+    return 0
+  else:
+    line = ((x1, y1), (x2, y2))
+    return util.pointLineDistance((0,0), line)
+
+def dist_heading_to_point(pt):
+  '''
+  Returns real distance and heading to the point, where pt is a camera point
+  '''
+  x, y = pt
+  x, y = camera_point_to_xy(x, y)
+  r, theta = np.linalg.norm((x, y)), np.arctan2(y, x)
+  return r, theta
+
+def camera_point_to_xy(px, py):
+  # TODO get these parameters from rosparam store
+  radians_per_px = 0.0016
+  frame_height = 480
+  frame_width = 640
+  camera_tilt_angle = -20.0/180*np.pi
+  camera_pan_angle = 0.0
+  camera_height = 33.5
+  radians_per_px = 0.0032;
+
+  theta = (py - frame_height/2) * radians_per_px - camera_tilt_angle
+  y = camera_height / np.tan(theta);
+
+  phi = (px - frame_width/2) * radians_per_px + camera_pan_angle
+  x = y * np.tan(phi)
+
+  return x, y
 
 def find_lines(frame):
     # Resize to 640x480
@@ -204,6 +289,7 @@ def find_lines(frame):
       i += 1
 
     # If 2+ groups of lines, find corners (intersection point of lines)
+    intersection_pts = []
     if len(grouped_lines) > 1:
       for i in range(len(grouped_lines)):
         pair1 = grouped_lines[i]
@@ -224,11 +310,14 @@ def find_lines(frame):
           # Find average of intersection points
           x = sum(pt[0] for pt in pts)/len(pts)
           y = sum(pt[1] for pt in pts)/len(pts)
-          print 'Intersection:', (x, y),
-          pt = cv.Round(x), cv.Round(y)
+          pt = (x, y)
+          print 'Intersection:', pt,
+          intersection_pts.append(pt)
+          pt = (cv.Round(x), cv.Round(y))
           cv.Circle(frame_small, pt, 4, (0,255,0,0))
 
           # Find direction of intersection by following each line
+          #  (direction is defined as the point of the T)
           angles = []
           for pair in grouped_lines:
             angles.append(pair[0][1] + cv.CV_PI/2)
@@ -238,7 +327,9 @@ def find_lines(frame):
             # TODO look a variable amount
             x1 = x + 50*np.cos(angle)
             y1 = y + 50*np.sin(angle)
+
             # Enforce limits
+            # TODO handle when intersection is off the bounds of the image
             x1 = min(max(0, x1), frame_size[0]-1)
             y1 = min(max(0, y1), frame_size[1]-1)
             srchPt = cv.Round(x1), cv.Round(y1)
@@ -254,6 +345,9 @@ def find_lines(frame):
 
     cv.ShowImage('frame', frame_small)
     cv.ShowImage('edges', threshold)
+
+    # TODO convert line equations into line segments
+    return grouped_lines, intersection_pts
 
 def main():
     cv.NamedWindow('frame', cv.CV_WINDOW_AUTOSIZE)
