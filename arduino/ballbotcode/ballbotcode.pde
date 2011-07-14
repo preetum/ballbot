@@ -1,5 +1,6 @@
+// Hey, emacs: -*- mode: c; indent-tabs-mode: nil -*-
 #include <Servo.h>
-#include <PID_Beta6.h>  // PID library
+#include <PID_v1.h>
 #include <MsTimer2.h>
 
 #include "packet.h"
@@ -34,9 +35,8 @@ enum {
 // Globals
 Servo steering, motor;
 Packet packet;
-int steer_input_from_ROS;
 
-//--------------- Gyro declerations -------------------------
+//--------------- Gyro declarations -------------------------
 int gyroPin = 0;                 //Gyro is connected to analog pin 0
 float gyroVoltage = 3.3;         //Gyro is running at 3.3V
 
@@ -46,27 +46,19 @@ float gyroSensitivity = .01;     // Gyro senstivity for 4 times amplified output
 float rotationThreshold = 3.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
 
+// TODO store angles in binary angle representation
+volatile float currentAngle = 0;          //Keep track of our current angle
+volatile float currentAngularVelocity = 0;
 
-//long cummulative_count = 0;
-long distance_limit = 0;
-int vel_m = 0;
-
-float currentAngle = 0;          //Keep track of our current angle
-
-//--------- PID declerations ---------------------
+//--------- PID declarations ---------------------
 //Encoder PID:
 double encoder_Input, encoder_Output, encoder_Setpoint;
-PID pid_dist(&encoder_Input, &encoder_Output, &encoder_Setpoint,0.8,0.00000,0.001);  //pid(,,, kP, kI, kd)
-
-//Steering PID:
-double steer_Input, steer_Output, steer_Setpoint, angle_Setpoint;
-PID pid_steer(& steer_Input, & steer_Output, & steer_Setpoint,1.0,0.050,0.0000);  //pid(,,, kP, kI, kd)
+PID pid_dist(&encoder_Input, &encoder_Output, &encoder_Setpoint,
+	     0.8, 0.0, 0.001, DIRECT);
 //---------------x-x-x----------------------------
 
-int encoder_counter1 = 0, encoder_counter2 = 0;
+volatile long encoder0_counter = 0L;
 unsigned int driveMotorTarget = MOTOR_NEUTRAL;
-
-
 
 // fix the setpoint for PID control of speed
 void set_speed(float vel_m)
@@ -81,32 +73,51 @@ void set_speed(float vel_m)
 
 }
 
+void writeInt(unsigned int i) {
+  Serial.print((byte)(i >> 8));
+  Serial.print((byte)i);
+}
 
+/* Writes odometry info to the serial port in the following order:
+ *
+ * int16 encoder delta    (in ticks)
+ * int16 angular position (as a 16-bit binary angle)
+ * int16 angular velocity (as a 16-bit binary angle/s)
+ *
+ * Notes: ints are sent big-endian
+ */
+void writeOdometry() {
+  static long lastEncoderCount = 0L;
+  long tmpEncoderCount;
+  int delta;
+    
+  // Atomically read encoder count
+  cli();
+  tmpEncoderCount = encoder0_counter;
+  sei();
 
-
-// Write (encodercount, currentangle) to the serial port. This is actually (distance,dtheta) from last sample
-
-void writeOscilloscope(int value_x, int value_y) {
+  // Compute change in encoder count (discrete velocity estimate)
+  delta = (int)(tmpEncoderCount - lastEncoderCount);
+  lastEncoderCount = tmpEncoderCount;
   
   Serial.print(0xff,BYTE);                // send init byte
-
-  Serial.print( (value_x >> 8) & 0xff,BYTE); // send first part
-  Serial.print( value_x & 0xff,BYTE);        // send second part
-
-  Serial.print( (value_y >> 8) & 0xff, BYTE ); // send first part
-  Serial.print( value_y & 0xff, BYTE );        // send second part
-  
-  //Serial.print("value_y");
-  //Serial.println(value_y);
-
+  writeInt(delta);
+  writeInt((int)(currentAngle/180*32768));
+  writeInt((int)(currentAngularVelocity/180*32768));
 }
 
 
-
-void encoder_tick()  //encode tick callback
-{
-  encoder_counter1 += 1;
-  encoder_counter2 += 1;
+/* Callback for encoder on interrupt 0
+   B channel = pin 2 / interrupt 0
+   A channel = pin 12 / PB4
+ */
+void encoder0_tick() {
+  // hard code the port instead of digitalRead for execution speed
+  if (PORTB & (1 << PB4)) {
+    encoder0_counter += 1;
+  } else {
+    encoder0_counter -= 1;
+  }
 }
 
 
@@ -186,21 +197,17 @@ void packetReceived () {
   }
         
   case DATA_REQUESTED:
-    {
-      int tmpEncoderCount = encoder_counter2;	// save encoder value
-      encoder_counter2 = 0;
-      writeOscilloscope(tmpEncoderCount, (int) currentAngle); //send for visual output
-      setDriveMotor(MOTOR_NEUTRAL - encoder_Output*MOTOR_NEUTRAL/180);
-      
-      break;
-    }
+    writeOdometry();
+    break;
   
-  }
+  } // switch
 }
 
 
 void timer_callback() //MStimer2 callback function used for timed update for: 1. angle | 2. Encoder PID loop | 3. Steering PID Loop
 {
+  static long lastEncoderCount = 0L;
+
   // read from Gyro and find the current angle of the car
   int raw_gyro_read = analogRead(gyroPin);
 
@@ -213,7 +220,9 @@ void timer_callback() //MStimer2 callback function used for timed update for: 1.
     gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
     currentAngle += gyroRate;
   }
-    
+  currentAngularVelocity = gyroRate;
+  
+  /*
   if(steer_input_from_ROS == 0)
     {
       double steer_err = -( raw_gyro_read - steer_Setpoint), angle_err ( angle_Setpoint-currentAngle );
@@ -231,18 +240,22 @@ void timer_callback() //MStimer2 callback function used for timed update for: 1.
       Serial.print("Angle = "); Serial.println(currentAngle);
       //    Serial.println(desi_pid_output);
     }
+  */
     
-  encoder_Input =  (double) encoder_counter1;
-  encoder_counter1 = 0;
+  // Atomically read encoder count
+  cli();
+  long tmpEncoderCount = encoder0_counter;
+  sei();
+  // Compute change in encoder count (discrete velocity estimate)
+  long delta = tmpEncoderCount - lastEncoderCount;
+  lastEncoderCount = tmpEncoderCount;
+
+  encoder_Input =  (double) delta;
   pid_dist.Compute(); //give the PID the opportunity to compute if needed
-    
-   
 }
 
 
 void setup() {
-  
-  
   // Initialize servo objects
   steering.attach(4);
   motor.attach(5);
@@ -251,28 +264,17 @@ void setup() {
   steering.write(SERVO_CENTER);
   motor.write(MOTOR_NEUTRAL);
   
-  attachInterrupt(0, encoder_tick, CHANGE); //interrupt to count encoder ticks  
+  // Interrupt to count encoder ticks on int 0 (pin 2)
+  attachInterrupt(0, encoder0_tick, CHANGE);
 
-  analogReference(EXTERNAL);  //Tell the  gyro to use external Vref
+  analogReference(EXTERNAL);  // Use external Vref (3.3V)
   pinMode(13, OUTPUT); // enable LED pin
 
   // PID Encoder Stuff:
   pid_dist.SetOutputLimits(0,180); //tell the PID the bounds on the output
-  pid_dist.SetInputLimits(0,60); //number of ticks in 100 milliseconds
   encoder_Output = 0;
-  pid_dist.SetMode(AUTO); //turn on the PID
+  pid_dist.SetMode(AUTOMATIC); //turn on the PID
   pid_dist.SetSampleTime(100); //delay in the loop
-
-  // PID Steering Stuff:
-  pid_steer.SetOutputLimits(-40,40); //tell the PID the bounds on the output: Steering servo is centered at 95 (+-40)
-  pid_steer.SetInputLimits(0,1024); //Raw gyro readings can range from 0 to 1024 - 10bit ADC
-  steer_Output = 0;
-  steering.write(100);
-  steer_Setpoint = 377.018;
-  angle_Setpoint = 0;
-  pid_steer.SetMode(AUTO); //turn on the PID
-  pid_steer.SetSampleTime(100); //delay in the loop
-  
   
   Serial.begin(115200);
   
@@ -288,8 +290,9 @@ void setup() {
 void loop() 
 { 
   long curTime;
-  
-  if (Serial.available())
+
+  // Main command-processing state machine
+  while (Serial.available())
     byteReceived(Serial.read());
    
   // Drive motor direction fixing
@@ -309,7 +312,7 @@ void loop()
     if (driveMotorTarget >= MOTOR_MIN_REVERSE && lastDirFwd) {
       motor.write(MOTOR_MIN_REVERSE);
       driveMotorState = STATE_DELAY1;
-      waitTime = millis() + 100;  //was 100
+      waitTime = millis() + 100;
         
       // Normal operation
     } else {
@@ -331,7 +334,7 @@ void loop()
     if (curTime >= waitTime) {
       motor.write(MOTOR_NEUTRAL);
       driveMotorState = STATE_DELAY2;
-      waitTime = curTime + 100;         // ------>> was 100
+      waitTime = curTime + 100;
     } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
       driveMotorState = STATE_NORMAL;
     }

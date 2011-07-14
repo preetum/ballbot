@@ -35,7 +35,7 @@ D7 D6 D5 D4 D3 D2 D1 D0
   A4
 */
 #define CMD_VALUES 0x42
-
+#define DATA_REQUESTED 0x21
 
 // Packet structure
 typedef struct packet {
