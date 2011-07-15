@@ -80,7 +80,7 @@ AVRDUDE_UPLOAD_RATE:=$(shell sed -n -e "s/$(BOARD).upload.speed=\(.*\)/\1/p" $(B
 # get the AVRDUDE_PROGRAMMER value from the $(BOARD).upload.protocol variable. For the atmega328 board this is stk500
 # AVRDUDE_PROGRAMMER:=$(shell sed -n -e "s/$(BOARD).upload.protocol=\(.*\)/\1/p" $(BOARDS_TXT))
 # use stk500v1, because stk500 will default to stk500v2
-AVRDUDE_PROGRAMMER:=stk500v1
+AVRDUDE_PROGRAMMER:=arduino
 
 #=== identify user files ===
 PDESRC:=$(shell ls *.pde)

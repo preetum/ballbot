@@ -5,9 +5,9 @@
 
 #include "packet.h"
 
-#define SERVO_LEFT   60
-#define SERVO_CENTER 100
-#define SERVO_RIGHT  140
+#define SERVO_LEFT   57
+#define SERVO_CENTER 92
+#define SERVO_RIGHT  127
 
 // Motor deadband: 91-99
 #define MOTOR_FULL_FORWARD 0
@@ -43,7 +43,7 @@ float gyroVoltage = 3.3;         //Gyro is running at 3.3V
 float gyroZeroVoltage = 1.215;   //Gyro is zeroed at 1.23V - given in the datasheet
 float gyroSensitivity = .01;     // Gyro senstivity for 4 times amplified output is 10mV/deg/sec
 
-float rotationThreshold = 3.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
+float rotationThreshold = 0.3;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
 
 // TODO store angles in binary angle representation
@@ -113,7 +113,7 @@ void writeOdometry() {
  */
 void encoder0_tick() {
   // hard code the port instead of digitalRead for execution speed
-  if (PORTB & (1 << PB4)) {
+  if (PINB & (1 << PB4)) {
     encoder0_counter += 1;
   } else {
     encoder0_counter -= 1;
@@ -187,10 +187,10 @@ void byteReceived (unsigned char byte) {
 void packetReceived () {
   switch (packet.data[0]) {
   case CMD_VALUES: {
-    unsigned int steer_input_from_ROS = packet.data[1] << 8 | packet.data[2];  //---->>need to change this: we get heading from the ROS: convert it to the angular velocity we expect.
-    unsigned int  motorVal = packet.data[3] << 8 | packet.data[4];
+    unsigned int steerVal = packet.data[1] << 8 | packet.data[2];  //---->>need to change this: we get heading from the ROS: convert it to the angular velocity we expect.
+    unsigned int motorVal = packet.data[3] << 8 | packet.data[4];
                   
-    //steering.write(steerVal);
+    steering.write(steerVal);
     set_speed(motorVal / 100.0);  //we divide by 100 as motorval is intended speed in cm/s while set_speed takes it in m/s
 
     break;
@@ -215,12 +215,15 @@ void timer_callback() //MStimer2 callback function used for timed update for: 1.
   float gyroRate = (raw_gyro_read * gyroVoltage) / 1024;
   gyroRate -= gyroZeroVoltage;
   gyroRate /= gyroSensitivity;
+  gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
 
   if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
-    gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
     currentAngle += gyroRate;
+    currentAngularVelocity = gyroRate;
+  } else {
+    currentAngularVelocity = 0;
   }
-  currentAngularVelocity = gyroRate;
+
   
   /*
   if(steer_input_from_ROS == 0)
@@ -265,7 +268,10 @@ void setup() {
   motor.write(MOTOR_NEUTRAL);
   
   // Interrupt to count encoder ticks on int 0 (pin 2)
-  attachInterrupt(0, encoder0_tick, CHANGE);
+  attachInterrupt(0, encoder0_tick, RISING);
+  pinMode(12, INPUT);
+  digitalWrite(12, HIGH);
+
 
   analogReference(EXTERNAL);  // Use external Vref (3.3V)
   pinMode(13, OUTPUT); // enable LED pin
