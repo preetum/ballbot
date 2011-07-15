@@ -16,10 +16,11 @@ class Robot:
   '''
   START_BYTE = 0xFF
   COMMAND_BYTE = 0x42
+  DATA_REQUESTED_BYTE = 0x21
   
-  SERVO_LEFT = 60
-  SERVO_CENTER = 100
-  SERVO_RIGHT = 140
+  SERVO_LEFT = 57
+  SERVO_CENTER = 92
+  SERVO_RIGHT = 127
   
   # Motor deadband: 91-99
   MOTOR_FULL_FORWARD = 0
@@ -34,7 +35,7 @@ class Robot:
   
     # Initialize Arduino COM port
     try:
-      self.serial = serial.Serial(port, baudrate=115200)
+      self.serial = serial.Serial(port, baudrate=115200, timeout=0.01)
     except serial.serialutil.SerialException:
       print "No Arduino connected."
     
@@ -53,9 +54,27 @@ class Robot:
   def reset(self):
     self.set_steering(0)
     self.set_drive(0)
-    self.send_arduino_packet()
+    self.refresh()
+
+  def refresh(self):
+    # Send data commands
+    data_string = self.cmd_packet_format.pack(*self.cmd_packet)
+    self.send_arduino_packet(data_string)
+
+    # Get odometry data
+    self.send_arduino_packet(chr(self.DATA_REQUESTED_BYTE))
+    # Parse results
+    b = self.serial.read()
+    if b and ord(b) == Robot.START_BYTE:
+      s = self.serial.read(6)
+      if len(s) == 6:
+        counts, angle, angular_velocity = struct.unpack(">hhh", s)
+        print 'counts: %d\t' % counts,
+        print 'angle: %.2f deg\t' % (angle * 180.0 / 32768),
+        print 'angular velocity: %.2f deg/s' % (angular_velocity * 180.0 / 32768)
     
-  def send_arduino_packet(self):
+    
+  def send_arduino_packet(self, data_string):
     '''
     Arduino packet format:
       START   (1 byte  =  0xFF)
@@ -73,8 +92,7 @@ class Robot:
     6     8-bit hopper motor value
     '''
     # Generate checksum
-    data_string = self.cmd_packet_format.pack(*self.cmd_packet)
-    length = self.cmd_packet_format.size
+    length = len(data_string)
     checksum = length ^ reduce(lambda x,y: x^y, bytearray(data_string), 0)
     
     # Construct full packet
@@ -82,8 +100,7 @@ class Robot:
               data_string + chr(checksum)
     
     self.serial.write(string)
-    self.serial.flushInput()
-    self.serial.flushOutput()
+    self.serial.flush()
   
   def set_steering(self, angle):
     '''
@@ -152,14 +169,14 @@ def main():
 
   try:
     while (True):
-      robot.send_arduino_packet()
+      robot.refresh()
           
       line = sys.stdin.readline()
-      
-      values = [float(v) for v in line.split(',')]
-      for i in range(min(len(values), 4)):
-        if i == 0: robot.set_steering(values[i])
-        elif i == 1: robot.set_velocity(values[i])
+      if len(line.strip()) > 0:
+        values = [float(v) for v in line.split(',')]
+        for i in range(min(len(values), 4)):
+          if i == 0: robot.set_steering(values[i])
+          elif i == 1: robot.set_velocity(values[i])
   except:
     # In case of error or Ctrl-C, zero motor values
     robot.reset()
