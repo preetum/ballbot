@@ -60,17 +60,13 @@ PID pid_dist(&encoder_Input, &encoder_Output, &encoder_Setpoint,
 volatile long encoder0_counter = 0L;
 unsigned int driveMotorTarget = MOTOR_NEUTRAL;
 
-// fix the setpoint for PID control of speed
-void set_speed(float vel_m)
+/* Sets the setpoint of the PID velocity controller.
+   vel is given in cm/s
+ */
+void set_speed(int vel)
 {
-  long temp_Setpoint =  (long) (((vel_m*7.5) - 1.61)*2.89435601);
-
-  if(temp_Setpoint <= 0)
-    encoder_Setpoint = 0;
-  else 
-    encoder_Setpoint  = temp_Setpoint;
-  //vel_m is speed in meters/second, we convert it into ticks/pd_loop_count and then compensate the offset by subtracting the intercept and multipying by slope inverse (1/m = 2.89435601) //assuming it takes 75 ticks for 100cm, then for 100cm/s => 10cm / 100milliseconds => 7.5 ticks/100milliseconds (100milliseconds is the time of pid_loop length aka. running time of one cycle of void_loop())
-
+  // (velocity in m) * (81.45 ticks / cm) / (10 Hz sample rate)
+  encoder_Setpoint = vel * 8.145;
 }
 
 void writeInt(unsigned int i) {
@@ -191,7 +187,7 @@ void packetReceived () {
     unsigned int motorVal = packet.data[3] << 8 | packet.data[4];
                   
     steering.write(steerVal);
-    set_speed(motorVal / 100.0);  //we divide by 100 as motorval is intended speed in cm/s while set_speed takes it in m/s
+    set_speed(motorVal);
 
     break;
   }
@@ -204,8 +200,10 @@ void packetReceived () {
 }
 
 
-void timer_callback() //MStimer2 callback function used for timed update for: 1. angle | 2. Encoder PID loop | 3. Steering PID Loop
-{
+/* MStimer2 callback function used for timed update for: 
+ *  1. angle | 2. Encoder PID loop | 3. Steering PID Loop
+ */
+void timer_callback() {
   static long lastEncoderCount = 0L;
 
   // read from Gyro and find the current angle of the car
