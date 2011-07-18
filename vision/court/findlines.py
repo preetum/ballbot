@@ -78,21 +78,98 @@ def line_to_slope_intercept(line):
 
     return m, b
 
-def line_to_visible_segment(line, frame_size=(640,480)):
-    '''
-    Returns the two points at which this line is visible in the frame
-    line is in (r, theta) form
-    '''
-    # TODO finish
-    m, b = line_to_slope_intercept(line)
-    width, height = frame_size
-    if m == float('inf'):
-      pass
-    elif 0 <= b <= height:  # (0, b) is a point
-      p1a = x1, y1 = to_xy(line1)
-      p1b = x1-y1, x1+y1
-      line_intersection_points(p1a, p1b, (0,0), (0, width))
+def get_px(img, x, y):
+  width, height = cv.GetSize(img)
+  x = min(max(0, x), width-1)
+  y = min(max(0, y), height-1)
+  srchPt = cv.Round(y), cv.Round(x)
+  return img[srchPt]
 
+def line_to_visible_segment(line, threshold_img, eps=1e-8):
+    '''
+    Returns the two endpoints of the line segment in the frame
+    line is in (r, theta) form
+    return value is two points in ((x1, y1) (x2, y2)), where x1 <= x2
+    '''
+    width, height = cv.GetSize(threshold_img)
+
+    # Get two points on the line
+    p1a = x1, y1 = to_xy(line)
+    p1b = x1-y1, x1+y1
+
+    # Find top-left point a
+    # First try to intersect with each edge of image
+    candidates = [line_intersection_points(p1a, p1b, (0, 0), (width, 0)),
+              line_intersection_points(p1a, p1b, (0, 0), (0, height)),
+              line_intersection_points(p1a, p1b, (0, height), (width, height)),
+              line_intersection_points(p1a, p1b, (width, 0), (width, height))]
+    # There should be only 2 intersection points with the image rectangle,
+    #  (or 1 if it's tangent to a corner, or inf if it lies on an edge, but
+    #   we'll ignore those cases for now since they're improbable)
+    # Expand bounds by epsilon=1e-8 to account for floating point imprecision
+    points = filter(lambda x: (-eps <= x[0] <= width+eps) \
+                      and (-eps <= x[1] <= height+eps),
+                    candidates)
+    if len(points) != 2:
+      print 'Line is not within in image bounds!'
+      return None
+
+    # Try to iterate over pixel values starting at points[0]
+    m = x1 / -y1 if y1 != 0 else float('inf')
+    b = m * -x1 + y1
+    startPt = None
+    endPt = None
+    # Line is more horizontal: iterate over x values
+    if m < 1:
+      # Ensure that point[0] is leftmost point
+      if points[0][0] > points[1][0]:
+        points[0], points[1] = points[1], points[0]
+
+      # Look for start point from leftmost point
+      x, y = points[0]
+      while x < points[1][0] and startPt is None:
+        if get_px(threshold_img, x, y) != 0:
+          startPt = (x, y)
+        x += 1
+        y = m * x + b
+
+      # Look for end point from rightmost point
+      x, y = points[1]
+      while x > points[0][0] and endPt is None:
+        if get_px(threshold_img, x, y) != 0:
+          endPt = (x, y)
+        x -= 1
+        y = m * x + b
+    # Line is more vertical: iterate over y values
+    else:
+      m = y1 / x1
+      b = m * -y1 + x1
+
+      # Ensure that point[0] is topmost point
+      if points[0][1] > points[1][1]:
+        points[0], points[1] = points[1], points[0]
+
+      # Look for start point from topmost point
+      x, y = points[0]
+      while y < points[1][1] and startPt is None:
+        if get_px(threshold_img, x, y) != 0:
+          startPt = (x, y)
+        y += 1
+        x = m * y + b
+      
+      x, y = points[1]
+      while y < points[0][1] and endPt is None:
+        if get_px(threshold_img, x, y) != 0:
+          endPt = (x, y)
+        y -= 1
+        x = m * y + b
+
+    if startPt is None or endPt is None:
+      print 'Line segment not found: startPt=%s, endPt=%s' % (startPt, endPt)
+      return None
+
+    return startPt, endPt
+    
 def line_intersection_points(p1a, p1b, p2a, p2b):
     '''
     Finds the intersection point of two 2D lines given
@@ -280,8 +357,8 @@ def find_lines(frame):
                cv.Round(y0 + 1000*(a)))
         pt2 = (cv.Round(x0 - 1000*(-b)),
                cv.Round(y0 - 1000*(a)));
-        cv.Line(frame_small, pt1, pt2,
-                hv2rgb(360.0*i/len(grouped_lines), 1.0), 1, 8)
+        #cv.Line(frame_small, pt1, pt2,
+        #        hv2rgb(360.0*i/len(grouped_lines), 1.0), 1, 8)
       i += 1
 
     # If 2+ groups of lines, find corners (intersection point of lines)
@@ -326,6 +403,8 @@ def find_lines(frame):
 
             # Enforce limits
             # TODO handle when intersection is off the bounds of the image
+            #  Currently orientation of the intersection is not being used
+            #  by the particle filter
             x1 = min(max(0, x1), frame_size[0]-1)
             y1 = min(max(0, y1), frame_size[1]-1)
             srchPt = cv.Round(x1), cv.Round(y1)
@@ -339,11 +418,35 @@ def find_lines(frame):
               print 'Angle:', angle+cv.CV_PI
               break
 
+    # Convert line equations into line segments
+    line_segments = []
+    for group in grouped_lines:
+
+      if len(group) == 2:
+        # Get the average of the lines in a pair
+        line1, line2 = group
+        line = ((line1[0] + line2[0]) / 2.0, (line1[1] + line2[1]) / 2.0)
+      else:
+        line = group[0]
+
+      # Look down the line for the endpoints of the white region
+      line_segment = line_to_visible_segment(line, threshold)
+      if line_segment != None:
+        line_segments.append(line_segment)
+
+    print 'Line segments:', line_segments
+    i = 0
+    for pt1, pt2 in line_segments:
+      pt1 = cv.Round(pt1[0]), cv.Round(pt1[1])
+      pt2 = cv.Round(pt2[0]), cv.Round(pt2[1])
+      cv.Line(frame_small, pt1, pt2, hv2rgb(360.0*i/len(line_segments), 1.0), 
+              2, 8)
+      i += 1
+
     cv.ShowImage('frame', frame_small)
     cv.ShowImage('edges', threshold)
 
-    # TODO convert line equations into line segments
-    return grouped_lines, intersection_pts
+    return line_segments, intersection_pts
 
 def main():
     cv.NamedWindow('frame', cv.CV_WINDOW_AUTOSIZE)

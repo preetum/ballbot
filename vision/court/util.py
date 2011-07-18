@@ -9,7 +9,7 @@
 import sys
 import inspect
 import heapq, random
-import numpy
+import numpy as np
 
 import models
 
@@ -35,18 +35,55 @@ def pixelToDistance(px, imgSize=(640,480), cameraParams=None):
 
   # Estimate distance to pixel, assuming pixel is on ground
   theta = (y - ycenter) * camera_radians_per_px
-  ydist = camera_height / numpy.tan(theta)
+  ydist = camera_height / np.tan(theta)
 
   # Estimate angle to pixel
   phi = (xcenter - x) * camera_radians_per_px
-  xdist = ydist * numpy.tan(phi)
+  xdist = ydist * np.tan(phi)
 
   return (xdist, ydist)
 
+def pointLineSegmentDistance(point, line):
+  '''
+  Returns the distance from a point to a line segment.
+  x0,y0 = point
+  (x1,y1), (x2,y2) = line
+  With help from http://stackoverflow.com/questions/627563/702174#702174
+  '''
+
+  p = np.array(point)
+  r = np.array(line[0])
+  s = np.array(line[1])
+
+  # Project p onto the line rs (this is the same as point-line distance)
+  # n is a unit normal vector to line rs
+  # v is a vector from p to line rs
+  # d is the distance from p to line rs
+  n = np.dot(np.array([[0, 1], [-1, 0]]), s - r)
+  n = n/np.linalg.norm(n)
+  v = r - p
+  d = np.dot(n, v)
+  print n, v, d
+
+  # We can parameterize the line rs as L(u) = r + (s-r)*u
+  # then solve for the value of u where the projection of p lies
+  # that is: L(u) = r + (s-r)* u = p + d*n
+  x = s - r
+  u = np.dot(p - r + d*n, x) / np.dot(x, x)
+  print p-r+d*n
+
+  # If projection of p lies on line segment rs, return the distance
+  if 0 <= u <= 1:
+    return np.abs(d)
+
+  # Otherwise return the distance to the closest point
+  else:
+    return np.min((np.linalg.norm(p-s), np.linalg.norm(p-r)))
+
 def normalizeRadians(theta):
-  theta = theta % (2*numpy.pi)
-  if theta > numpy.pi:
-    return theta - 2*numpy.pi
+  theta = theta % (2*np.pi)
+  if theta > np.pi:
+    return theta - 2*np.pi
   else:
     return theta
 
@@ -58,8 +95,8 @@ def pointLineDistance(point, line):
   '''
   x0,y0 = point
   (x1,y1), (x2,y2) = line
-  return (numpy.abs((x2-x1) * (y1-y0) - (x1-x0) * (y2-y1)) /  
-    numpy.sqrt(numpy.square(x2-x1) + numpy.square(y2-y1)))
+  return (np.abs((x2-x1) * (y1-y0) - (x1-x0) * (y2-y1)) /  
+    np.sqrt(np.square(x2-x1) + np.square(y2-y1)))
 
 def pointLineVector(point, line):
   '''
@@ -70,20 +107,20 @@ def pointLineVector(point, line):
   x0,y0 = point
   (x1,y1), (x2,y2) = line
 
-  # v is a vector perpendicular to the line
+  # n is a vector perpendicular (normal) to the line
   # r is a vector from the point to a point on the line
-  v = numpy.array((y2-y1, x1-x2))
-  r = numpy.array((x1-x0, y1-y0))
+  n = np.array((y2-y1, x1-x2))
+  r = np.array((x1-x0, y1-y0))
 
-  # Distance is (v \dot r) / |v| or the projection of r onto v
-  dot = numpy.dot(v, r)
-  dist = numpy.abs(dot) / numpy.linalg.norm(v)
+  # Distance is (n \dot r) / |n| or the projection of r onto n
+  dot = np.dot(n, r)
+  dist = np.abs(dot) / np.linalg.norm(n)
 
-  # Angle is sign(v \dot r) * atan2(y2-y1, x2-x1)
-  #  except the sign doesn't matter if v \dot r = 0
-  angle = numpy.arctan2(v[1], v[0])
+  # Angle is sign(n \dot r) * atan2(y2-y1, x2-x1)
+  #  except the sign doesn't matter if n \dot r = 0
+  angle = np.arctan2(n[1], n[0])
   if dot != 0:
-    angle *= numpy.sign(dot)
+    angle *= np.sign(dot)
 
   return dist, angle
 
@@ -93,7 +130,7 @@ def distance(p1, p2):
   '''
   x1, y1 = p1
   x2, y2 = p2
-  return numpy.linalg.norm((x2-x1, y2-y1))
+  return np.linalg.norm((x2-x1, y2-y1))
   
 def heading(p1, p2):
   '''
@@ -101,7 +138,7 @@ def heading(p1, p2):
   '''
   x1, y1 = p1
   x2, y2 = p2
-  return numpy.arctan2(y2-y1, x2-x1)
+  return np.arctan2(y2-y1, x2-x1)
 
 def sample(distribution):
   """
