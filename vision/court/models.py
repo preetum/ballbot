@@ -35,13 +35,14 @@ def cornerProbabilityGivenParticleLocation(observation, particle):
     # calculate distance to corner
     distance = util.distance(particle[0:2], corner)
     # calculate the relative heading w.r.t particle position and heading
-    heading = util.normalizeRadians(util.heading(particle[0:2], corner) - particle[2])
+    heading = util.normalizeRadians(particle[2] - 
+                                    util.heading(particle[0:2], corner))
     
     # TODO tune sigmas
     # (assume P(e|x_t) ~ exp{-1/2 * |distance - obs_dist| / sigma_1^2} 
     #                    * exp{-1/2 * |heading - obs_heading| / sigma_2^2} )
     prob += numpy.exp(-0.1 * numpy.abs(distance - obs_dist) +
-      -7 * numpy.abs(heading - obs_heading))
+      -10 * numpy.abs(heading - obs_heading))
     '''
     if corner is corners[0]:
       print particle, 'hdg:', heading
@@ -56,6 +57,11 @@ def lineProbabilityGivenParticleLocation(observation, particle):
   obs_dist, obs_heading = observation
   prob = 0.0
   for line in lines:
-    dist = util.pointLineDistance(particle[0:2], line)
-    prob += numpy.exp(-0.1 * numpy.abs(dist - obs_dist))
+    # Get the distance, absolute heading from particle to the line
+    dist, heading = util.pointLineVector(particle[0:2], line)
+    # Adjust heading to account for the heading of the robot
+    heading = util.normalizeRadians(particle[2] - heading)
+
+    prob += numpy.exp(-0.1 * numpy.abs(dist - obs_dist) +
+                       -10 * numpy.abs(heading - obs_heading))
   return prob

@@ -61,6 +61,32 @@ def pointLineDistance(point, line):
   return (numpy.abs((x2-x1) * (y1-y0) - (x1-x0) * (y2-y1)) /  
     numpy.sqrt(numpy.square(x2-x1) + numpy.square(y2-y1)))
 
+def pointLineVector(point, line):
+  '''
+  Returns the minimum distance and heading from a point to a line
+  (that is, the angle of the shortest line between the point and line).
+  See http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
+  '''
+  x0,y0 = point
+  (x1,y1), (x2,y2) = line
+
+  # v is a vector perpendicular to the line
+  # r is a vector from the point to a point on the line
+  v = numpy.array((y2-y1, x1-x2))
+  r = numpy.array((x1-x0, y1-y0))
+
+  # Distance is (v \dot r) / |v| or the projection of r onto v
+  dot = numpy.dot(v, r)
+  dist = numpy.abs(dot) / numpy.linalg.norm(v)
+
+  # Angle is sign(v \dot r) * atan2(y2-y1, x2-x1)
+  #  except the sign doesn't matter if v \dot r = 0
+  angle = numpy.arctan2(v[1], v[0])
+  if dot != 0:
+    angle *= numpy.sign(dot)
+
+  return dist, angle
+
 def distance(p1, p2):
   '''
   Returns the distance between p1 and p2

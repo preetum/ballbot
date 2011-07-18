@@ -99,9 +99,9 @@ def update_loop(capture, pf, sim):
 
     grouped_lines, corners = find_lines(frame)
     for group in grouped_lines:
-      d = distance_to_line(group[0])
-      print 'Line: %f cm' % d
-      pf.observeLine((d, 0))
+      r, theta = dist_heading_to_line(group[0])
+      print 'Line: %f cm\t %f deg' % (r, theta*180/math.pi)
+      pf.observeLine((r, theta))
     for corner in corners:
       r, theta = dist_heading_to_point(corner)
       print 'Corner: %f cm\t%f deg' % (r, theta*180/math.pi)
@@ -119,7 +119,7 @@ def update_loop(capture, pf, sim):
     cv.WaitKey(10)
 
 def main():
-  pf = ParticleFilter(numParticles=1000)
+  pf = ParticleFilter(numParticles=2000)
   sim = Simulator(pf)
 
   cv.NamedWindow('frame', cv.CV_WINDOW_AUTOSIZE)

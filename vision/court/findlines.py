@@ -125,7 +125,7 @@ def line_intersection(line1, line2):
 
     return line_intersection_points(p1a, p1b, p2a, p2b)
 
-def distance_to_line(line):
+def dist_heading_to_line(line):
   '''
   Returns real distance reading to the line, where line is a camera line
   '''
@@ -137,12 +137,8 @@ def distance_to_line(line):
   x1, y1 = camera_point_to_xy(x1, y1)
   x2, y2 = camera_point_to_xy(x2, y2)
 
-  if y1 == y2:
-    # Handle vertical line
-    return 0
-  else:
-    line = ((x1, y1), (x2, y2))
-    return util.pointLineDistance((0,0), line)
+  line = ((x1, y1), (x2, y2))
+  return util.pointLineVector((0,0), line)
 
 def dist_heading_to_point(pt):
   '''
