@@ -36,7 +36,7 @@
 #	mega		Arduino Mega
 #	mini			Arduino Mini
 #	lilypad328	LilyPad Arduino w/ ATmega328  
-BOARD:=atmega328
+BOARD:=uno
 
 # additional (comma separated) defines 
 # -DDOGM128_HW		board is connected to DOGM128 display
@@ -58,10 +58,11 @@ AVRDUDE_PATH:=
 # The unix device where we can reach the arduino board
 # Uno: /dev/ttyACM0
 # Duemilanove: /dev/ttyUSB0
-AVRDUDE_PORT:=/dev/ttyUSB0
+AVRDUDE_PORT:=/dev/ttyACM0
 
 # List of all libaries which should be included.
-EXTRA_DIRS=$(ARDUINO_PATH)libraries/Servo/ $(ARDUINO_PATH)libraries/PID_Beta6/
+EXTRA_DIRS = $(ARDUINO_PATH)libraries/Servo/ $(ARDUINO_PATH)libraries/PID_v1/
+EXTRA_DIRS += $(ARDUINO_PATH)libraries/MsTimer2/
 
 #=== fetch parameter from boards.txt processor parameter ===
 # the basic idea is to get most of the information from boards.txt
@@ -79,7 +80,7 @@ AVRDUDE_UPLOAD_RATE:=$(shell sed -n -e "s/$(BOARD).upload.speed=\(.*\)/\1/p" $(B
 # get the AVRDUDE_PROGRAMMER value from the $(BOARD).upload.protocol variable. For the atmega328 board this is stk500
 # AVRDUDE_PROGRAMMER:=$(shell sed -n -e "s/$(BOARD).upload.protocol=\(.*\)/\1/p" $(BOARDS_TXT))
 # use stk500v1, because stk500 will default to stk500v2
-AVRDUDE_PROGRAMMER:=stk500v1
+AVRDUDE_PROGRAMMER:=arduino
 
 #=== identify user files ===
 PDESRC:=$(shell ls *.pde)
@@ -194,7 +195,7 @@ $(TMPDIRPATH)%.dis: $(TMPDIRPATH)%.o
 
 .elf.hex:
 	@$(OBJCOPY) -O ihex -R .eeprom $< $@
-	
+
 $(TMPDIRPATH)%.cpp: %.pde
 	@cat $(ARDUINO_PATH)hardware/arduino/cores/arduino/main.cpp > $@
 	@cat $< >> $@

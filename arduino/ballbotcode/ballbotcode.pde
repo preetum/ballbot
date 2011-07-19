@@ -1,11 +1,13 @@
+// Hey, emacs: -*- mode: c; indent-tabs-mode: nil -*-
 #include <Servo.h>
-#include "packet.h"
-#include <PID_Beta6.h>  // PID library
+#include <PID_v1.h>
 #include <MsTimer2.h>
 
-#define SERVO_LEFT   60
-#define SERVO_CENTER 100
-#define SERVO_RIGHT  140
+#include "packet.h"
+
+#define SERVO_LEFT   57
+#define SERVO_CENTER 92
+#define SERVO_RIGHT  127
 
 // Motor deadband: 91-99
 #define MOTOR_FULL_FORWARD 0
@@ -16,17 +18,17 @@
 
 // Serial state machine states
 enum {
-WAIT,
-READ_LENGTH,
-READ_DATA,
-READ_CHECKSUM
+  WAIT,
+  READ_LENGTH,
+  READ_DATA,
+  READ_CHECKSUM
 };
 
 // Drive motor states
 enum {
-    STATE_NORMAL,
-    STATE_DELAY1, // 100ms delay to go from forward to reverse (treated as brake)
-    STATE_DELAY2 // 100ms delay to go from reverse to neutral
+  STATE_NORMAL,
+  STATE_DELAY1, // 100ms delay to go from forward to reverse (treated as brake)
+  STATE_DELAY2 // 100ms delay to go from reverse to neutral
 };
 
 
@@ -34,183 +36,229 @@ enum {
 Servo steering, motor;
 Packet packet;
 
-
-//--------------- Gyro declerations -------------------------
+//--------------- Gyro declarations -------------------------
 int gyroPin = 0;                 //Gyro is connected to analog pin 0
 float gyroVoltage = 3.3;         //Gyro is running at 3.3V
 
 float gyroZeroVoltage = 1.215;   //Gyro is zeroed at 1.23V - given in the datasheet
 float gyroSensitivity = .01;     // Gyro senstivity for 4 times amplified output is 10mV/deg/sec
 
-float rotationThreshold = 3.0;   //Minimum deg/sec to keep track of - helps with gyro drifting
+float rotationThreshold = 0.3;   //Minimum deg/sec to keep track of - helps with gyro drifting
 //----------------------x-x-x---------------------------------
 
+// TODO store angles in binary angle representation
+volatile float currentAngle = 0;          //Keep track of our current angle
+volatile float currentAngularVelocity = 0;
 
-//long cummulative_count = 0;
-long distance_limit = 0;
-int vel_m = 0;
-
-float currentAngle = 0;          //Keep track of our current angle
-
-//--------- PID declerations ---------------------
-double Input, Output, Setpoint;
-PID pid_dist(&Input, &Output, &Setpoint,0.8,0.00000,0.001);  //pid(,,, kP, kI, kd)
+//--------- PID declarations ---------------------
+//Encoder PID:
+double encoder_Input, encoder_Output, encoder_Setpoint;
+PID pid_dist(&encoder_Input, &encoder_Output, &encoder_Setpoint,
+	     0.8, 0.0, 0.001, DIRECT);
 //---------------x-x-x----------------------------
 
-int encoder_counter1 = 0, encoder_counter2 = 0;
+volatile long encoder0_counter = 0L;
 unsigned int driveMotorTarget = MOTOR_NEUTRAL;
 
 // fix the setpoint for PID control of speed
-void  set_speed(float vel_m)
+void set_speed(float vel_m)
 {
-long temp_Setpoint =  (long) (((vel_m*7.5) - 1.61)*2.89435601);
+  long temp_Setpoint =  (long) (((vel_m*7.5) - 1.61)*2.89435601);
 
-if(temp_Setpoint <= 0)
-     Setpoint = 0;
-else 
-     Setpoint  = temp_Setpoint;
-//vel_m is speed in meters/second, we convert it into ticks/pd_loop_count and then compensate the offset by subtracting the intercept and multipying by slope inverse (1/m = 2.89435601) //assuming it takes 75 ticks for 100cm, then for 100cm/s => 10cm / 100milliseconds => 7.5 ticks/100milliseconds (100milliseconds is the time of pid_loop length aka. running time of one cycle of void_loop())
+  if(temp_Setpoint <= 0)
+    encoder_Setpoint = 0;
+  else 
+    encoder_Setpoint  = temp_Setpoint;
+  //vel_m is speed in meters/second, we convert it into ticks/pd_loop_count and then compensate the offset by subtracting the intercept and multipying by slope inverse (1/m = 2.89435601) //assuming it takes 75 ticks for 100cm, then for 100cm/s => 10cm / 100milliseconds => 7.5 ticks/100milliseconds (100milliseconds is the time of pid_loop length aka. running time of one cycle of void_loop())
 
 }
 
-// Write (encodercount, currentangle) to the serial port. This is actually (distance,dtheta) from last sample
+void writeInt(unsigned int i) {
+  Serial.print((byte)(i >> 8));
+  Serial.print((byte)i);
+}
 
-void writeOscilloscope(int value_x, int value_y) {
+/* Writes odometry info to the serial port in the following order:
+ *
+ * int16 encoder delta    (in ticks)
+ * int16 angular position (as a 16-bit binary angle)
+ * int16 angular velocity (as a 16-bit binary angle/s)
+ *
+ * Notes: ints are sent big-endian
+ */
+void writeOdometry() {
+  static long lastEncoderCount = 0L;
+  long tmpEncoderCount;
+  int delta;
+    
+  // Atomically read encoder count
+  cli();
+  tmpEncoderCount = encoder0_counter;
+  sei();
+
+  // Compute change in encoder count (discrete velocity estimate)
+  delta = (int)(tmpEncoderCount - lastEncoderCount);
+  lastEncoderCount = tmpEncoderCount;
   
   Serial.print(0xff,BYTE);                // send init byte
-
-  Serial.print( (value_x >> 8) & 0xff,BYTE); // send first part
-  Serial.print( value_x & 0xff,BYTE);        // send second part
-
-  Serial.print( (value_y >> 8) & 0xff, BYTE ); // send first part
-  Serial.print( value_y & 0xff, BYTE );        // send second part
-  
-  //Serial.print("value_y");
-  //Serial.println(value_y);
-
+  writeInt(delta);
+  writeInt((int)(currentAngle/180*32768));
+  writeInt((int)(currentAngularVelocity/180*32768));
 }
 
-void encoder_tick()
-{
-  encoder_counter1 += 1;
-  encoder_counter2 += 1;
+
+/* Callback for encoder on interrupt 0
+   B channel = pin 2 / interrupt 0
+   A channel = pin 12 / PB4
+ */
+void encoder0_tick() {
+  // hard code the port instead of digitalRead for execution speed
+  if (PINB & (1 << PB4)) {
+    encoder0_counter += 1;
+  } else {
+    encoder0_counter -= 1;
+  }
 }
 
 
 /*
-* Sets the drive motor to a value from [0,1023], while taking into account the
-* braking behavior of the hobby motor controller.
-*/
+ * Sets the drive motor to a value from [0,1023], while taking into account the
+ * braking behavior of the hobby motor controller.
+ */
 void setDriveMotor(unsigned int val) {
   driveMotorTarget = val;
 }
 
 
 /*
-* Called every time a byte is received.
-* Decodes packets and calls packetReceived() when a full valid packet arrives.
-*/
+ * Called every time a byte is received.
+ * Decodes packets and calls packetReceived() when a full valid packet arrives.
+ */
 void byteReceived (unsigned char byte) {
-static unsigned char state = WAIT;
-static unsigned char i = 0;
-static unsigned char checksum = 0;
+  static unsigned char state = WAIT;
+  static unsigned char i = 0;
+  static unsigned char checksum = 0;
 
-switch (state) {
-case WAIT:
-if (byte == START_BYTE)
-state = READ_LENGTH;
-break;
+  switch (state) {
+  case WAIT:
+    if (byte == START_BYTE)
+      state = READ_LENGTH;
+    break;
 
-case READ_LENGTH:
-packet.length = byte;
-i = 0;
-checksum = byte;
-state = READ_DATA;
-break;
+  case READ_LENGTH:
+    packet.length = byte;
+    i = 0;
+    checksum = byte;
+    state = READ_DATA;
+    break;
 
-case READ_DATA:
-if (i < packet.length) {
-packet.data[i++] = byte;
-checksum = checksum ^ byte;
-}
+  case READ_DATA:
+    if (i < packet.length) {
+      packet.data[i++] = byte;
+      checksum = checksum ^ byte;
+    }
 
-if (i >= packet.length)
-state = READ_CHECKSUM;
-break;
+    if (i >= packet.length)
+      state = READ_CHECKSUM;
+    break;
 
-case READ_CHECKSUM:
-packet.checksum = byte;
-if (byte == checksum) {
-packetReceived();
-                        } else {
-                          // Long blink for bad packet
-                          //digitalWrite(13, HIGH);
-                          //delay(200);
-                          //digitalWrite(13, LOW);
-                        }
-state = WAIT;
-break;
+  case READ_CHECKSUM:
+    packet.checksum = byte;
+    if (byte == checksum) {
+      packetReceived();
+    } else {
+      // Long blink for bad packet
+      //digitalWrite(13, HIGH);
+      //delay(200);
+      //digitalWrite(13, LOW);
+    }
+    state = WAIT;
+    break;
 
-default:
-state = WAIT;
-break;
-}
+  default:
+    state = WAIT;
+    break;
+  }
 }
 
 /* Called every time a VALID packet is received
-* from the main processor.
-*/
+ * from the main processor.
+ */
 void packetReceived () {
-switch (packet.data[0]) {
-case CMD_VALUES: {
-                  unsigned int steerVal = packet.data[1] << 8 | packet.data[2],
-                    motorVal = packet.data[3] << 8 | packet.data[4];
+  switch (packet.data[0]) {
+  case CMD_VALUES: {
+    unsigned int steerVal = packet.data[1] << 8 | packet.data[2];  //---->>need to change this: we get heading from the ROS: convert it to the angular velocity we expect.
+    unsigned int motorVal = packet.data[3] << 8 | packet.data[4];
                   
-steering.write(steerVal);
-set_speed(motorVal / 100.0);  //we divide by 100 as motorval is intended speed in cm/s while set_speed takes it in m/s
+    steering.write(steerVal);
+    set_speed(motorVal / 100.0);  //we divide by 100 as motorval is intended speed in cm/s while set_speed takes it in m/s
 
-break;
-        }
+    break;
+  }
         
-case DATA_REQUESTED:
-     {
-      int tmpEncoderCount = encoder_counter2;	// save encoder value
-      encoder_counter2 = 0;
-      writeOscilloscope(tmpEncoderCount, (int) currentAngle); //send for visual output
-      setDriveMotor(MOTOR_NEUTRAL - Output*MOTOR_NEUTRAL/180);
-      
-      break;
-     }
+  case DATA_REQUESTED:
+    writeOdometry();
+    break;
   
-    }
+  } // switch
 }
 
 
-void angle_update()
+void timer_callback() //MStimer2 callback function used for timed update for: 1. angle | 2. Encoder PID loop | 3. Steering PID Loop
 {
-  // read from Gyro and find the current angle of the car
-    float gyroRate = (analogRead(gyroPin) * gyroVoltage) / 1024;
-    gyroRate -= gyroZeroVoltage;
-    gyroRate /= gyroSensitivity;
+  static long lastEncoderCount = 0L;
 
-   if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
-      gyroRate /= 50; // we divide by 50 as gyro updates every 20ms
-      currentAngle += gyroRate;
+  // read from Gyro and find the current angle of the car
+  int raw_gyro_read = analogRead(gyroPin);
+
+  //Angle Update
+  float gyroRate = (raw_gyro_read * gyroVoltage) / 1024;
+  gyroRate -= gyroZeroVoltage;
+  gyroRate /= gyroSensitivity;
+  gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
+
+  if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
+    currentAngle += gyroRate;
+    currentAngularVelocity = gyroRate;
+  } else {
+    currentAngularVelocity = 0;
+  }
+
+  
+  /*
+  if(steer_input_from_ROS == 0)
+    {
+      double steer_err = -( raw_gyro_read - steer_Setpoint), angle_err ( angle_Setpoint-currentAngle );
+      //cap the steer_err:
+      if(steer_err < 3 && steer_err > -3)
+	steer_err = 0;
+    
+      double desi_pid_output = (steer_kP*steer_err +steer_kI*-angle_err);
+      if (desi_pid_output < -40)
+	desi_pid_output = -40;
+      else if (desi_pid_output > 40)
+	desi_pid_output = 40;
+      steering.write(desi_pid_output+SERVO_CENTER);
+      Serial.print("Steering error = "); Serial.println(steer_err);
+      Serial.print("Angle = "); Serial.println(currentAngle);
+      //    Serial.println(desi_pid_output);
     }
+  */
     
-    
-    Input =  (double) encoder_counter1;
-    encoder_counter1 = 0;
-    pid_dist.Compute(); //give the PID the opportunity to compute if needed
-    //Serial.print("PID_Output = ");
-    //Serial.println(Output);
-   
+  // Atomically read encoder count
+  cli();
+  long tmpEncoderCount = encoder0_counter;
+  sei();
+  // Compute change in encoder count (discrete velocity estimate)
+  long delta = tmpEncoderCount - lastEncoderCount;
+  lastEncoderCount = tmpEncoderCount;
+
+  encoder_Input =  (double) delta;
+  pid_dist.Compute(); //give the PID the opportunity to compute if needed
 }
 
 
 void setup() {
-  
-  
   // Initialize servo objects
   steering.attach(4);
   motor.attach(5);
@@ -219,22 +267,25 @@ void setup() {
   steering.write(SERVO_CENTER);
   motor.write(MOTOR_NEUTRAL);
   
-  attachInterrupt(0, encoder_tick, CHANGE); //interrupt to count encoder ticks  
+  // Interrupt to count encoder ticks on int 0 (pin 2)
+  attachInterrupt(0, encoder0_tick, RISING);
+  pinMode(12, INPUT);
+  digitalWrite(12, HIGH);
 
-  analogReference(EXTERNAL);  //Tell the  gyro to use external Vref
+
+  analogReference(EXTERNAL);  // Use external Vref (3.3V)
   pinMode(13, OUTPUT); // enable LED pin
 
-  // PID Stuff
+  // PID Encoder Stuff:
   pid_dist.SetOutputLimits(0,180); //tell the PID the bounds on the output
-  pid_dist.SetInputLimits(0,60); //number of ticks in 100 milliseconds
-  Output = 0;
-  pid_dist.SetMode(AUTO); //turn on the PID
+  encoder_Output = 0;
+  pid_dist.SetMode(AUTOMATIC); //turn on the PID
   pid_dist.SetSampleTime(100); //delay in the loop
   
   Serial.begin(115200);
   
   //Initialize interrupt timer2 - for gyro update
-  MsTimer2::set(20, angle_update); // 20ms period
+  MsTimer2::set(100, timer_callback); // 100ms period
   MsTimer2::start();
   
   
@@ -245,9 +296,10 @@ void setup() {
 void loop() 
 { 
   long curTime;
-  
-  if (Serial.available())
-     byteReceived(Serial.read());
+
+  // Main command-processing state machine
+  while (Serial.available())
+    byteReceived(Serial.read());
    
   // Drive motor direction fixing
   static unsigned char lastDirFwd = 1;
@@ -261,49 +313,49 @@ void loop()
   // 3. send a reverse pulse (now treated as a reverse signal)
 
   switch (driveMotorState) {
-    case STATE_NORMAL:
-      // In case of a reverse after driving forward
-      if (driveMotorTarget >= MOTOR_MIN_REVERSE && lastDirFwd) {
-        motor.write(MOTOR_MIN_REVERSE);
-        driveMotorState = STATE_DELAY1;
-        waitTime = millis() + 100;  //was 100
+  case STATE_NORMAL:
+    // In case of a reverse after driving forward
+    if (driveMotorTarget >= MOTOR_MIN_REVERSE && lastDirFwd) {
+      motor.write(MOTOR_MIN_REVERSE);
+      driveMotorState = STATE_DELAY1;
+      waitTime = millis() + 100;
         
       // Normal operation
-      } else {
-        // Deadband
-        if (driveMotorTarget > MOTOR_MIN_FORWARD &&
-            driveMotorTarget < MOTOR_MIN_REVERSE)
-          motor.write(MOTOR_NEUTRAL);
-        else
-          motor.write(driveMotorTarget);
+    } else {
+      // Deadband
+      if (driveMotorTarget > MOTOR_MIN_FORWARD &&
+	  driveMotorTarget < MOTOR_MIN_REVERSE)
+	motor.write(MOTOR_NEUTRAL);
+      else
+	motor.write(driveMotorTarget);
         
-        // Update the last direction flag
-        if (driveMotorTarget <= MOTOR_MIN_FORWARD)
-          lastDirFwd = 1;
-      }
-      break;
+      // Update the last direction flag
+      if (driveMotorTarget <= MOTOR_MIN_FORWARD)
+	lastDirFwd = 1;
+    }
+    break;
       
-    case STATE_DELAY1:
-      curTime = millis();
-      if (curTime >= waitTime) {
-        motor.write(MOTOR_NEUTRAL);
-        driveMotorState = STATE_DELAY2;
-        waitTime = curTime + 100;         // ------>> was 100
-      } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
-        driveMotorState = STATE_NORMAL;
-      }
-      break;
+  case STATE_DELAY1:
+    curTime = millis();
+    if (curTime >= waitTime) {
+      motor.write(MOTOR_NEUTRAL);
+      driveMotorState = STATE_DELAY2;
+      waitTime = curTime + 100;
+    } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
+      driveMotorState = STATE_NORMAL;
+    }
+    break;
     
-    case STATE_DELAY2:
-      curTime = millis();
-      if (curTime >= waitTime) {
-        motor.write(driveMotorTarget);
-        driveMotorState = STATE_NORMAL;
-        lastDirFwd = 0;
-      } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
-        driveMotorState = STATE_NORMAL;
-      }
-      break;
+  case STATE_DELAY2:
+    curTime = millis();
+    if (curTime >= waitTime) {
+      motor.write(driveMotorTarget);
+      driveMotorState = STATE_NORMAL;
+      lastDirFwd = 0;
+    } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
+      driveMotorState = STATE_NORMAL;
+    }
+    break;
   } // switch
   
   
