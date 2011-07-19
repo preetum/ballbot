@@ -114,7 +114,7 @@ def update_loop(capture, pf, sim):
     cv.WaitKey(10)
 
 def main():
-  pf = ParticleFilter(numParticles=2000)
+  pf = ParticleFilter(numParticles=200)
   sim = Simulator(pf)
 
   cv.NamedWindow('frame', cv.CV_WINDOW_AUTOSIZE)
