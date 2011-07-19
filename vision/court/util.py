@@ -63,14 +63,12 @@ def pointLineSegmentDistance(point, line):
   n = n/np.linalg.norm(n)
   v = r - p
   d = np.dot(n, v)
-  print n, v, d
 
   # We can parameterize the line rs as L(u) = r + (s-r)*u
   # then solve for the value of u where the projection of p lies
   # that is: L(u) = r + (s-r)* u = p + d*n
   x = s - r
   u = np.dot(p - r + d*n, x) / np.dot(x, x)
-  print p-r+d*n
 
   # If projection of p lies on line segment rs, return the distance
   if 0 <= u <= 1:

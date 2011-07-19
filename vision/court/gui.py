@@ -97,16 +97,11 @@ def update_loop(capture, pf, sim):
   while True:
     frame = cv.QueryFrame(capture)
 
-    grouped_lines, corners = find_lines(frame)
-    for group in grouped_lines:
-      r, theta = dist_heading_to_line(group[0])
-      print 'Line: %f cm\t %f deg' % (r, theta*180/math.pi)
-      pf.observeLine((r, theta))
+    line_segments, corners = find_lines(frame)
+    for segment in line_segments:
+      pf.observeLine(segment)
     for corner in corners:
-      r, theta = dist_heading_to_point(corner)
-      print 'Corner: %f cm\t%f deg' % (r, theta*180/math.pi)
-      pf.observeCorner((r, theta))
-    print
+      pf.observeCorner(corner)
     
     pf.elapseTime()
 
@@ -131,7 +126,7 @@ def main():
   if capture is None:
     print 'Error opening file'
     return
-  for i in range(2200):
+  for i in range(2000):
     cv.GrabFrame(capture)
   
   thread.start_new_thread(update_loop, (capture, pf, sim))

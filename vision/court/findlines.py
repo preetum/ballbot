@@ -202,48 +202,6 @@ def line_intersection(line1, line2):
 
     return line_intersection_points(p1a, p1b, p2a, p2b)
 
-def dist_heading_to_line(line):
-  '''
-  Returns real distance reading to the line, where line is a camera line
-  '''
-  # Get two points on the (camera) line
-  x1, y1 = to_xy(line)
-  x2, y2 = x1-y1, x1+y1
-
-  # Convert to points in real space
-  x1, y1 = camera_point_to_xy(x1, y1)
-  x2, y2 = camera_point_to_xy(x2, y2)
-
-  line = ((x1, y1), (x2, y2))
-  return util.pointLineVector((0,0), line)
-
-def dist_heading_to_point(pt):
-  '''
-  Returns real distance and heading to the point, where pt is a camera point
-  '''
-  x, y = pt
-  x, y = camera_point_to_xy(x, y)
-  r, theta = np.linalg.norm((x, y)), np.arctan2(y, x)
-  return r, theta
-
-def camera_point_to_xy(px, py):
-  # TODO get these parameters from rosparam store
-  radians_per_px = 0.0016
-  frame_height = 480
-  frame_width = 640
-  camera_tilt_angle = -20.0/180*np.pi
-  camera_pan_angle = 0.0
-  camera_height = 33.5
-  radians_per_px = 0.0032;
-
-  theta = (py - frame_height/2) * radians_per_px - camera_tilt_angle
-  y = camera_height / np.tan(theta);
-
-  phi = (px - frame_width/2) * radians_per_px + camera_pan_angle
-  x = y * np.tan(phi)
-
-  return x, y
-
 def find_lines(frame):
     # Resize to 640x480
     frame_size = cv.GetSize(frame)
