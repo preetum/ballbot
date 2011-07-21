@@ -1,8 +1,9 @@
-// Hey, emacs: -*- mode: c; indent-tabs-mode: nil -*-
+// Hey, emacs: -*- mode: c++; indent-tabs-mode: nil -*-
 #include <Servo.h>
 #include <PID_v1.h>
 #include <MsTimer2.h>
 
+#include "encoder.h"
 #include "packet.h"
 
 #define SERVO_LEFT   57
@@ -57,7 +58,6 @@ PID pid_dist(&encoder_Input, &encoder_Output, &encoder_Setpoint,
 	     0.8, 0.0, 0.001, DIRECT);
 //---------------x-x-x----------------------------
 
-volatile long encoder0_counter = 0L;
 unsigned int driveMotorTarget = MOTOR_NEUTRAL;
 
 /* Sets the setpoint of the PID velocity controller.
@@ -84,36 +84,16 @@ void writeInt(unsigned int i) {
  */
 void writeOdometry() {
   static long lastEncoderCount = 0L;
-  long tmpEncoderCount;
-  int delta;
     
-  // Atomically read encoder count
-  cli();
-  tmpEncoderCount = encoder0_counter;
-  sei();
-
   // Compute change in encoder count (discrete velocity estimate)
-  delta = (int)(tmpEncoderCount - lastEncoderCount);
+  long tmpEncoderCount = getEncoderCount();
+  int delta = (int)(tmpEncoderCount - lastEncoderCount);
   lastEncoderCount = tmpEncoderCount;
   
   Serial.print(0xff,BYTE);                // send init byte
   writeInt(delta);
   writeInt((int)(currentAngle/180*32768));
   writeInt((int)(currentAngularVelocity/180*32768));
-}
-
-
-/* Callback for encoder on interrupt 0
-   B channel = pin 2 / interrupt 0
-   A channel = pin 12 / PB4
- */
-void encoder0_tick() {
-  // hard code the port instead of digitalRead for execution speed
-  if (PINB & (1 << PB4)) {
-    encoder0_counter += 1;
-  } else {
-    encoder0_counter -= 1;
-  }
 }
 
 
@@ -243,11 +223,8 @@ void timer_callback() {
     }
   */
     
-  // Atomically read encoder count
-  cli();
-  long tmpEncoderCount = encoder0_counter;
-  sei();
   // Compute change in encoder count (discrete velocity estimate)
+  long tmpEncoderCount = getEncoderCount();
   long delta = tmpEncoderCount - lastEncoderCount;
   lastEncoderCount = tmpEncoderCount;
 
@@ -265,11 +242,7 @@ void setup() {
   steering.write(SERVO_CENTER);
   motor.write(MOTOR_NEUTRAL);
   
-  // Interrupt to count encoder ticks on int 0 (pin 2)
-  attachInterrupt(0, encoder0_tick, RISING);
-  pinMode(12, INPUT);
-  digitalWrite(12, HIGH);
-
+  encoderSetup();
 
   analogReference(EXTERNAL);  // Use external Vref (3.3V)
   pinMode(13, OUTPUT); // enable LED pin
