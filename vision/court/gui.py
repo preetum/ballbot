@@ -103,6 +103,7 @@ def update_loop(capture, pf, sim):
     for corner in corners:
       pf.observeCorner(corner)
     
+    pf.resample()
     pf.elapseTime()
 
     # Redraw beliefs

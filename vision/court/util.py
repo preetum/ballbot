@@ -79,11 +79,11 @@ def pointLineSegmentDistance(point, line):
     return np.min((np.linalg.norm(p-s), np.linalg.norm(p-r)))
 
 def normalizeRadians(theta):
-  theta = theta % (2*np.pi)
-  if theta > np.pi:
-    return theta - 2*np.pi
-  else:
-    return theta
+  '''
+  Normalize an angle to the interval [-pi, pi)
+  '''
+  theta = (theta + np.pi) % (2*np.pi) - np.pi
+  return theta
 
 def pointLineDistance(point, line):
   '''

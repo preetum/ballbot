@@ -33,7 +33,6 @@ def camera_point_to_xy(p):
   camera_tilt_angle = -20.0/180*np.pi
   camera_pan_angle = 0.0
   camera_height = 33.5
-  radians_per_px = 0.0032;
 
   theta = (py - frame_height/2) * radians_per_px - camera_tilt_angle
   y = camera_height / np.tan(theta);
@@ -68,28 +67,36 @@ def dist_heading_to_point(pt):
   return r, theta
 
 
-def cornerProbabilityGivenParticleLocation(observation, particle):
+def cornerProbabilityGivenParticleLocation(observation, particles):
   '''
-  Calculates P(e|x_t), given that observation is the (scalar) distance
-  to the corner
-  TODO: r, theta = observation
+  Calculates P(e|x_t), given that observation is a point in the 
+  robot coordinate frame
+
+  observation is a single observation
+  particles is a 2D numpy array of particles:
+  [[x0, y0, theta0],
+   [x1, y1, theta1], 
+   etc...]
   '''
-  obs_dist, obs_heading = dist_heading_to_point(corner)
-  #print 'Corner: %f cm\t%f deg' % (obs_dist, obs_heading*180/np.pi)
+  obs_dist, obs_heading = dist_heading_to_point(observation)
+  print 'Corner: %f cm\t%f deg' % (obs_dist, obs_heading*180/np.pi)
   
-  prob = 0.0
+  probs = np.zeros(len(particles))
   for corner in corners:
-    # calculate distance to corner
-    distance = util.distance(particle[0:2], corner)
+    # calculate distance from each particle to corner
+    corner = np.array(corner)
+    distanceVectors = corner - particles[:, 0:2]
+    distances = np.array(map(np.linalg.norm, distanceVectors))
+
     # calculate the relative heading w.r.t particle position and heading
-    heading = util.normalizeRadians(particle[2] - 
-                                    util.heading(particle[0:2], corner))
+    headings = np.arctan2(distanceVectors[:,1], distanceVectors[:,0])
+    headings = util.normalizeRadians(headings - particles[:, 2])
     
     # TODO tune sigmas
     # (assume P(e|x_t) ~ exp{-1/2 * |distance - obs_dist| / sigma_1^2} 
     #                    * exp{-1/2 * |heading - obs_heading| / sigma_2^2} )
-    prob += np.exp(-0.1 * np.abs(distance - obs_dist) +
-      -10 * np.abs(heading - obs_heading))
+    prob += np.exp(-0.1 * np.abs(distances - obs_dist) +
+      -7 * np.abs(headings - obs_heading))
     '''
     if corner is corners[0]:
       print particle, 'hdg:', heading
@@ -98,16 +105,27 @@ def cornerProbabilityGivenParticleLocation(observation, particle):
       print np.exp(-1 * np.abs(heading - obs_heading))
     '''
   
-  return prob
+  return probs
 
-def transformPoint(pt, translation, angle):
-  pt = np.array(pt)
+def transform(points, translation, angle):
+  '''
+  Transforms a 2D point into the coordinate system described by
+   translation and angle.
+
+  points is either a 2D vector (list, tuple or ndarray), or a numpy array
+   of 2D *row* vectors
+  translation is a 2D vector representing the origin of the new coordinate
+   system in the old coordinate system
+  angle is the rotation of the new coordinate system w.r.t. the old
+  '''
+  p = np.array(points)
   t = np.array(translation)
-  R = np.array([[np.cos(angle), np.sin(angle)],
-                [-np.sin(angle), np.cos(angle)]])
-  return np.dot(R, pt-t)
+  a,b = np.cos(angle), np.sin(angle)
+  R = np.array([[a, b], [-b, a]])
+  newPts = np.dot(R, (p-t).T).T
+  return newPts
 
-def lineProbabilityGivenParticleLocation(observation, particle):
+def lineProbabilityGivenParticleLocation(observation, particles):
   '''
   observation are the endpoints of the line segment
   '''
@@ -116,26 +134,29 @@ def lineProbabilityGivenParticleLocation(observation, particle):
   pt2 = camera_point_to_xy(pt2)
 
   obs_dist, obs_heading = dist_heading_to_line(observation)
-  #print 'Line: %f cm\t %f deg' % (obs_dist, obs_heading*180/np.pi)
+  print 'Line: %f cm\t %f deg' % (obs_dist, obs_heading*180/np.pi)
 
-  prob = 0.0
-  for line in lines:
-    # Get the distance, absolute heading from particle to the line
-    dist, heading = util.pointLineVector(particle[0:2], line)
+  probs = np.zeros(len(particles))
+  i = 0
+  for particle in particles:
+    for line in lines:
+      # Get the distance, absolute heading from particle to the line
+      dist, heading = util.pointLineVector(particle[0:2], line)
 
-    # Use new distance metric for line segments
-    # Convert candidate line into robot coordinate frame
-    new_line = map(lambda l: transformPoint(l, particle[0:2], particle[2]),
-                   line)
-    # Take each endpoint of the observed line
-    #  and calculate its distance to the candidate line
-    #  (both in the robot's coordinate frame)
-    dist_metric = util.pointLineSegmentDistance(pt1, new_line) + \
-        util.pointLineSegmentDistance(pt2, new_line)
+      # Use new distance metric for line segments
+      # Convert candidate line into robot coordinate frame
+      new_line = transform(line, particle[0:2], particle[2])
 
-    # Adjust heading to account for the heading of the robot
-    heading = util.normalizeRadians(particle[2] - heading)
+      # Take each endpoint of the observed line
+      #  and calculate its distance to the candidate line
+      #  (both in the robot's coordinate frame)
+      dist_metric = util.pointLineSegmentDistance(pt1, new_line) + \
+          util.pointLineSegmentDistance(pt2, new_line)
 
-    prob += np.exp(-0.1 * np.abs(dist_metric) +
-                       -10 * np.abs(heading - obs_heading))
-  return prob
+      # Adjust heading to account for the heading of the robot
+      heading = util.normalizeRadians(heading - particle[2])
+
+      probs[i] += np.exp(-0.1 * np.abs(dist_metric) +
+                          -7 * np.abs(heading - obs_heading))
+    i += 1
+  return probs

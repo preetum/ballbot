@@ -105,8 +105,7 @@ class ParticleFilter:
     # update beliefs
     # P(X_t | e_1:t, e') ~ P(e'|X_t) * P(X_t | e_1:t)
 
-    weights = map(lambda particle: emissionFn(observation, particle),
-                  self.particles.particles)
+    weights = emissionFn(observation, self.particles.particles)
     self.particles.weights = self.particles.weights * weights
     '''
     for particle in self.particles.keys():
@@ -115,11 +114,14 @@ class ParticleFilter:
     '''
     
     # resample observation
-    self.particles.resample()
+    #self.particles.resample()
     '''
     samples = util.sampleMultiple(self.particles, self.numParticles)
     self.particles = util.listToDistribution(samples)
     '''
+
+  def resample(self):
+    self.particles.resample()
     
   def elapseTime(self, motion=None):
     oldBeliefs = self.particles.particles.copy()
