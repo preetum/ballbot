@@ -1,6 +1,6 @@
 AVR_TOOLS_PATH = /usr/bin
 ARDUINO_DIR  = /opt/arduino
-TARGET       = ballbotcode
+TARGET       = base_controller
 ARDUINO_LIBS = Servo MsTimer2 PID_v1
 MCU          = atmega328p
 F_CPU        = 16000000
