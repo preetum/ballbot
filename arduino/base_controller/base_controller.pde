@@ -1,9 +1,11 @@
-// Hey, emacs: -*- mode: c; indent-tabs-mode: nil -*-
+// Hey, emacs: -*- mode: c++; indent-tabs-mode: nil -*-
 #include <Servo.h>
 #include <PID_v1.h>
 #include <MsTimer2.h>
 
+#include "encoder.h"
 #include "packet.h"
+#include "smc.h"
 
 #define SERVO_LEFT   57
 #define SERVO_CENTER 92
@@ -16,14 +18,6 @@
 #define MOTOR_MIN_REVERSE  99
 #define MOTOR_FULL_REVERSE 180
 
-// Serial state machine states
-enum {
-  WAIT,
-  READ_LENGTH,
-  READ_DATA,
-  READ_CHECKSUM
-};
-
 // Drive motor states
 enum {
   STATE_NORMAL,
@@ -31,10 +25,19 @@ enum {
   STATE_DELAY2 // 100ms delay to go from reverse to neutral
 };
 
+/*
+CMD_VALUES packet data field (5 bytes)
+  uint8  command type (0x42)
+  uint16 steering value
+  uint16 motor value
+*/
+#define CMD_VALUES 0x42
+#define DATA_REQUESTED 0x21
+
 
 // Globals
 Servo steering, motor;
-Packet packet;
+SimpleMotorController driveMotor(5);
 
 //--------------- Gyro declarations -------------------------
 int gyroPin = 0;                 //Gyro is connected to analog pin 0
@@ -57,7 +60,6 @@ PID pid_dist(&encoder_Input, &encoder_Output, &encoder_Setpoint,
 	     0.8, 0.0, 0.001, DIRECT);
 //---------------x-x-x----------------------------
 
-volatile long encoder0_counter = 0L;
 unsigned int driveMotorTarget = MOTOR_NEUTRAL;
 
 /* Sets the setpoint of the PID velocity controller.
@@ -84,36 +86,16 @@ void writeInt(unsigned int i) {
  */
 void writeOdometry() {
   static long lastEncoderCount = 0L;
-  long tmpEncoderCount;
-  int delta;
     
-  // Atomically read encoder count
-  cli();
-  tmpEncoderCount = encoder0_counter;
-  sei();
-
   // Compute change in encoder count (discrete velocity estimate)
-  delta = (int)(tmpEncoderCount - lastEncoderCount);
+  long tmpEncoderCount = encoder_getCount();
+  int delta = (int)(tmpEncoderCount - lastEncoderCount);
   lastEncoderCount = tmpEncoderCount;
   
   Serial.print(0xff,BYTE);                // send init byte
   writeInt(delta);
   writeInt((int)(currentAngle/180*32768));
   writeInt((int)(currentAngularVelocity/180*32768));
-}
-
-
-/* Callback for encoder on interrupt 0
-   B channel = pin 2 / interrupt 0
-   A channel = pin 12 / PB4
- */
-void encoder0_tick() {
-  // hard code the port instead of digitalRead for execution speed
-  if (PINB & (1 << PB4)) {
-    encoder0_counter += 1;
-  } else {
-    encoder0_counter -= 1;
-  }
 }
 
 
@@ -126,68 +108,20 @@ void setDriveMotor(unsigned int val) {
 }
 
 
-/*
- * Called every time a byte is received.
- * Decodes packets and calls packetReceived() when a full valid packet arrives.
- */
-void byteReceived (unsigned char byte) {
-  static unsigned char state = WAIT;
-  static unsigned char i = 0;
-  static unsigned char checksum = 0;
-
-  switch (state) {
-  case WAIT:
-    if (byte == START_BYTE)
-      state = READ_LENGTH;
-    break;
-
-  case READ_LENGTH:
-    packet.length = byte;
-    i = 0;
-    checksum = byte;
-    state = READ_DATA;
-    break;
-
-  case READ_DATA:
-    if (i < packet.length) {
-      packet.data[i++] = byte;
-      checksum = checksum ^ byte;
-    }
-
-    if (i >= packet.length)
-      state = READ_CHECKSUM;
-    break;
-
-  case READ_CHECKSUM:
-    packet.checksum = byte;
-    if (byte == checksum) {
-      packetReceived();
-    } else {
-      // Long blink for bad packet
-      //digitalWrite(13, HIGH);
-      //delay(200);
-      //digitalWrite(13, LOW);
-    }
-    state = WAIT;
-    break;
-
-  default:
-    state = WAIT;
-    break;
-  }
-}
-
 /* Called every time a VALID packet is received
  * from the main processor.
  */
-void packetReceived () {
+void packetReceived (Packet& packet) {
   switch (packet.data[0]) {
   case CMD_VALUES: {
     unsigned int steerVal = packet.data[1] << 8 | packet.data[2];  //---->>need to change this: we get heading from the ROS: convert it to the angular velocity we expect.
     unsigned int motorVal = packet.data[3] << 8 | packet.data[4];
                   
     steering.write(steerVal);
-    set_speed(motorVal);
+    //set_speed(motorVal);
+    cli();
+    driveMotor.setSpeed(motorVal);
+    sei();
 
     break;
   }
@@ -243,11 +177,8 @@ void timer_callback() {
     }
   */
     
-  // Atomically read encoder count
-  cli();
-  long tmpEncoderCount = encoder0_counter;
-  sei();
   // Compute change in encoder count (discrete velocity estimate)
+  long tmpEncoderCount = encoder_getCount();
   long delta = tmpEncoderCount - lastEncoderCount;
   lastEncoderCount = tmpEncoderCount;
 
@@ -259,17 +190,16 @@ void timer_callback() {
 void setup() {
   // Initialize servo objects
   steering.attach(4);
-  motor.attach(5);
+  //motor.attach(5);
+
+  // Initialize the drive motor
+  driveMotor.initialize();
   
   // Center the steering servo
   steering.write(SERVO_CENTER);
-  motor.write(MOTOR_NEUTRAL);
+  //motor.write(MOTOR_NEUTRAL);
   
-  // Interrupt to count encoder ticks on int 0 (pin 2)
-  attachInterrupt(0, encoder0_tick, RISING);
-  pinMode(12, INPUT);
-  digitalWrite(12, HIGH);
-
+  encoder_initialize();
 
   analogReference(EXTERNAL);  // Use external Vref (3.3V)
   pinMode(13, OUTPUT); // enable LED pin
@@ -286,7 +216,8 @@ void setup() {
   MsTimer2::set(100, timer_callback); // 100ms period
   MsTimer2::start();
   
-  
+  // Initialize packet callback
+  packet_initialize(packetReceived);
 }
 
 
@@ -297,7 +228,7 @@ void loop()
 
   // Main command-processing state machine
   while (Serial.available())
-    byteReceived(Serial.read());
+    packet_byteReceived(Serial.read());
    
   // Drive motor direction fixing
   static unsigned char lastDirFwd = 1;
@@ -310,6 +241,7 @@ void loop()
   // 2. send a neutral pulse
   // 3. send a reverse pulse (now treated as a reverse signal)
 
+  /*
   switch (driveMotorState) {
   case STATE_NORMAL:
     // In case of a reverse after driving forward
@@ -355,6 +287,6 @@ void loop()
     }
     break;
   } // switch
-  
+  */
   
 } // loop()
