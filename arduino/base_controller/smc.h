@@ -10,6 +10,7 @@ class SimpleMotorController {
   SimpleMotorController(int pin);
   void initialize(void);
   void setSpeed(int speed);
+  void setBrake(unsigned char brake);
   void exitSafeStart(void);
 };
 

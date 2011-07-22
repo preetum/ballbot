@@ -14,7 +14,7 @@
 #include "smc.h"
 
 /* Broken! Do not use! */
-void serialWrite(SoftwareSerial s, unsigned char *buf, unsigned int len) {
+void serialWrite(SoftwareSerial &s, unsigned char *buf, unsigned int len) {
   while (--len >= 0)
     s.print(*buf++);
 }
@@ -26,18 +26,14 @@ SimpleMotorController::SimpleMotorController(int txPin)
 }
 
 void SimpleMotorController::initialize(void) {
-  // Simple Motor Controller must be running for at least 1ms
-  // before receiving serial data
-  delay(2);
-
   // Send baud rate detection byte
-  serial.print((char)0xAA);
+  serial.print((unsigned char)0xAA);
 
   exitSafeStart();
 }
 
 void SimpleMotorController::exitSafeStart(void) {
-  serial.print((char)0x83);
+  serial.print((unsigned char)0x83);
 }
 
 /* speed should be between -3200 and 3200 */
@@ -55,4 +51,12 @@ void SimpleMotorController::setSpeed(int speed) {
   serial.print(buffer[0]);
   serial.print(buffer[1]);
   serial.print(buffer[2]);
+}
+
+/* brake should be between 0 to 32, where 0 = coast and 32 = brake */
+void SimpleMotorController::setBrake(unsigned char brake) {
+  if (brake > 32)
+    brake = 32;
+  serial.print((unsigned char)0x92);
+  serial.print(brake);
 }
