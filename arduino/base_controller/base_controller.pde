@@ -5,6 +5,7 @@
 
 #include "encoder.h"
 #include "packet.h"
+#include "smc.h"
 
 #define SERVO_LEFT   57
 #define SERVO_CENTER 92
@@ -17,14 +18,6 @@
 #define MOTOR_MIN_REVERSE  99
 #define MOTOR_FULL_REVERSE 180
 
-// Serial state machine states
-enum {
-  WAIT,
-  READ_LENGTH,
-  READ_DATA,
-  READ_CHECKSUM
-};
-
 // Drive motor states
 enum {
   STATE_NORMAL,
@@ -32,10 +25,19 @@ enum {
   STATE_DELAY2 // 100ms delay to go from reverse to neutral
 };
 
+/*
+CMD_VALUES packet data field (5 bytes)
+  uint8  command type (0x42)
+  uint16 steering value
+  uint16 motor value
+*/
+#define CMD_VALUES 0x42
+#define DATA_REQUESTED 0x21
+
 
 // Globals
 Servo steering, motor;
-Packet packet;
+SimpleMotorController driveMotor(5);
 
 //--------------- Gyro declarations -------------------------
 int gyroPin = 0;                 //Gyro is connected to analog pin 0
@@ -86,7 +88,7 @@ void writeOdometry() {
   static long lastEncoderCount = 0L;
     
   // Compute change in encoder count (discrete velocity estimate)
-  long tmpEncoderCount = getEncoderCount();
+  long tmpEncoderCount = encoder_getCount();
   int delta = (int)(tmpEncoderCount - lastEncoderCount);
   lastEncoderCount = tmpEncoderCount;
   
@@ -106,68 +108,20 @@ void setDriveMotor(unsigned int val) {
 }
 
 
-/*
- * Called every time a byte is received.
- * Decodes packets and calls packetReceived() when a full valid packet arrives.
- */
-void byteReceived (unsigned char byte) {
-  static unsigned char state = WAIT;
-  static unsigned char i = 0;
-  static unsigned char checksum = 0;
-
-  switch (state) {
-  case WAIT:
-    if (byte == START_BYTE)
-      state = READ_LENGTH;
-    break;
-
-  case READ_LENGTH:
-    packet.length = byte;
-    i = 0;
-    checksum = byte;
-    state = READ_DATA;
-    break;
-
-  case READ_DATA:
-    if (i < packet.length) {
-      packet.data[i++] = byte;
-      checksum = checksum ^ byte;
-    }
-
-    if (i >= packet.length)
-      state = READ_CHECKSUM;
-    break;
-
-  case READ_CHECKSUM:
-    packet.checksum = byte;
-    if (byte == checksum) {
-      packetReceived();
-    } else {
-      // Long blink for bad packet
-      //digitalWrite(13, HIGH);
-      //delay(200);
-      //digitalWrite(13, LOW);
-    }
-    state = WAIT;
-    break;
-
-  default:
-    state = WAIT;
-    break;
-  }
-}
-
 /* Called every time a VALID packet is received
  * from the main processor.
  */
-void packetReceived () {
+void packetReceived (Packet& packet) {
   switch (packet.data[0]) {
   case CMD_VALUES: {
     unsigned int steerVal = packet.data[1] << 8 | packet.data[2];  //---->>need to change this: we get heading from the ROS: convert it to the angular velocity we expect.
     unsigned int motorVal = packet.data[3] << 8 | packet.data[4];
                   
     steering.write(steerVal);
-    set_speed(motorVal);
+    //set_speed(motorVal);
+    cli();
+    driveMotor.setSpeed(motorVal);
+    sei();
 
     break;
   }
@@ -224,7 +178,7 @@ void timer_callback() {
   */
     
   // Compute change in encoder count (discrete velocity estimate)
-  long tmpEncoderCount = getEncoderCount();
+  long tmpEncoderCount = encoder_getCount();
   long delta = tmpEncoderCount - lastEncoderCount;
   lastEncoderCount = tmpEncoderCount;
 
@@ -236,13 +190,16 @@ void timer_callback() {
 void setup() {
   // Initialize servo objects
   steering.attach(4);
-  motor.attach(5);
+  //motor.attach(5);
+
+  // Initialize the drive motor
+  driveMotor.initialize();
   
   // Center the steering servo
   steering.write(SERVO_CENTER);
-  motor.write(MOTOR_NEUTRAL);
+  //motor.write(MOTOR_NEUTRAL);
   
-  encoderSetup();
+  encoder_initialize();
 
   analogReference(EXTERNAL);  // Use external Vref (3.3V)
   pinMode(13, OUTPUT); // enable LED pin
@@ -259,7 +216,8 @@ void setup() {
   MsTimer2::set(100, timer_callback); // 100ms period
   MsTimer2::start();
   
-  
+  // Initialize packet callback
+  packet_initialize(packetReceived);
 }
 
 
@@ -270,7 +228,7 @@ void loop()
 
   // Main command-processing state machine
   while (Serial.available())
-    byteReceived(Serial.read());
+    packet_byteReceived(Serial.read());
    
   // Drive motor direction fixing
   static unsigned char lastDirFwd = 1;
@@ -283,6 +241,7 @@ void loop()
   // 2. send a neutral pulse
   // 3. send a reverse pulse (now treated as a reverse signal)
 
+  /*
   switch (driveMotorState) {
   case STATE_NORMAL:
     // In case of a reverse after driving forward
@@ -328,6 +287,6 @@ void loop()
     }
     break;
   } // switch
-  
+  */
   
 } // loop()
