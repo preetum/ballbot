@@ -1,4 +1,4 @@
-/* packet.c
+/* packet.h
  *
  * AUTHOR: John Wang
  * VERSION: 0.2  (6 Sep 2010)
@@ -20,23 +20,6 @@
  */
 #define START_BYTE 0xFF
 
-
-/*
-CMD_VALUES packet data field (5 bytes)
-
-Digital out byte order
-(MSB)                (LSB)
-D7 D6 D5 D4 D3 D2 D1 D0
-
-  0x42  (command type)
-  A1    (8-bit analog)
-  A2
-  A3
-  A4
-*/
-#define CMD_VALUES 0x42
-#define DATA_REQUESTED 0x21
-
 // Packet structure
 typedef struct packet {
 	unsigned char length;	// length of data
@@ -44,13 +27,20 @@ typedef struct packet {
 	unsigned char checksum;
 } Packet;
 
-extern Packet packet;
+// Serial state machine states
+enum {
+  WAIT,
+  READ_LENGTH,
+  READ_DATA,
+  READ_CHECKSUM
+};
 
 
 /* Callback for every time a valid packet is received. */
-void packetReceived ();
+void packet_initialize(void (*callback)(Packet&));
+//void packetReceived ();
 
 /* Call this every time a byte is received from the main processor. */
-void byteReceived (unsigned char byte);
+void packet_byteReceived (unsigned char byte);
 
 #endif

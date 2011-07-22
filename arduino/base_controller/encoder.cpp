@@ -16,14 +16,14 @@ void encoder0Handler() {
   }
 }
 
-void encoderSetup() {
+void encoder_initialize() {
   // Interrupt to count encoder ticks on int 0 (pin 2)
   attachInterrupt(0, encoder0Handler, RISING);
   pinMode(12, INPUT);
   digitalWrite(12, HIGH);
 }
 
-long getEncoderCount() {
+long encoder_getCount() {
   long tmpEncoderCount;
 
   // Atomically read encoder count
