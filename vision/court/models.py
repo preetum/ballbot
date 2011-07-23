@@ -135,17 +135,21 @@ def lineProbabilityGivenParticleLocation(observation, particles):
 
   obs_dist, obs_heading = dist_heading_to_line(observation)
   print 'Line: %f cm\t %f deg' % (obs_dist, obs_heading*180/np.pi)
+  print 'Line segment: %s, %s' % (pt1, pt2)
 
   probs = np.zeros(len(particles))
   i = 0
   for particle in particles:
+    prob = 0.0
     for line in lines:
       # Get the distance, absolute heading from particle to the line
       dist, heading = util.pointLineVector(particle[0:2], line)
+      # Adjust heading to account for the heading of the robot
+      heading = util.normalizeRadians(heading - (particle[2]-np.pi/2))
 
       # Use new distance metric for line segments
       # Convert candidate line into robot coordinate frame
-      new_line = transform(line, particle[0:2], particle[2])
+      new_line = transform(line, particle[0:2], particle[2]-np.pi/2)
 
       # Take each endpoint of the observed line
       #  and calculate its distance to the candidate line
@@ -153,10 +157,12 @@ def lineProbabilityGivenParticleLocation(observation, particles):
       dist_metric = util.pointLineSegmentDistance(pt1, new_line) + \
           util.pointLineSegmentDistance(pt2, new_line)
 
-      # Adjust heading to account for the heading of the robot
-      heading = util.normalizeRadians(heading - particle[2])
+      # Scale distance metric 
+      dist_metric = dist_metric * \
+          np.exp(3*np.abs(util.normalizeRadians(obs_heading - heading)))
 
-      probs[i] += np.exp(-0.1 * np.abs(dist_metric) +
-                          -7 * np.abs(heading - obs_heading))
+      prob += np.exp(-0.02 * np.abs(dist_metric))
+#                      -7 * np.abs(heading - obs_heading))
+    probs[i] = prob
     i += 1
   return probs
