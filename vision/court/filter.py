@@ -131,9 +131,11 @@ class ParticleFilter:
     #  generate movements for all particles at once
     # TODO tune sigmas (2nd parameter)
     count = len(self.particles)
-    dpos = np.random.normal(0, 10.0, (count, 2))
+    dpos = np.random.normal(0, 50.0, (count, 2))
     dtheta = np.random.normal(0, 0.5, (count, 1))
     delta = np.concatenate([dpos, dtheta], axis=1)
+    if motion is not None:
+      delta = delta + np.array(motion)
     self.particles.particles = self.particles.particles + delta
 
     '''
