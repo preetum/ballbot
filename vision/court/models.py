@@ -90,13 +90,13 @@ def cornerProbabilityGivenParticleLocation(observation, particles):
 
     # calculate the relative heading w.r.t particle position and heading
     headings = np.arctan2(distanceVectors[:,1], distanceVectors[:,0])
-    headings = util.normalizeRadians(headings - particles[:, 2])
+    headings = util.normalizeRadians(headings - (particles[:, 2] - np.pi/2))
     
     # TODO tune sigmas
     # (assume P(e|x_t) ~ exp{-1/2 * |distance - obs_dist| / sigma_1^2} 
     #                    * exp{-1/2 * |heading - obs_heading| / sigma_2^2} )
-    prob += np.exp(-0.1 * np.abs(distances - obs_dist) +
-      -7 * np.abs(headings - obs_heading))
+    probs = probs + np.exp(-0.005 * np.abs(distances - obs_dist) +
+                            -7 * np.abs(headings - obs_heading))
     '''
     if corner is corners[0]:
       print particle, 'hdg:', heading
@@ -161,8 +161,8 @@ def lineProbabilityGivenParticleLocation(observation, particles):
       dist_metric = dist_metric * \
           np.exp(3*np.abs(util.normalizeRadians(obs_heading - heading)))
 
-      prob += np.exp(-0.02 * np.abs(dist_metric))
-#                      -7 * np.abs(heading - obs_heading))
+      prob += np.exp(-0.005 * np.abs(dist_metric) +
+                      -7 * np.abs(heading - obs_heading))
     probs[i] = prob
     i += 1
   return probs
