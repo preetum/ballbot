@@ -55,6 +55,7 @@ def dist_heading_to_line(line):
   x2, y2 = camera_point_to_xy((x2, y2))
 
   line = ((x1, y1), (x2, y2))
+
   return util.pointLineVector((0,0), line)
 
 def dist_heading_to_point(pt):
@@ -129,12 +130,12 @@ def lineProbabilityGivenParticleLocation(observation, particles):
   '''
   observation are the endpoints of the line segment
   '''
+  obs_dist, obs_heading = dist_heading_to_line(observation)
+  print 'Line: %f cm\t %f deg' % (obs_dist, obs_heading*180/np.pi)
+
   pt1, pt2 = observation
   pt1 = camera_point_to_xy(pt1)
   pt2 = camera_point_to_xy(pt2)
-
-  obs_dist, obs_heading = dist_heading_to_line(observation)
-  print 'Line: %f cm\t %f deg' % (obs_dist, obs_heading*180/np.pi)
   print 'Line segment: %s, %s' % (pt1, pt2)
 
   probs = np.zeros(len(particles))
