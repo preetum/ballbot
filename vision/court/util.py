@@ -117,8 +117,8 @@ def pointLineVector(point, line):
   # Angle is sign(n \dot r) * atan2(y2-y1, x2-x1)
   #  except the sign doesn't matter if n \dot r = 0
   angle = np.arctan2(n[1], n[0])
-  if dot != 0:
-    angle *= np.sign(dot)
+  if np.sign(dot) < 0:
+    angle = normalizeRadians(angle + np.pi)
 
   return dist, angle
 
