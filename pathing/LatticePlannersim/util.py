@@ -280,7 +280,7 @@ def Astarsearch(startNode,goalNode):
           if (x,y,theta) not in alreadySeen:
               if(x >= feet_to_cm(9.0)) and (x <= feet_to_cm(51.0)) and (y >= feet_to_cm(59.5)) and (y <= feet_to_cm(60.5)):
                   print "x",x,"y",y,"th",theta,"action",current_Node.getAction(),"parent",current_Node.getParent().get_stateparams()
-              graphics.draw_point(x,y,theta,'blue')
+              #graphics.draw_point(x,y,theta,'blue')
               alreadySeen.add((x,y,theta))
               children = current_Node.expand()
               for child in children:
@@ -331,7 +331,6 @@ def cost(state,action,newstate,goalNode):
   else:
       actionToGoal = False
 
-
   if not(obstacle_in_radius(state_x,state_y) or goal_in_radius(state_x,state_y,goalNode)):   # state is neither near an obstacle nor near goal
       cost = length_action  
   else:
@@ -349,24 +348,15 @@ def cost(state,action,newstate,goalNode):
               elif ((goal_x == x_coord) and (goal_y == y_coord) and not actionToGoal):
                   return float('inf')
               average_cellcost += cost_cell
-              num_cells += (strip[2]+1 - strip[1])
-  
+          num_cells += (strip[2]+1 - strip[1])
       average_cellcost = average_cellcost/num_cells
       cost = length_action*average_cellcost
             
-  # Cost of backing up
-  if action in ("B","B_diag","L_b","R_b"): 
-      reverse_mult = 20
+  if action in ("F","F_diag","F_26.6","F_63.4"):
+      cost_mult = 1
   else:
-      reverse_mult = 1
-          
-  # Cost of turning
-  if action not in ("F","F3","F_diag","F_diag3","B","B_diag"):
-      turn_mult = 5
-  else:
-      turn_mult = 1
-      
-  cost = cost*reverse_mult*turn_mult
+      cost_mult = 1.05#1.05
+  cost = cost*cost_mult      
   return cost
 
 def obstacle_in_radius(x,y):
@@ -376,7 +366,7 @@ def obstacle_in_radius(x,y):
     """
     # return True if 'state' is within 175 cm of an obstacle (look at rectangle 
     for obstacle in costmap.obstacles:
-        if(y<= obstacle[0][1] + 175) and (y >= obstacle[1][1] - 175) and (x >= obstacle[0][0] - 175) and (x <= obstacle[0][1] + 175):
+        if(y<= obstacle[0][1] + 175) and (y >= obstacle[1][1] - 175) and (x >= obstacle[0][0] - 175) and (x <= obstacle[1][0] + 175):
             return True
     return False
 
