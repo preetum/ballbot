@@ -13,9 +13,25 @@ import numpy as np
 
 import models
 
-"""
- Data structures useful for implementing SearchAgents
-"""
+def lineIntersectionPoints(p1a, p1b, p2a, p2b):
+    '''
+    Finds the intersection point of two 2D lines given
+     two points on each line. (p1a and p1b belong to line 1, etc.)
+    Returns intersection point as (x, y)
+    See http://mathworld.wolfram.com/Line-LineIntersection.html
+    '''
+    x1, y1 = p1a
+    x2, y2 = p1b
+    x3, y3 = p2a
+    x4, y4 = p2b
+
+    a = np.linalg.det([[x1, y1], [x2, y2]])
+    b = np.linalg.det([[x3, y3], [x4, y4]])
+    d = np.linalg.det([[x1-x2, y1-y2], [x3-x4, y3-y4]])
+    x = np.linalg.det([[a, x1-x2], [b, x3-x4]]) / d
+    y = np.linalg.det([[a, y1-y2], [b, y3-y4]]) / d
+
+    return (x, y)
 
 def pointLineSegmentDistance(point, line):
   '''
@@ -111,6 +127,11 @@ def heading(p1, p2):
   x1, y1 = p1
   x2, y2 = p2
   return np.arctan2(y2-y1, x2-x1)
+
+
+"""
+ Data structures useful for implementing SearchAgents
+"""
 
 def sample(distribution):
   """
