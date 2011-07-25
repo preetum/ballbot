@@ -9,46 +9,80 @@
 import sys
 import inspect
 import heapq, random
-import numpy
+import numpy as np
 
 import models
 
-"""
- Data structures useful for implementing SearchAgents
-"""
+def lineIntersectionPoints(p1a, p1b, p2a, p2b):
+    '''
+    Finds the intersection point of two 2D lines given
+     two points on each line. (p1a and p1b belong to line 1, etc.)
+    Returns intersection point as (x, y)
+    See http://mathworld.wolfram.com/Line-LineIntersection.html
+    '''
+    x1, y1 = p1a
+    x2, y2 = p1b
+    x3, y3 = p2a
+    x4, y4 = p2b
 
-def pixelToDistance(px, imgSize=(640,480), cameraParams=None):
+    a = np.linalg.det([[x1, y1], [x2, y2]])
+    b = np.linalg.det([[x3, y3], [x4, y4]])
+    d = np.linalg.det([[x1-x2, y1-y2], [x3-x4, y3-y4]])
+    x = np.linalg.det([[a, x1-x2], [b, x3-x4]]) / d
+    y = np.linalg.det([[a, y1-y2], [b, y3-y4]]) / d
+
+    return (x, y)
+
+def pointLineSegmentDistance(point, line_pt1, line_pt2):
   '''
-  Calculates distance to pixel. This assumes the pixel is on the ground,
-  and uses camera geometry to calculate distances.
-
-  Returns (x, y) where x,y are in cm measured from the camera location
+  Returns the distance from a point to a line segment.
+  x0,y0 = point
+  x1,y1 = line_pt1 
+  x2,y2 = line_pt2
+  Where (x1,y1) and (x2,y2) are endpoints of a line segment
+  With help from http://stackoverflow.com/questions/627563/702174#702174
   '''
-  if cameraParams is None:
-    cameraParams = models.camera_params
 
-  x, y = px
-  xcenter = imgSize[0] / 2.0
-  ycenter = imgSize[1] / 2.0
-  camera_height = cameraParams['height']
-  camera_radians_per_px = cameraParams['radians_per_px']
+  p = np.array(point)
 
-  # Estimate distance to pixel, assuming pixel is on ground
-  theta = (y - ycenter) * camera_radians_per_px
-  ydist = camera_height / numpy.tan(theta)
+  # r and s may be lists of points as long as len(r) == len(s)
+  R = np.array(line_pt1)
+  S = np.array(line_pt2)
 
-  # Estimate angle to pixel
-  phi = (xcenter - x) * camera_radians_per_px
-  xdist = ydist * numpy.tan(phi)
+  # Project p onto the line rs (this is the same as point-line distance)
+  # n is a unit normal vector to line rs
+  # v is a vector from p to line rs
+  # d is the distance from p to line rs
+  N = np.dot(S - R, np.array([[0, -1], [1, 0]]))
+  N = N / np.vstack(np.sqrt(np.sum(N*N, axis=1)))
+  V = R - p
+  D = np.sum(N*V, axis=1)
 
-  return (xdist, ydist)
+  # We can parameterize the line rs as L(u) = r + (s-r)*u
+  # then solve for the value of u where the projection of p lies
+  # that is: L(u) = r + (s-r)* u = p + d*n
+  X = S - R
+  U = np.sum((p - R + (D*N.T).T) * X, axis=1) / np.sum(X * X, axis=1)
+
+  # Pre-calculate the min distance from point to line endpoints
+  tmpA = p - S
+  tmpB = p - R
+  distsToS = np.sqrt(np.sum(tmpA*tmpA, axis=1))
+  distsToR = np.sqrt(np.sum(tmpB*tmpB, axis=1))
+  distsToEndpt = np.amin([distsToS, distsToR], axis=0)
+
+  # If projection of p lies on line segment rs, return the distance
+  # Otherwise return the distance to the closest point
+  rv = [d if 0 <= u <= 1 else dist
+        for d, u, dist in zip(np.abs(D), U, distsToEndpt)]
+  return np.array(rv)
 
 def normalizeRadians(theta):
-  theta = theta % (2*numpy.pi)
-  if theta > numpy.pi:
-    return theta - 2*numpy.pi
-  else:
-    return theta
+  '''
+  Normalize an angle to the interval [-pi, pi)
+  '''
+  theta = (theta + np.pi) % (2*np.pi) - np.pi
+  return theta
 
 def pointLineDistance(point, line):
   '''
@@ -58,8 +92,54 @@ def pointLineDistance(point, line):
   '''
   x0,y0 = point
   (x1,y1), (x2,y2) = line
-  return (numpy.abs((x2-x1) * (y1-y0) - (x1-x0) * (y2-y1)) /  
-    numpy.sqrt(numpy.square(x2-x1) + numpy.square(y2-y1)))
+  return (np.abs((x2-x1) * (y1-y0) - (x1-x0) * (y2-y1)) /  
+    np.sqrt(np.square(x2-x1) + np.square(y2-y1)))
+
+def pointLineVector(point_or_points, line_pt1, line_pt2):
+  '''
+  Returns the minimum distance and heading from a point to a line
+  (that is, the angle of the shortest line between the point and line).
+  See http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
+
+  point is either a single point [x,y], or a list of points 
+   [[x1,y1], [x2,y2], ...]
+  line is a single line passing through line_pt1 and line_pt2,
+   both of which are single points [x,y]
+  '''
+  points = np.array(point_or_points)
+  a = np.array(line_pt1)
+  b = np.array(line_pt2)
+
+  # Handle single point case
+  if np.ndim(points) == 1: points = np.array([points])
+
+  # x0,y0 = point
+  # (x1,y1), (x2,y2) = line
+
+  # n is vector perpendicular (normal) to the line
+  # R is list of vectors from the points to a point on the line
+  n = np.dot(np.array([[0, -1], [1, 0]]), b-a)
+  R = a - points
+
+  # Distance is (n \dot r) / |n| or the projection of r onto n
+  dots = np.dot(R, n)
+  dists = np.abs(dots) / np.linalg.norm(n)
+
+  # Angle is atan2(y2-y1, x2-x1) if n \dot r > 0
+  #  and atan2(y2-y1, x2-x1) + pi if n \dot r < 0
+  #  and doesn't matter if n \dot r = 0
+  angles = np.empty(len(points))
+  angles.fill(np.arctan2(n[1], n[0]))
+  # Adjust each angle for sign of the dot product
+  angles = angles + np.array([np.pi if b else 0
+                              for b in (dots < 0)])
+  angles = normalizeRadians(angles)
+
+  # Return answer in the same dimension as point_or_points
+  if np.ndim(point_or_points) == 1:
+    return dists[0], angles[0]
+  else:
+    return dists, angles
 
 def distance(p1, p2):
   '''
@@ -67,7 +147,7 @@ def distance(p1, p2):
   '''
   x1, y1 = p1
   x2, y2 = p2
-  return numpy.linalg.norm((x2-x1, y2-y1))
+  return np.linalg.norm((x2-x1, y2-y1))
   
 def heading(p1, p2):
   '''
@@ -75,7 +155,12 @@ def heading(p1, p2):
   '''
   x1, y1 = p1
   x2, y2 = p2
-  return numpy.arctan2(y2-y1, x2-x1)
+  return np.arctan2(y2-y1, x2-x1)
+
+
+"""
+ Data structures useful for implementing SearchAgents
+"""
 
 def sample(distribution):
   """

@@ -5,7 +5,7 @@ from findlines import *
 from Tkinter import *
 
 import models, util
-from filter import ParticleFilter
+from filter import *
 
 class Simulator:
 
@@ -32,7 +32,11 @@ class Simulator:
     x, y = self.transform(x0, y0)
     self.canvas.create_oval(x-4, y-4, x+4, y+4, outline='orange')
     if t is not None:
-      self.draw_line(x0, y0, x0+12*math.cos(t), y0+12*math.sin(t), fill='orange')
+      # t represents the angle of the robot frame's x-axis;
+      #  draw the y-axis representing the robot's heading
+      t = t + math.pi/2
+      self.draw_line(x0, y0, x0+12*math.cos(t), y0+12*math.sin(t), 
+                     fill='orange')
   
   def refresh(self, beliefs=None):
     '''
@@ -51,6 +55,13 @@ class Simulator:
     Adds a border and scales the system
     '''
     return (self.border + (x*self.scale), self.height - self.border - (y*self.scale));
+
+  def inverse_transform(self, x, y):
+    '''
+    Transforms pixel location to simulation coordinate system
+    '''
+    return (x - self.border) / self.scale, \
+        - (y + self.border - self.height) / self.scale
   
   def draw_line(self, x1, y1, x2, y2, *args, **kwargs):
     '''
@@ -97,30 +108,49 @@ def update_loop(capture, pf, sim):
   while True:
     frame = cv.QueryFrame(capture)
 
-    grouped_lines, corners = find_lines(frame)
-    for group in grouped_lines:
-      d = distance_to_line(group[0])
-      print 'Line: %f cm' % d
-      pf.observeLine((d, 0))
+    line_segments, corners = find_lines(frame)
+    for segment in line_segments:
+      pf.observeLine(segment)
     for corner in corners:
-      r, theta = dist_heading_to_point(corner)
-      print 'Corner: %f cm\t%f deg' % (r, theta*180/math.pi)
-      pf.observeCorner((r, theta))
-    print
-    
-    pf.elapseTime()
+      pf.observeCorner(corner)
+
+    pf.resample()
 
     # Redraw beliefs
     i += 1
-    if i > 10:
+    if i > 5:
       i = 0
       sim.refresh()
 
+    # Remove some fraction the particles and replace with random samples
+    j = 0
+    # Generate numParticles random locations quickly using numpy
+    locations = sampleUniform(pf.numParticles, 0, 1189, 0, 1097)
+    # Generate numParticles booleans with 1/8 probability
+    for b in np.random.randint(0,8,pf.numParticles) == 0:
+      if b:
+        pf.particles.particles[j] = locations[j]
+      j += 1
+    pf.elapseTime()
+
     cv.WaitKey(10)
 
+# For testing: replaces 16 random particles with 16 particles
+#  at the click location, in different orientations
+def click_callback(event, sim):
+  x, y = sim.inverse_transform(event.x, event.y)
+  print 'click', x, y
+  start = np.random.randint(sim.pf.numParticles)
+  for i in range(16):
+    sim.pf.particles.particles[start+i] = np.array([x,y,i*np.pi/8])
+  sim.refresh()
+
 def main():
-  pf = ParticleFilter(numParticles=1000)
+  pf = ParticleFilter(numParticles=500)
   sim = Simulator(pf)
+
+  # For testing
+  sim.canvas.bind("<Button-1>", lambda evt: click_callback(evt, sim))
 
   cv.NamedWindow('frame', cv.CV_WINDOW_AUTOSIZE)
   cv.MoveWindow('frame', 10, 10)
@@ -131,8 +161,8 @@ def main():
   if capture is None:
     print 'Error opening file'
     return
-  for i in range(2200):
-    cv.GrabFrame(capture)
+#  for i in range(2200):
+#    cv.GrabFrame(capture)
   
   thread.start_new_thread(update_loop, (capture, pf, sim))
 

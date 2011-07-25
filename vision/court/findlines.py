@@ -26,7 +26,7 @@ def hv2rgb(hue, value):
     rgb[sector_data[h][2]] = int(x * 255);
     return cv.CV_RGB(rgb[0], rgb[1], rgb[2])
 
-def normalize_line(line):
+def normalizeLine(line):
     '''
     Returns normalized line = (r, theta) such that
     r >=0
@@ -38,7 +38,7 @@ def normalize_line(line):
         theta += np.pi
     return (r, theta % (2*np.pi))
 
-def avg_lines(lines):
+def avgLines(lines):
     '''
     Computes some average of the lines (given as (r, theta) pairs)
     Returns average (r, theta)
@@ -46,27 +46,20 @@ def avg_lines(lines):
     r = sum(x[0] for x in lines) / len(lines)
     theta = np.arctan2(sum(np.sin(x[1]) for x in lines),
                        sum(np.cos(x[1]) for x in lines))
-    return normalize_line((r, theta))
+    return normalizeLine((r, theta))
 
-def angle_difference(a, b):
-    '''
-    Computes the angle difference (a - b), normalized to [-pi, pi)
-    '''
-    diff = a - b
-    return (diff + np.pi) % (2*np.pi) - np.pi
-
-def to_xy(r_theta):
+def toXY(r_theta):
     '''
     Converts (r, theta) to (x, y)
     '''
     r, theta = r_theta
     return (r * np.cos(theta), r * np.sin(theta))
 
-def line_to_slope_intercept(line):
+def lineToSlopeIntercept(line):
     '''
     Converts a line in (r, theta) to slope-intercept (mx + b)
     '''
-    x1, y1 = to_xy(line)
+    x1, y1 = toXY(line)
     #x2, y2 = x1-y1, x1+y1
     #m = (y2-y1) / (x2-x1)
     if y1 == 0:
@@ -78,98 +71,109 @@ def line_to_slope_intercept(line):
 
     return m, b
 
-def line_to_visible_segment(line, frame_size=(640,480)):
+def getPx(img, x, y):
+  width, height = cv.GetSize(img)
+  x = min(max(0, x), width-1)
+  y = min(max(0, y), height-1)
+  srchPt = cv.Round(y), cv.Round(x)
+  return img[srchPt]
+
+def lineToVisibleSegment(line, threshold_img, eps=1e-8):
     '''
-    Returns the two points at which this line is visible in the frame
+    Returns the two endpoints of the line segment in the frame
     line is in (r, theta) form
+    return value is two points in ((x1, y1) (x2, y2)), where x1 <= x2
     '''
-    # TODO finish
-    m, b = line_to_slope_intercept(line)
-    width, height = frame_size
-    if m == float('inf'):
-      pass
-    elif 0 <= b <= height:  # (0, b) is a point
-      p1a = x1, y1 = to_xy(line1)
-      p1b = x1-y1, x1+y1
-      line_intersection_points(p1a, p1b, (0,0), (0, width))
+    width, height = cv.GetSize(threshold_img)
 
-def line_intersection_points(p1a, p1b, p2a, p2b):
-    '''
-    Finds the intersection point of two 2D lines given
-     two points on each line. (p1a and p1b belong to line 1, etc.)
-    Returns intersection point as (x, y)
-    See http://mathworld.wolfram.com/Line-LineIntersection.html
-    '''
-    x1, y1 = p1a
-    x2, y2 = p1b
-    x3, y3 = p2a
-    x4, y4 = p2b
+    # Get two points on the line
+    p1a = x1, y1 = toXY(line)
+    p1b = x1-y1, x1+y1
 
-    a = np.linalg.det([[x1, y1], [x2, y2]])
-    b = np.linalg.det([[x3, y3], [x4, y4]])
-    d = np.linalg.det([[x1-x2, y1-y2], [x3-x4, y3-y4]])
-    x = np.linalg.det([[a, x1-x2], [b, x3-x4]]) / d
-    y = np.linalg.det([[a, y1-y2], [b, y3-y4]]) / d
+    # Find top-left point a
+    # First try to intersect with each edge of image
+    candidates = [util.lineIntersectionPoints(p1a, p1b, (0, 0), (width, 0)),
+              util.lineIntersectionPoints(p1a, p1b, (0, 0), (0, height)),
+              util.lineIntersectionPoints(p1a, p1b, (0, height), (width, height)),
+              util.lineIntersectionPoints(p1a, p1b, (width, 0), (width, height))]
+    # There should be only 2 intersection points with the image rectangle,
+    #  (or 1 if it's tangent to a corner, or inf if it lies on an edge, but
+    #   we'll ignore those cases for now since they're improbable)
+    # Expand bounds by epsilon=1e-8 to account for floating point imprecision
+    points = filter(lambda x: (-eps <= x[0] <= width+eps) \
+                      and (-eps <= x[1] <= height+eps),
+                    candidates)
+    if len(points) != 2:
+      print 'Line is not within in image bounds!'
+      return None
 
-    return (x, y)
+    # Try to iterate over pixel values starting at points[0]
+    m = x1 / -y1 if y1 != 0 else float('inf')
+    b = m * -x1 + y1
+    startPt = None
+    endPt = None
+    # Line is more horizontal: iterate over x values
+    if m < 1:
+      # Ensure that point[0] is leftmost point
+      if points[0][0] > points[1][0]:
+        points[0], points[1] = points[1], points[0]
 
-def line_intersection(line1, line2):
+      # Look for start point from leftmost point
+      x, y = points[0]
+      while x < points[1][0] and startPt is None:
+        if getPx(threshold_img, x, y) != 0:
+          startPt = (x, y)
+        x += 1
+        y = m * x + b
+
+      # Look for end point from rightmost point
+      x, y = points[1]
+      while x > points[0][0] and endPt is None:
+        if getPx(threshold_img, x, y) != 0:
+          endPt = (x, y)
+        x -= 1
+        y = m * x + b
+    # Line is more vertical: iterate over y values
+    else:
+      m = y1 / x1
+      b = m * -y1 + x1
+
+      # Ensure that point[0] is topmost point
+      if points[0][1] > points[1][1]:
+        points[0], points[1] = points[1], points[0]
+
+      # Look for start point from topmost point
+      x, y = points[0]
+      while y < points[1][1] and startPt is None:
+        if getPx(threshold_img, x, y) != 0:
+          startPt = (x, y)
+        y += 1
+        x = m * y + b
+      
+      x, y = points[1]
+      while y < points[0][1] and endPt is None:
+        if getPx(threshold_img, x, y) != 0:
+          endPt = (x, y)
+        y -= 1
+        x = m * y + b
+
+    if startPt is None or endPt is None:
+      print 'Line segment not found: startPt=%s, endPt=%s' % (startPt, endPt)
+      return None
+
+    return startPt, endPt
+    
+def lineIntersection(line1, line2):
     '''
     Finds the intersection point of two 2D lines in (r, theta) form,
      where the line is parallel to the vector denoted by (r, theta)
     '''
-    p1a = x1, y1 = to_xy(line1)
+    p1a = x1, y1 = toXY(line1)
     p1b = x1-y1, x1+y1
-    p2a = x3, y3 = to_xy(line2)
+    p2a = x3, y3 = toXY(line2)
     p2b = x3-y3, x3+y3
 
-    return line_intersection_points(p1a, p1b, p2a, p2b)
-
-def distance_to_line(line):
-  '''
-  Returns real distance reading to the line, where line is a camera line
-  '''
-  # Get two points on the (camera) line
-  x1, y1 = to_xy(line)
-  x2, y2 = x1-y1, x1+y1
-
-  # Convert to points in real space
-  x1, y1 = camera_point_to_xy(x1, y1)
-  x2, y2 = camera_point_to_xy(x2, y2)
-
-  if y1 == y2:
-    # Handle vertical line
-    return 0
-  else:
-    line = ((x1, y1), (x2, y2))
-    return util.pointLineDistance((0,0), line)
-
-def dist_heading_to_point(pt):
-  '''
-  Returns real distance and heading to the point, where pt is a camera point
-  '''
-  x, y = pt
-  x, y = camera_point_to_xy(x, y)
-  r, theta = np.linalg.norm((x, y)), np.arctan2(y, x)
-  return r, theta
-
-def camera_point_to_xy(px, py):
-  # TODO get these parameters from rosparam store
-  radians_per_px = 0.0016
-  frame_height = 480
-  frame_width = 640
-  camera_tilt_angle = -20.0/180*np.pi
-  camera_pan_angle = 0.0
-  camera_height = 33.5
-  radians_per_px = 0.0032;
-
-  theta = (py - frame_height/2) * radians_per_px - camera_tilt_angle
-  y = camera_height / np.tan(theta);
-
-  phi = (px - frame_width/2) * radians_per_px + camera_pan_angle
-  x = y * np.tan(phi)
-
-  return x, y
+    return util.lineIntersectionPoints(p1a, p1b, p2a, p2b)
 
 def find_lines(frame):
     # Resize to 640x480
@@ -215,7 +219,7 @@ def find_lines(frame):
     # Remove spurious line from the black rectangle up top
     for line in lines[:]:
       if (abs(180 - line[0]) < 10 and
-          abs(angle_difference(cv.CV_PI/2, line[1])) < 0.01):
+          abs(util.normalizeRadians(cv.CV_PI/2 - line[1])) < 0.01):
         lines.remove(line)
 
     # Group lines that are within r +/-12 and theta +/- 5 degrees
@@ -223,23 +227,24 @@ def find_lines(frame):
     r_threshold = 12                      # in px
     theta_threshold = cv.CV_PI * 5 / 180  # in radians
     while len(lines) > 0:
-        line1 = normalize_line(lines.pop())
+        line1 = normalizeLine(lines.pop())
         avg_line = line1
         matched_lines = [line1]
         for j in range(len(lines)-1, -1, -1):
-            line2 = normalize_line(lines[j])
+            line2 = normalizeLine(lines[j])
             if verbose:
               # Print which criteria were matched
               if (abs(avg_line[0] - line2[0]) < r_threshold):
                 print 1,
-              if (abs(angle_difference(avg_line[1], line2[1])) < 
+              if (abs(util.normalizeRadians(avg_line[1] - line2[1])) < 
                   theta_threshold):
                 print 2,
               print avg_line, line2
             if (abs(avg_line[0] - line2[0]) < r_threshold and
-                abs(angle_difference(avg_line[1],line2[1])) < theta_threshold):
+                abs(util.normalizeRadians(avg_line[1] - line2[1])) < \
+                  theta_threshold):
                 matched_lines.append(line2)
-                avg_line = avg_lines(matched_lines)
+                avg_line = avgLines(matched_lines)
                 lines.pop(j)
         if verbose: print matched_lines
         grouped_lines.append(avg_line)
@@ -248,16 +253,16 @@ def find_lines(frame):
     # Group possible pairs of lines by smallest angle difference
     grouped_lines = []
     while len(lines) > 0:
-        line1 = normalize_line(lines.pop())
+        line1 = normalizeLine(lines.pop())
         closest = None
         for j in range(len(lines)-1, -1, -1):
-            line2 = normalize_line(lines[j])
+            line2 = normalizeLine(lines[j])
             # Find the closest match
             if ((closest is None
-                 or abs(angle_difference(line1[1], line2[1])) < \
-                     abs(angle_difference(line1[1], closest[1])))
+                 or abs(util.normalizeRadians(line1[1] - line2[1])) < \
+                     abs(util.normalizeRadians(line1[1] - closest[1])))
                 # Make sure difference < pi/4 to reduce errors
-                and abs(angle_difference(line1[1], line2[1])) < \
+                and abs(util.normalizeRadians(line1[1] - line2[1])) < \
                     cv.CV_PI / 4):
                 closest = line2
 
@@ -284,8 +289,8 @@ def find_lines(frame):
                cv.Round(y0 + 1000*(a)))
         pt2 = (cv.Round(x0 - 1000*(-b)),
                cv.Round(y0 - 1000*(a)));
-        cv.Line(frame_small, pt1, pt2,
-                hv2rgb(360.0*i/len(grouped_lines), 1.0), 1, 8)
+        #cv.Line(frame_small, pt1, pt2,
+        #        hv2rgb(360.0*i/len(grouped_lines), 1.0), 1, 8)
       i += 1
 
     # If 2+ groups of lines, find corners (intersection point of lines)
@@ -298,7 +303,7 @@ def find_lines(frame):
 
           # Make sure their angles differ by more than 10 deg to
           #  reduce errors
-          if (abs(angle_difference(pair1[0][1], pair2[0][1])) < 
+          if (abs(util.normalizeRadians(pair1[0][1] - pair2[0][1])) < 
               cv.CV_PI*10/180):
             break
 
@@ -306,7 +311,7 @@ def find_lines(frame):
           pts = []
           for line1 in pair1:
             for line2 in pair2:
-              pts.append(line_intersection(line1, line2))
+              pts.append(lineIntersection(line1, line2))
           # Find average of intersection points
           x = sum(pt[0] for pt in pts)/len(pts)
           y = sum(pt[1] for pt in pts)/len(pts)
@@ -330,6 +335,8 @@ def find_lines(frame):
 
             # Enforce limits
             # TODO handle when intersection is off the bounds of the image
+            #  Currently orientation of the intersection is not being used
+            #  by the particle filter
             x1 = min(max(0, x1), frame_size[0]-1)
             y1 = min(max(0, y1), frame_size[1]-1)
             srchPt = cv.Round(x1), cv.Round(y1)
@@ -343,11 +350,35 @@ def find_lines(frame):
               print 'Angle:', angle+cv.CV_PI
               break
 
+    # Convert line equations into line segments
+    line_segments = []
+    for group in grouped_lines:
+
+      if len(group) == 2:
+        # Get the average of the lines in a pair
+        line1, line2 = group
+        line = ((line1[0] + line2[0]) / 2.0, (line1[1] + line2[1]) / 2.0)
+      else:
+        line = group[0]
+
+      # Look down the line for the endpoints of the white region
+      line_segment = lineToVisibleSegment(line, threshold)
+      if line_segment != None:
+        line_segments.append(line_segment)
+
+    print 'Line segments:', line_segments
+    i = 0
+    for pt1, pt2 in line_segments:
+      pt1 = cv.Round(pt1[0]), cv.Round(pt1[1])
+      pt2 = cv.Round(pt2[0]), cv.Round(pt2[1])
+      cv.Line(frame_small, pt1, pt2, hv2rgb(360.0*i/len(line_segments), 1.0), 
+              2, 8)
+      i += 1
+
     cv.ShowImage('frame', frame_small)
     cv.ShowImage('edges', threshold)
 
-    # TODO convert line equations into line segments
-    return grouped_lines, intersection_pts
+    return line_segments, intersection_pts
 
 def main():
     cv.NamedWindow('frame', cv.CV_WINDOW_AUTOSIZE)
