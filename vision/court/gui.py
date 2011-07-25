@@ -121,7 +121,7 @@ def update_loop(capture, pf, sim):
     # Remove some fraction the particles and replace with random samples
     j = 0
     # Generate numParticles random locations quickly using numpy
-    locations = sample_uniform(pf.numParticles, 0, 1189, 0, 1097)
+    locations = sampleUniform(pf.numParticles, 0, 1189, 0, 1097)
     # Generate numParticles booleans with 1/8 probability
     for b in np.random.randint(0,8,pf.numParticles) == 0:
       if b:

@@ -48,13 +48,6 @@ def avg_lines(lines):
                        sum(np.cos(x[1]) for x in lines))
     return normalize_line((r, theta))
 
-def angle_difference(a, b):
-    '''
-    Computes the angle difference (a - b), normalized to [-pi, pi)
-    '''
-    diff = a - b
-    return (diff + np.pi) % (2*np.pi) - np.pi
-
 def to_xy(r_theta):
     '''
     Converts (r, theta) to (x, y)
@@ -246,7 +239,7 @@ def find_lines(frame):
     # Remove spurious line from the black rectangle up top
     for line in lines[:]:
       if (abs(180 - line[0]) < 10 and
-          abs(angle_difference(cv.CV_PI/2, line[1])) < 0.01):
+          abs(util.normalizeRadians(cv.CV_PI/2 - line[1])) < 0.01):
         lines.remove(line)
 
     # Group lines that are within r +/-12 and theta +/- 5 degrees
@@ -263,12 +256,13 @@ def find_lines(frame):
               # Print which criteria were matched
               if (abs(avg_line[0] - line2[0]) < r_threshold):
                 print 1,
-              if (abs(angle_difference(avg_line[1], line2[1])) < 
+              if (abs(util.normalizeRadians(avg_line[1] - line2[1])) < 
                   theta_threshold):
                 print 2,
               print avg_line, line2
             if (abs(avg_line[0] - line2[0]) < r_threshold and
-                abs(angle_difference(avg_line[1],line2[1])) < theta_threshold):
+                abs(util.normalizeRadians(avg_line[1] - line2[1])) < \
+                  theta_threshold):
                 matched_lines.append(line2)
                 avg_line = avg_lines(matched_lines)
                 lines.pop(j)
@@ -285,10 +279,10 @@ def find_lines(frame):
             line2 = normalize_line(lines[j])
             # Find the closest match
             if ((closest is None
-                 or abs(angle_difference(line1[1], line2[1])) < \
-                     abs(angle_difference(line1[1], closest[1])))
+                 or abs(util.normalizeRadians(line1[1] - line2[1])) < \
+                     abs(util.normalizeRadians(line1[1] - closest[1])))
                 # Make sure difference < pi/4 to reduce errors
-                and abs(angle_difference(line1[1], line2[1])) < \
+                and abs(util.normalizeRadians(line1[1] - line2[1])) < \
                     cv.CV_PI / 4):
                 closest = line2
 
@@ -329,7 +323,7 @@ def find_lines(frame):
 
           # Make sure their angles differ by more than 10 deg to
           #  reduce errors
-          if (abs(angle_difference(pair1[0][1], pair2[0][1])) < 
+          if (abs(util.normalizeRadians(pair1[0][1] - pair2[0][1])) < 
               cv.CV_PI*10/180):
             break
 

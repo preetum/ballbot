@@ -17,32 +17,6 @@ import models
  Data structures useful for implementing SearchAgents
 """
 
-def pixelToDistance(px, imgSize=(640,480), cameraParams=None):
-  '''
-  Calculates distance to pixel. This assumes the pixel is on the ground,
-  and uses camera geometry to calculate distances.
-
-  Returns (x, y) where x,y are in cm measured from the camera location
-  '''
-  if cameraParams is None:
-    cameraParams = models.camera_params
-
-  x, y = px
-  xcenter = imgSize[0] / 2.0
-  ycenter = imgSize[1] / 2.0
-  camera_height = cameraParams['height']
-  camera_radians_per_px = cameraParams['radians_per_px']
-
-  # Estimate distance to pixel, assuming pixel is on ground
-  theta = (y - ycenter) * camera_radians_per_px
-  ydist = camera_height / np.tan(theta)
-
-  # Estimate angle to pixel
-  phi = (xcenter - x) * camera_radians_per_px
-  xdist = ydist * np.tan(phi)
-
-  return (xdist, ydist)
-
 def pointLineSegmentDistance(point, line):
   '''
   Returns the distance from a point to a line segment.
