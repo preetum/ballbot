@@ -32,7 +32,11 @@ class Simulator:
     x, y = self.transform(x0, y0)
     self.canvas.create_oval(x-4, y-4, x+4, y+4, outline='orange')
     if t is not None:
-      self.draw_line(x0, y0, x0+12*math.cos(t), y0+12*math.sin(t), fill='orange')
+      # t represents the angle of the robot frame's x-axis;
+      #  draw the y-axis representing the robot's heading
+      t = t + math.pi/2
+      self.draw_line(x0, y0, x0+12*math.cos(t), y0+12*math.sin(t), 
+                     fill='orange')
   
   def refresh(self, beliefs=None):
     '''
@@ -157,8 +161,8 @@ def main():
   if capture is None:
     print 'Error opening file'
     return
-  for i in range(2200):
-    cv.GrabFrame(capture)
+#  for i in range(2200):
+#    cv.GrabFrame(capture)
   
   thread.start_new_thread(update_loop, (capture, pf, sim))
 

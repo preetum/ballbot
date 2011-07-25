@@ -54,9 +54,7 @@ def distHeadingToLine(line):
   x1, y1 = cameraPointToXY((x1, y1))
   x2, y2 = cameraPointToXY((x2, y2))
 
-  line = ((x1, y1), (x2, y2))
-
-  return util.pointLineVector((0,0), line)
+  return util.pointLineVector((0,0), (x1,y1), (x2,y2))
 
 def distHeadingToPoint(pt):
   '''
@@ -90,7 +88,7 @@ def cornerProbabilityGivenParticleLocation(observation, particles):
 
     # calculate the relative heading w.r.t particle position and heading
     headings = np.arctan2(distanceVectors[:,1], distanceVectors[:,0])
-    headings = util.normalizeRadians(headings - (particles[:, 2] - np.pi/2))
+    headings = util.normalizeRadians(headings - (particles[:,2]))
     
     # TODO tune sigmas
     # (assume P(e|x_t) ~ exp{-1/2 * |distance - obs_dist| / sigma_1^2} 
@@ -107,23 +105,44 @@ def cornerProbabilityGivenParticleLocation(observation, particles):
   
   return probs
 
-def transform(points, translation, angle):
+def transform(point, transforms):
   '''
-  Transforms a 2D point into the coordinate system described by
+  Transforms a 2D point into the coordinate system(s) described by
    translation and angle.
 
-  points is either a 2D vector (list, tuple or ndarray), or a numpy array
-   of 2D *row* vectors
-  translation is a 2D vector representing the origin of the new coordinate
-   system in the old coordinate system
-  angle is the rotation of the new coordinate system w.r.t. the old
+  point is a 2D vector (list, tuple or ndarray)
+  transforms is either a 2D vector in the form [x, y, theta]
+   (where x,y represents a translation and theta represents rotation)
+   or it may be a list of 2D vectors:
+   [[x1,y1,theta], [x2,y2,theta], ...]
+
+  translation (x,y) represents the origin of the new coordinate system in the 
+   old coordinate system
+  angle (theta) represents the rotation of the new coordinate system w.r.t.
+   the old coordinate system
   '''
-  p = np.array(points)
-  t = np.array(translation)
-  a,b = np.cos(angle), np.sin(angle)
-  R = np.array([[a, b], [-b, a]])
-  newPts = np.dot(R, (p-t).T).T
-  return newPts
+  p = np.array(point)
+  T = np.array(transforms)
+
+  # Handle single-transform case
+  if np.ndim(T) == 1: T = np.array([T])
+
+  angles = T[:,2]
+  A = np.cos(angles)
+  B = np.sin(angles)
+  tmp = p - T[:,0:2]
+
+  # new x = (p-translate)*cos(angles) + (p-translate)*sin(angles)
+  # new y = (p-translate)*-sin(angles) + (p-translate)*cos(angles)
+  X = np.sum(tmp * np.array([A, B]).T, axis=1)
+  Y = np.sum(tmp * np.array([-B, A]).T, axis=1)
+  newPts = np.array([X, Y]).T
+
+  # Return answer with same dimensions as transforms
+  if np.ndim(transforms) == 1:
+    return newPts[0]
+  else:
+    return newPts
 
 def lineProbabilityGivenParticleLocation(observation, particles):
   '''
@@ -138,31 +157,29 @@ def lineProbabilityGivenParticleLocation(observation, particles):
   print 'Line segment: %s, %s' % (pt1, pt2)
 
   probs = np.zeros(len(particles))
-  i = 0
-  for particle in particles:
-    prob = 0.0
-    for line in lines:
-      # Get the distance, absolute heading from particle to the line
-      dist, heading = util.pointLineVector(particle[0:2], line)
-      # Adjust heading to account for the heading of the robot
-      heading = util.normalizeRadians(heading - (particle[2]-np.pi/2))
+  for line in lines:
+    # Get the distance, absolute heading from particle to the line
+    dists, headings = util.pointLineVector(particles[:,0:2], 
+                                           line[0], line[1])
+    # Adjust heading to account for the heading of the robot
+    headings = util.normalizeRadians(headings - (particles[:,2]))
 
-      # Use new distance metric for line segments
-      # Convert candidate line into robot coordinate frame
-      new_line = transform(line, particle[0:2], particle[2]-np.pi/2)
+    # Use new distance metric for line segments
+    # Convert candidate line into robot coordinate frame
+    lineA = transform(line[0], particles)
+    lineB = transform(line[1], particles)
 
-      # Take each endpoint of the observed line
-      #  and calculate its distance to the candidate line
-      #  (both in the robot's coordinate frame)
-      dist_metric = util.pointLineSegmentDistance(pt1, new_line) + \
-          util.pointLineSegmentDistance(pt2, new_line)
+    # Take each endpoint of the observed line
+    #  and calculate its distance to the candidate line
+    #  (both in the robot's coordinate frame)
+    dist_metric = (util.pointLineSegmentDistance(pt1, lineA, lineB) + 
+                   util.pointLineSegmentDistance(pt2, lineA, lineB))
 
-      # Scale distance metric 
-      dist_metric = dist_metric * \
-          np.exp(3*np.abs(util.normalizeRadians(obs_heading - heading)))
+    # Scale distance metric by heading of line
+    heading_error = np.abs(util.normalizeRadians(obs_heading - headings))
+    dist_metric = dist_metric * \
+        np.exp(3*heading_error)
 
-      prob += np.exp(-0.005 * np.abs(dist_metric) +
-                      -7 * np.abs(heading - obs_heading))
-    probs[i] = prob
-    i += 1
+    probs = probs + np.exp(-0.005 * np.abs(dist_metric) -7 * heading_error)
+
   return probs
