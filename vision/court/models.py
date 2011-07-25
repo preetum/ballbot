@@ -23,7 +23,7 @@ camera_params = {'height': 33.5,  # in cm
   'radians_per_px': 0.0016
   }
 
-def camera_point_to_xy(p):
+def cameraPointToXY(p):
   px, py = p
 
   # TODO get these parameters from rosparam store
@@ -42,7 +42,7 @@ def camera_point_to_xy(p):
 
   return x, y
 
-def dist_heading_to_line(line):
+def distHeadingToLine(line):
   '''
   Returns real distance reading to the line, where line is a camera line
   line = (x1,y1), (x2,y2)
@@ -51,22 +51,21 @@ def dist_heading_to_line(line):
   (x1, y1), (x2, y2) = line
 
   # Convert to points in real space
-  x1, y1 = camera_point_to_xy((x1, y1))
-  x2, y2 = camera_point_to_xy((x2, y2))
+  x1, y1 = cameraPointToXY((x1, y1))
+  x2, y2 = cameraPointToXY((x2, y2))
 
   line = ((x1, y1), (x2, y2))
 
   return util.pointLineVector((0,0), line)
 
-def dist_heading_to_point(pt):
+def distHeadingToPoint(pt):
   '''
   Returns real distance and heading to the point, where pt is a camera point
   '''
   x, y = pt
-  x, y = camera_point_to_xy((x, y))
+  x, y = cameraPointToXY((x, y))
   r, theta = np.linalg.norm((x, y)), np.arctan2(y, x)
   return r, theta
-
 
 def cornerProbabilityGivenParticleLocation(observation, particles):
   '''
@@ -79,7 +78,7 @@ def cornerProbabilityGivenParticleLocation(observation, particles):
    [x1, y1, theta1], 
    etc...]
   '''
-  obs_dist, obs_heading = dist_heading_to_point(observation)
+  obs_dist, obs_heading = distHeadingToPoint(observation)
   print 'Corner: %f cm\t%f deg' % (obs_dist, obs_heading*180/np.pi)
   
   probs = np.zeros(len(particles))
@@ -130,12 +129,12 @@ def lineProbabilityGivenParticleLocation(observation, particles):
   '''
   observation are the endpoints of the line segment
   '''
-  obs_dist, obs_heading = dist_heading_to_line(observation)
+  obs_dist, obs_heading = distHeadingToLine(observation)
   print 'Line: %f cm\t %f deg' % (obs_dist, obs_heading*180/np.pi)
 
   pt1, pt2 = observation
-  pt1 = camera_point_to_xy(pt1)
-  pt2 = camera_point_to_xy(pt2)
+  pt1 = cameraPointToXY(pt1)
+  pt2 = cameraPointToXY(pt2)
   print 'Line segment: %s, %s' % (pt1, pt2)
 
   probs = np.zeros(len(particles))
