@@ -9,7 +9,7 @@ class SimpleMotorController {
  public:
   SimpleMotorController(int pin);
   void initialize(void);
-  void setSpeed(int speed);
+  void setPWM(int pwm);
   void setBrake(unsigned char brake);
   void exitSafeStart(void);
 };

@@ -120,7 +120,7 @@ void packetReceived (Packet& packet) {
     steering.write(steerVal);
     //set_speed(motorVal);
     cli();
-    driveMotor.setSpeed(motorVal);
+    driveMotor.setPWM(motorVal);
     sei();
 
     break;
