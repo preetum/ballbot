@@ -131,7 +131,7 @@ void CreateDisplayWindows()
 {
 	//first window
 	namedWindow("Tracker", CV_WINDOW_KEEPRATIO); //resizable
-	cvMoveWindow("Tracker", 0, 0); // Position window
+	cvMoveWindow("Tracker", 675, 0); // Position window
 	cvResizeWindow("Tracker", 675, 700); // Resize window
 }
 
@@ -222,12 +222,13 @@ int Graph_Data(mglGraph *gr,  void *) // ticks, grid, axis
     d.a[1] = 3000;
     gr->YRange(d);
 
-    d.a[0] = -50;
+    d.a[0] = -1000;
     d.a[1] = 3000;
     gr->ZRange(d);
 
 	gr->Rotate(75,37);
-	gr->Zoom(0,0,1500,-1000);
+	//gr->Zoom(100,100,300,300);
+	gr->SetPlotFactor(-5);
 	gr->RecalcBorder();
 
     gr->Light(true);
@@ -299,7 +300,7 @@ void Do_Contours(Mat & input, Mat & output)
 
 	if( !contours.empty() && !hierarchy.empty() )  // draws contours
 	 {
-	        int idx = 0, mass_limit = 150 ;
+	        int idx = 0, mass_limit = 1000 ;
 	        for( ;idx >= 0; idx = hierarchy[idx][0] )
 	        {
 	        	if ((contourArea(contours[idx]) <= mass_limit) && (contourArea(contours[idx])>5)) //only pick those contours which have a small area
@@ -331,7 +332,7 @@ void Do_Contours(Mat & input, Mat & output)
 	        	    blob_obs.push_back(obv); //add the blob to the blob_observation array
 
         	    	drawContours( tmp_cont, contours, idx, Scalar(255,255,255), CV_FILLED, CV_AA, hierarchy,0 ); //draw the contour
-        	    	ellipse( tmp_cont, ellipse_bounding_box.center, ellipse_bounding_box.size, 0, 0, 360, Scalar(0,0,255), 1, 8, 0 ); //draw the approx ellipse
+        	    	//ellipse( tmp_cont, ellipse_bounding_box.center, ellipse_bounding_box.size, 0, 0, 360, Scalar(0,0,255), 1, 8, 0 ); //draw the approx ellipse
 
 
 	        	 // }
@@ -370,12 +371,14 @@ VideoCapture Init_Video(int argc, char** argv)
 	if (!capture.isOpened()) //if this fails, try to open as a video camera, through the use of an integer param
     capture.open(atoi(arg.c_str()));
 
+
 	if (!capture.isOpened())  // if both video and camera fail to open
 	{
 		cerr << "Failed to open a video device or video file!\n" << endl;
 		return -1;
 	}
 	capture.set(CV_CAP_PROP_CONVERT_RGB,1); //tell the capture to convert frames to RGB format
+	cout<<"Fram Rate: "<<capture.get(CV_CAP_PROP_FPS)<<endl;
 	Initial_Capture(capture);
 	return capture;
 }
@@ -432,21 +435,34 @@ int main(int argc, char** argv)
 
 	bounds b;
 	Init_bounds(b); //bounds for particle initialization
-	ball_p = sample_uniformly(1000, b);  // sample 1000 particle uniformly in the bounds b
+//	ball_p = sample_uniformly(1000, b);  // sample 1000 particle uniformly in the bounds b
+	ParticleFilter pfilter(b,1000);
+
 
 	mglGraphFLTK gr;
 	gr.Window(argc,argv,Graph_Data,"ParticleBB");
 	static pthread_t thrd; //create a thread for plotting
     pthread_create(&thrd, 0, mgl_fltk_thrd_tmp, 0);
-//    pthread_detach(thrd);    // run window handling in the separate thread
+    pthread_detach(thrd);    // run window handling in the separate thread
 
 
 	for(;;)
 	{
-		waitKey(5000);
+		waitKey(20);
 		process(capture); // process the video
 		Process_Blobs();
+
+		ball_p.clear();
+
+		for(unsigned int k = 0; k< pfilter.p.prtcls.size(); k++)
+			{
+			ball_p.push_back(pfilter.p.prtcls[k].part);
+			}
+
 		gr.Update();
+
+		pfilter.Move_Particles(MoveParticlesConstantAcceleration);
+		pfilter.observe(obsvrs, probDistNormal);
 	}
 
 	return 0;

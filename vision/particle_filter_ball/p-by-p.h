@@ -15,7 +15,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-//#include "gnuplot/gnuplot_i.hpp" //Gnuplot class handles POSIX-Pipe-communikation with Gnuplot
+
 
 
 using namespace std; //needed for cout, cin to work
@@ -26,7 +26,7 @@ using namespace cv;
 
 Point3d cross(Point3d, Point3d);
 double dist (Point3d, Point3d, Point3d);
-
+const double fps  = 60.0;  // 60 frames per second
 
 vector<double> x;
 vector<double> y;
@@ -54,7 +54,7 @@ struct cam_pos
 		coors.x = 2316;
 		coors.y = -30.5;
 		coors.z = 33; // Camera is 33cm above the ground
-		theta = (3*pi)/4;
+		theta = (120*pi)/180;
 		pan = 0;
 		tilt = 0;
 	}
@@ -181,19 +181,6 @@ Point3d Get_world_coor(Point3d cam_world_coor, Point3d camera_pos, double headin
 	return w_coor;
 }
 
-
-double probDistNormal(observations obs, ball_particle p)
-{
-	double prob = 0.0;
-
-	for(unsigned int i = 0; i < obs.blobs_pos.size(); i++ )
-	{
-		prob+= exp(-0.05*dist(obs.camera.coors, obs.blobs_pos[i], p.pos));
-	}
-
-	return prob;
-}
-
 vector <ball_particle> sample_uniformly(int n, bounds b ) //Returns a vector of size n, with uniformly sampled "ball_particles"
 {
 	vector <ball_particle> vect_ball_parts;
@@ -257,10 +244,10 @@ public:
 			prtcls[i].part = vect_ball_partcls[i];
 	}
 
-	void weigh_uniformly(vector <weighed_particle> p)		// Assigns uniform weight to each particls in the vector prtcls
+	void weigh_uniformly(vector <weighed_particle> & p)		// Assigns uniform weight to each particls in the vector prtcls
 	{
 		int num_particles = p.size();
-		double w = 1/num_particles;
+		double w = 1/(double)num_particles;
 		for(int i = 0; i< num_particles; i++)
 			p[i].w = w;
 	}
@@ -293,13 +280,15 @@ public:
 		X.clear();
 
 		int M = prtcls.size();
-		float r = (rand()/RAND_MAX)*(1/M); //r is a random number between 0 and (1/number_of_particles)
+
+		RNG rng;
+		float r = (rng.uniform((double)0, (double)1))*(1/(float)M); //r is a random number between 0 and (1/number_of_particles)
 		double c = prtcls[0].w; //initialize sum of weights to the weight of the first particle
 		int i = 0; //is a counter
 
 		for(int m = 0; m < M; m++)
 		{
-			float U = r + (m-1)*(1/M);
+			float U = r + (m-1)*(1/(float)M);
 			while(U > c)
 			{
 				i = i+1;
@@ -321,9 +310,12 @@ class ParticleFilter
 {
 	unsigned int numParticles;
 	int t;
-	particles p;
+
 
 public:
+
+	particles p;
+
 	ParticleFilter(bounds init_bounds, unsigned int n = 1000)  //n is the number of particles
 	{
 		t = 0; // start time at 0
@@ -332,9 +324,9 @@ public:
 		p = particles(vect_ball_partcls); // initialize the particles uniformly
 	}
 
-	void Move_Particles(void (*Motion)(particles &))
+	void Move_Particles(void (*Motion)(particles &, float t))
 	{
-		Motion(p); //moves each particle by fixed amount + noise| particles changed in place
+		Motion(p, (1.0/fps)); //moves each particle by fixed amount + noise| particles changed in place
 		t += 1;  // t passes by one
 	}
 
@@ -351,34 +343,13 @@ public:
 		for(unsigned int i = 0; i <p.prtcls.size(); i++)
 		{
 			p.prtcls[i].w = prob_func(obsv, p.prtcls[i].part);
+
 		}
 		vector <weighed_particle> resampled = p.resample(); //resample based on the new weights
 		p.prtcls = resampled; // see: http://www.cplusplus.com/reference/stl/vector/operator=/ for '=' operator for <vectors>
 	}
 
 };
-
-void MoveParticlesConstantAcceleration(particles & p, float t)
-{
-	/* Changes particles to reflect their motion
-	 * t: is the time to be used in the calculations
-	 */
-
-	RNG r; // opencv random number generator
-	float g = -980.7; //acceleration = 9.807 m/s (source: wolframalpha.com)
-
-	for(unsigned int i =0; i< p.prtcls.size(); i++)
-	{
-		// Deterministic: Physical Model + Gaussian Noise
-		p.prtcls[i].part.pos.x += p.prtcls[i].part.v.x*t + r.gaussian((double) 10.0);
-		p.prtcls[i].part.pos.y += p.prtcls[i].part.v.y*t +  r.gaussian((double) 10.0);
-		p.prtcls[i].part.pos.z += p.prtcls[i].part.v.z*t + (0.5*g*t*t) + r.gaussian((double) 10.0); // Downwards accelerated motion (in the -Z direction)
-
-		p.prtcls[i].part.v.z += p.prtcls[i].part.v.z + g*t+  r.gaussian((double) 30);
-		p.prtcls[i].part.v.x += r.gaussian((double) 20);
-		p.prtcls[i].part.v.x += r.gaussian((double) 20);
-    }
-}
 
 Point3d cross(Point3d v1, Point3d v2) // Calculates the cross product of 2 vectors
 {
@@ -407,5 +378,44 @@ double dist (Point3d p1, Point3d p2, Point3d p3)
 	D = norm(cross((p3-p1),(p3-p2)))/norm(p2-p1);
 
 	return D;
+}
+
+
+
+double probDistNormal(observations obs, ball_particle p)
+{
+	double prob = 0.0;
+
+	for(unsigned int i = 0; i < obs.blobs_pos.size(); i++ )
+	{
+		prob+= 1.0/dist(obs.camera.coors, obs.blobs_pos[i], p.pos);
+	}
+
+	return prob;
+}
+
+
+void MoveParticlesConstantAcceleration(particles & p, float t)
+{
+	/* Changes particles to reflect their motion
+	 * t: is the time to be used in the calculations
+	 */
+
+	RNG r; // opencv random number generator
+	double g = -980.7; //acceleration = 9.807 m/s (source: wolframalpha.com)
+	for(unsigned int i =0; i< p.prtcls.size(); i++)
+	{
+		// Deterministic: Physical Model + Gaussian Noise
+		if (abs(p.prtcls[i].part.pos.z) >10)
+			p.prtcls[i].part.v.z += g*t; // accelerate only if far from gorund
+
+		p.prtcls[i].part.v.z += r.gaussian((double) 30);
+		p.prtcls[i].part.v.y += r.gaussian((double) 20);
+		p.prtcls[i].part.v.x += r.gaussian((double) 20);
+
+		p.prtcls[i].part.pos.x += p.prtcls[i].part.v.x*t + r.gaussian((double) 10.0);
+		p.prtcls[i].part.pos.y += p.prtcls[i].part.v.y*t +  r.gaussian((double) 10.0);
+		p.prtcls[i].part.pos.z += p.prtcls[i].part.v.z*t + (0.5*(g*t)*t)+ r.gaussian((double) 10.0); // Downwards accelerated motion (in the -Z direction)
+    }
 }
 
