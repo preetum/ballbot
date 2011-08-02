@@ -17,10 +17,14 @@ void encoder0Handler() {
 }
 
 void encoder_initialize() {
+  // Set pins 2 and 12 as input, no pull ups
+  pinMode(2, INPUT);
+  digitalWrite(2, LOW);
+  pinMode(12, INPUT);
+  digitalWrite(12, LOW);
+
   // Interrupt to count encoder ticks on int 0 (pin 2)
   attachInterrupt(0, encoder0Handler, RISING);
-  pinMode(12, INPUT);
-  digitalWrite(12, HIGH);
 }
 
 long encoder_getCount() {
