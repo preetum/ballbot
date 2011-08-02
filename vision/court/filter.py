@@ -1,7 +1,7 @@
 import numpy as np
 import models, util
 
-def sample_uniform(n, xmin, xmax, ymin, ymax):
+def sampleUniform(n, xmin, xmax, ymin, ymax):
   x = (xmax - xmin) * np.random.random_sample((n,)) + xmin
   y = (ymax - ymin) * np.random.random_sample((n,)) + ymin
   # theta = heading from [-pi,pi]
@@ -24,9 +24,9 @@ class Particles:
      [x2, y2, ...],
       etc... ]
     '''
-    self.initialize_uniformly(samples)
+    self.initializeUniformly(samples)
 
-  def initialize_uniformly(self, samples):
+  def initializeUniformly(self, samples):
     count = len(samples)
     self.particles = np.array(samples)
     # Assign each particle a uniform weight
@@ -41,7 +41,7 @@ class Particles:
     total = float(np.sum(self.weights))
     self.weights = self.weights / total
 
-  def sorted_particles(self):
+  def sortedParticles(self):
     '''
     Returns particles by sorted by weight.
     Note that the conversions from list to tuple may be slow.
@@ -85,14 +85,14 @@ class Particles:
       samples.append(self.particles[
           util.binarySearch(cumulative_probs, uniform_sample)])
 
-    self.initialize_uniformly(samples)
+    self.initializeUniformly(samples)
 
 class ParticleFilter:
   def __init__(self, numParticles=1000):
     self.numParticles = numParticles
 
     # Initialize distribution uniformly
-    locations = sample_uniform(numParticles, 0, 1189, 0, 1097)
+    locations = sampleUniform(numParticles, 0, 1189, 0, 1097)
     self.particles = Particles(locations)
     
   def observeLine(self, observation):
@@ -105,8 +105,7 @@ class ParticleFilter:
     # update beliefs
     # P(X_t | e_1:t, e') ~ P(e'|X_t) * P(X_t | e_1:t)
 
-    weights = map(lambda particle: emissionFn(observation, particle),
-                  self.particles.particles)
+    weights = emissionFn(observation, self.particles.particles)
     self.particles.weights = self.particles.weights * weights
     '''
     for particle in self.particles.keys():
@@ -115,11 +114,14 @@ class ParticleFilter:
     '''
     
     # resample observation
-    self.particles.resample()
+    #self.particles.resample()
     '''
     samples = util.sampleMultiple(self.particles, self.numParticles)
     self.particles = util.listToDistribution(samples)
     '''
+
+  def resample(self):
+    self.particles.resample()
     
   def elapseTime(self, motion=None):
     oldBeliefs = self.particles.particles.copy()
@@ -129,9 +131,11 @@ class ParticleFilter:
     #  generate movements for all particles at once
     # TODO tune sigmas (2nd parameter)
     count = len(self.particles)
-    dpos = np.random.normal(0, 10.0, (count, 2))
+    dpos = np.random.normal(0, 30.0, (count, 2))
     dtheta = np.random.normal(0, 0.5, (count, 1))
     delta = np.concatenate([dpos, dtheta], axis=1)
+    if motion is not None:
+      delta = delta + np.array(motion)
     self.particles.particles = self.particles.particles + delta
 
     '''
