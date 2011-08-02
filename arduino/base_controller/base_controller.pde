@@ -3,27 +3,11 @@
 #include <PID_v1.h>
 #include <MsTimer2.h>
 
+#include "base_controller.h"
 #include "encoder.h"
 #include "packet.h"
 #include "smc.h"
 
-#define SERVO_LEFT   57
-#define SERVO_CENTER 92
-#define SERVO_RIGHT  127
-
-// Motor deadband: 91-99
-#define MOTOR_FULL_FORWARD 0
-#define MOTOR_MIN_FORWARD  91
-#define MOTOR_NEUTRAL      95
-#define MOTOR_MIN_REVERSE  99
-#define MOTOR_FULL_REVERSE 180
-
-// Drive motor states
-enum {
-  STATE_NORMAL,
-  STATE_DELAY1, // 100ms delay to go from forward to reverse (treated as brake)
-  STATE_DELAY2 // 100ms delay to go from reverse to neutral
-};
 
 /*
 CMD_VALUES packet data field (5 bytes)
@@ -36,7 +20,7 @@ CMD_VALUES packet data field (5 bytes)
 
 
 // Globals
-Servo steering, motor;
+Servo steering;
 SimpleMotorController driveMotor(5);
 
 //--------------- Gyro declarations -------------------------
@@ -59,8 +43,6 @@ double encoder_Input, encoder_Output, encoder_Setpoint;
 PID pid_dist(&encoder_Input, &encoder_Output, &encoder_Setpoint,
 	     0.8, 0.0, 0.001, DIRECT);
 //---------------x-x-x----------------------------
-
-unsigned int driveMotorTarget = MOTOR_NEUTRAL;
 
 /* Sets the setpoint of the PID velocity controller.
    vel is given in cm/s
@@ -96,15 +78,6 @@ void writeOdometry() {
   writeInt(delta);
   writeInt((int)(currentAngle/180*32768));
   writeInt((int)(currentAngularVelocity/180*32768));
-}
-
-
-/*
- * Sets the drive motor to a value from [0,1023], while taking into account the
- * braking behavior of the hobby motor controller.
- */
-void setDriveMotor(unsigned int val) {
-  driveMotorTarget = val;
 }
 
 
@@ -190,14 +163,12 @@ void timer_callback() {
 void setup() {
   // Initialize servo objects
   steering.attach(4);
-  //motor.attach(5);
 
   // Initialize the drive motor
   driveMotor.initialize();
   
   // Center the steering servo
   steering.write(SERVO_CENTER);
-  //motor.write(MOTOR_NEUTRAL);
   
   encoder_initialize();
 
@@ -224,69 +195,7 @@ void setup() {
 
 void loop() 
 { 
-  long curTime;
-
   // Main command-processing state machine
   while (Serial.available())
     packet_byteReceived(Serial.read());
-   
-  // Drive motor direction fixing
-  static unsigned char lastDirFwd = 1;
-  static unsigned char driveMotorState = STATE_NORMAL;
-  static unsigned long waitTime = 0; 
-  
-  // Refresh drive motor values, handling the drive motor braking behavior
-  // Need to reverse right after driving forward:
-  // 1. send a reverse pulse (treated as a brake signal)
-  // 2. send a neutral pulse
-  // 3. send a reverse pulse (now treated as a reverse signal)
-
-  /*
-  switch (driveMotorState) {
-  case STATE_NORMAL:
-    // In case of a reverse after driving forward
-    if (driveMotorTarget >= MOTOR_MIN_REVERSE && lastDirFwd) {
-      motor.write(MOTOR_MIN_REVERSE);
-      driveMotorState = STATE_DELAY1;
-      waitTime = millis() + 100;
-        
-      // Normal operation
-    } else {
-      // Deadband
-      if (driveMotorTarget > MOTOR_MIN_FORWARD &&
-	  driveMotorTarget < MOTOR_MIN_REVERSE)
-	motor.write(MOTOR_NEUTRAL);
-      else
-	motor.write(driveMotorTarget);
-        
-      // Update the last direction flag
-      if (driveMotorTarget <= MOTOR_MIN_FORWARD)
-	lastDirFwd = 1;
-    }
-    break;
-      
-  case STATE_DELAY1:
-    curTime = millis();
-    if (curTime >= waitTime) {
-      motor.write(MOTOR_NEUTRAL);
-      driveMotorState = STATE_DELAY2;
-      waitTime = curTime + 100;
-    } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
-      driveMotorState = STATE_NORMAL;
-    }
-    break;
-    
-  case STATE_DELAY2:
-    curTime = millis();
-    if (curTime >= waitTime) {
-      motor.write(driveMotorTarget);
-      driveMotorState = STATE_NORMAL;
-      lastDirFwd = 0;
-    } else if (driveMotorTarget < MOTOR_MIN_REVERSE) {
-      driveMotorState = STATE_NORMAL;
-    }
-    break;
-  } // switch
-  */
-  
-} // loop()
+}
