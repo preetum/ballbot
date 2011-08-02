@@ -23,19 +23,6 @@ CMD_VALUES packet data field (5 bytes)
 Servo steering;
 SimpleMotorController driveMotor(5);
 
-//--------------- Gyro declarations -------------------------
-int gyroPin = 0;                 //Gyro is connected to analog pin 0
-float gyroVoltage = 3.3;         //Gyro is running at 3.3V
-
-float gyroZeroVoltage = 1.215;   //Gyro is zeroed at 1.23V - given in the datasheet
-float gyroSensitivity = .01;     // Gyro senstivity for 4 times amplified output is 10mV/deg/sec
-
-float rotationThreshold = 0.3;   //Minimum deg/sec to keep track of - helps with gyro drifting
-//----------------------x-x-x---------------------------------
-
-// TODO store angles in binary angle representation
-volatile float currentAngle = 0;          //Keep track of our current angle
-volatile float currentAngularVelocity = 0;
 
 //--------- PID declarations ---------------------
 //Encoder PID:
@@ -76,8 +63,8 @@ void writeOdometry() {
   
   Serial.print(0xff,BYTE);                // send init byte
   writeInt(delta);
-  writeInt((int)(currentAngle/180*32768));
-  writeInt((int)(currentAngularVelocity/180*32768));
+  writeInt(0);
+  writeInt(0);
 }
 
 
@@ -113,43 +100,6 @@ void packetReceived (Packet& packet) {
 void timer_callback() {
   static long lastEncoderCount = 0L;
 
-  // read from Gyro and find the current angle of the car
-  int raw_gyro_read = analogRead(gyroPin);
-
-  //Angle Update
-  float gyroRate = (raw_gyro_read * gyroVoltage) / 1024;
-  gyroRate -= gyroZeroVoltage;
-  gyroRate /= gyroSensitivity;
-  gyroRate /= 10; // we divide by 10 as gyro updates every 100ms
-
-  if (gyroRate >= rotationThreshold || gyroRate <= -rotationThreshold) {
-    currentAngle += gyroRate;
-    currentAngularVelocity = gyroRate;
-  } else {
-    currentAngularVelocity = 0;
-  }
-
-  
-  /*
-  if(steer_input_from_ROS == 0)
-    {
-      double steer_err = -( raw_gyro_read - steer_Setpoint), angle_err ( angle_Setpoint-currentAngle );
-      //cap the steer_err:
-      if(steer_err < 3 && steer_err > -3)
-	steer_err = 0;
-    
-      double desi_pid_output = (steer_kP*steer_err +steer_kI*-angle_err);
-      if (desi_pid_output < -40)
-	desi_pid_output = -40;
-      else if (desi_pid_output > 40)
-	desi_pid_output = 40;
-      steering.write(desi_pid_output+SERVO_CENTER);
-      Serial.print("Steering error = "); Serial.println(steer_err);
-      Serial.print("Angle = "); Serial.println(currentAngle);
-      //    Serial.println(desi_pid_output);
-    }
-  */
-    
   // Compute change in encoder count (discrete velocity estimate)
   long tmpEncoderCount = encoder_getCount();
   long delta = tmpEncoderCount - lastEncoderCount;
