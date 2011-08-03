@@ -1,3 +1,19 @@
+// -*- mode: c++; indent-tabs-mode: nil -*-
+/* 
+ * imu.cpp
+ *
+ * AUTHOR: John Wang
+ * VERSION: 0.1  (2 Aug 2011)
+ *
+ * DESCRIPTION:
+ * Communicates with SparkFun Razor IMU via SoftwareSerial. A custom version
+ * of SoftwareSerial is provided that has a read() timeout (although
+ * this has not been debugged).
+ *
+ * Be cautious of calling update() too often since it is slow. This code is
+ * quite whack. We may have to find a better way to interface the IMU.
+ */
+
 #include "imu.h"
 #include "WProgram.h"
 
