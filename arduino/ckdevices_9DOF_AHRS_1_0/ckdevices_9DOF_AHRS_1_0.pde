@@ -185,14 +185,14 @@ float Temporary_Matrix[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
 
 void setup()
 { 
-  Serial.begin(115200);
+  Serial.begin(9600);
   pinMode (STATUS_LED,OUTPUT);  // Status LED
   
 
-  Serial.println();
-  Serial.println("ckdevices Mongoose v1.0 - 9DOF IMU + Baro");
-  Serial.println("9 Degree of Freedom Attitude and Heading Reference System with barometric pressure");
-  Serial.println("www.ckdevices.com");
+  //Serial.println();
+  //Serial.println("ckdevices Mongoose v1.0 - 9DOF IMU + Baro");
+  //Serial.println("9 Degree of Freedom Attitude and Heading Reference System with barometric pressure");
+  //Serial.println("www.ckdevices.com");
   
   delay(300);
 
@@ -231,6 +231,21 @@ void setup()
 
 void loop() //Main Loop
 {
+  if (Serial.available() && Serial.read() == 'a') // Check for requests
+  {
+    unsigned char* pBytes = (unsigned char*)(&yaw);
+    unsigned char length = 4,
+        checksum = length;
+    
+    Serial.print(0xFF, BYTE); // START
+    Serial.print(length, BYTE); // LENGTH
+    for (unsigned char i = 0; i < length; i += 1) { // DATA
+      Serial.print(pBytes[i], BYTE);
+      checksum ^= pBytes[i];
+    }
+    Serial.print(checksum, BYTE); // CHECKSUM
+  }
+  
   if((DIYmillis()-timer)>=20)  // Main loop runs at 50Hz
   {
         Compass_counter++;
@@ -263,15 +278,6 @@ void loop() //Main Loop
           
           Read_Compass();    // Read I2C magnetometer     
         }
-        /*
-      Serial.print(sen_data.magnetom_x);
-      Serial.print (",");
-      Serial.print(sen_data.magnetom_y);
-      Serial.print (",");
-      Serial.print(sen_data.magnetom_z);
-      Serial.println();
-      */
-        
         
         //===================== Read the Temp and Pressure from Baro =====================//
         /*
@@ -312,7 +318,7 @@ void loop() //Main Loop
         //============================= Data Display/User Code ============================//
         // Make sure you don't take too long here!
      
-        printdata();
+        //printdata();
         StatusLEDToggle();
  
   }
