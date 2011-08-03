@@ -2,27 +2,24 @@
 #include <Servo.h>
 #include <PID_v1.h>
 #include <MsTimer2.h>
+#include <ros.h>
+#include <bb_msgs/OdometryRaw.h>
+#include <bb_msgs/Velocity1D.h>
 
 #include "base_controller.h"
 #include "encoder.h"
-#include "packet.h"
+#include "imu.h"
 #include "smc.h"
-
-
-/*
-CMD_VALUES packet data field (5 bytes)
-  uint8  command type (0x42)
-  uint16 steering value
-  uint16 motor value
-*/
-#define CMD_VALUES 0x42
-#define DATA_REQUESTED 0x21
-
 
 // Globals
 Servo steering;
 SimpleMotorController driveMotor(5);
+IMU imu(7, 10);
 
+ros::NodeHandle nh;
+
+bb_msgs::OdometryRaw odomMsg;
+ros::Publisher odometry("base/odometry", &odomMsg);
 
 //--------- PID declarations ---------------------
 //Encoder PID:
@@ -40,37 +37,10 @@ void set_speed(int vel)
   encoder_Setpoint = vel * 8.145;
 }
 
-void writeInt(unsigned int i) {
-  Serial.print((byte)(i >> 8));
-  Serial.print((byte)i);
-}
-
-/* Writes odometry info to the serial port in the following order:
- *
- * int16 encoder delta    (in ticks)
- * int16 angular position (as a 16-bit binary angle)
- * int16 angular velocity (as a 16-bit binary angle/s)
- *
- * Notes: ints are sent big-endian
- */
-void writeOdometry() {
-  static long lastEncoderCount = 0L;
-    
-  // Compute change in encoder count (discrete velocity estimate)
-  long tmpEncoderCount = encoder_getCount();
-  int delta = (int)(tmpEncoderCount - lastEncoderCount);
-  lastEncoderCount = tmpEncoderCount;
-  
-  Serial.print(0xff,BYTE);                // send init byte
-  writeInt(delta);
-  writeInt(0);
-  writeInt(0);
-}
-
 
 /* Called every time a VALID packet is received
  * from the main processor.
- */
+ *
 void packetReceived (Packet& packet) {
   switch (packet.data[0]) {
   case CMD_VALUES: {
@@ -92,7 +62,7 @@ void packetReceived (Packet& packet) {
   
   } // switch
 }
-
+*/
 
 /* MStimer2 callback function used for timed update for: 
  *  1. angle | 2. Encoder PID loop | 3. Steering PID Loop
@@ -111,14 +81,12 @@ void timer_callback() {
 
 
 void setup() {
-  // Initialize servo objects
+  // Initialize servos
   steering.attach(4);
+  steering.write(SERVO_CENTER);
 
   // Initialize the drive motor
   driveMotor.initialize();
-  
-  // Center the steering servo
-  steering.write(SERVO_CENTER);
   
   encoder_initialize();
 
@@ -131,21 +99,24 @@ void setup() {
   pid_dist.SetMode(AUTOMATIC); //turn on the PID
   pid_dist.SetSampleTime(100); //delay in the loop
   
-  Serial.begin(115200);
-  
-  //Initialize interrupt timer2 - for gyro update
-  MsTimer2::set(100, timer_callback); // 100ms period
-  MsTimer2::start();
-  
-  // Initialize packet callback
-  packet_initialize(packetReceived);
+  nh.initNode();
+  nh.advertise(odometry);
 }
 
 
 
-void loop() 
-{ 
-  // Main command-processing state machine
-  while (Serial.available())
-    packet_byteReceived(Serial.read());
+void loop()  {
+  static long lastEncoderCount = 0L;
+
+  imu.update();
+
+  odomMsg.counts = encoder_getCount();
+  odomMsg.counts_delta = odomMsg.counts - lastEncoderCount;
+  odomMsg.angle = imu.yaw;
+  lastEncoderCount = odomMsg.counts;
+
+  odometry.publish(&odomMsg);
+  nh.spinOnce();
+  
+  delay(100);
 }

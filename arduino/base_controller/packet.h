@@ -11,6 +11,8 @@
 #ifndef __packet_h
 #define __packet_h
 
+#include <stddef.h>
+
 /* Packet format
   
   START   (1 byte  =  0xFF)
@@ -21,11 +23,21 @@
 #define START_BYTE 0xFF
 
 // Packet structure
-typedef struct packet {
-	unsigned char length;	// length of data
-	unsigned char data[255];
-	unsigned char checksum;
-} Packet;
+class Packet {
+  // Callback when full packet is received
+  void (*packetReceived)(Packet&);
+
+ public:
+  unsigned char length;	// length of data
+  unsigned char data[10];
+  unsigned char checksum;
+
+  Packet(void) {
+    packetReceived = NULL;
+  }
+  void setCallback(void (*callback)(Packet&));
+  unsigned char byteReceived(unsigned char byte);
+};
 
 // Serial state machine states
 enum {
@@ -34,13 +46,5 @@ enum {
   READ_DATA,
   READ_CHECKSUM
 };
-
-
-/* Callback for every time a valid packet is received. */
-void packet_initialize(void (*callback)(Packet&));
-//void packetReceived ();
-
-/* Call this every time a byte is received from the main processor. */
-void packet_byteReceived (unsigned char byte);
 
 #endif

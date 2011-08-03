@@ -1,5 +1,5 @@
 // -*- mode: c++; indent-tabs-mode: nil -*-
-/* packet.cpp
+/* cpp
  *
  * AUTHOR: John Wang
  * VERSION: 0.2  (6 Sep 2010)
@@ -8,28 +8,25 @@
  * State machine for AVR processor. Receives command packets from
  * the main processor via UART.
  */
-#include <stddef.h>
 #include "packet.h"
-
-// Global Packet struct
-Packet packet;
-// Callback when full packet is received
-void (*packetReceived)(Packet&) = NULL;
 
 /* Registers the packetReceived callback.
  */
-void packet_initialize(void (*callback)(Packet&)) {
+void Packet::setCallback(void (*callback)(Packet&)) {
   packetReceived = callback;
 }
 
 /*
  * Called every time a byte is received.
  * Decodes packets and calls packetReceived() when a full valid packet arrives.
+ * Returns true if byte was the last byte of a full valid packet.
  */
-void packet_byteReceived (unsigned char byte) {
+unsigned char Packet::byteReceived (unsigned char byte) {
   static unsigned char state = WAIT;
   static unsigned char i = 0;
   static unsigned char checksum = 0;
+
+  unsigned char rv = false;
 
   switch (state) {
   case WAIT:
@@ -38,32 +35,35 @@ void packet_byteReceived (unsigned char byte) {
     break;
 
   case READ_LENGTH:
-    packet.length = byte;
+    length = byte;
     i = 0;
     checksum = byte;
     state = READ_DATA;
     break;
 
   case READ_DATA:
-    if (i < packet.length) {
-      packet.data[i++] = byte;
+    if (i < length) {
+      data[i++] = byte;
       checksum = checksum ^ byte;
     }
 
-    if (i >= packet.length)
+    if (i >= length)
       state = READ_CHECKSUM;
     break;
 
   case READ_CHECKSUM:
-    packet.checksum = byte;
-    if (byte == checksum)
-      packetReceived(packet);
+    checksum = byte;
+    if (byte == checksum && packetReceived != NULL)
+      packetReceived(*this);
     state = WAIT;
+    rv = true;
     break;
 
   default:
     state = WAIT;
     break;
   }
+
+  return rv;
 }
 
