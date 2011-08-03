@@ -1,4 +1,21 @@
 // Hey, emacs: -*- mode: c++; indent-tabs-mode: nil -*-
+/*
+ * base_controller.pde
+ *
+ * AUTHOR: John Wang
+ * VERSION: 0.2  (2 Aug 2011)
+ *
+ * DESCRIPTION:
+ * Main entry point for application. Contains ROS serial publishing
+ * and subscribing objects.
+ *
+ * NOTES:
+ * We are pushing the limits of the AVR's 2kB RAM. If rosserial sync fails
+ * or weird behavior results, then we've probably exceeded the RAM limits.
+ * Note that string constants are also stored in RAM (more details at
+ * http://www.avrfreaks.net/index.php?name=PNphpBB2&file=viewtopic&t=38003)
+ */
+
 #include <Servo.h>
 #include <ros.h>
 #include <bb_msgs/OdometryRaw.h>
@@ -20,7 +37,7 @@ ros::NodeHandle nh;
 
 // publishers
 bb_msgs::OdometryRaw odomMsg;
-ros::Publisher odometry("base/odometry", &odomMsg);
+ros::Publisher odometry("odom", &odomMsg);
 
 // subscribers
 bb_msgs::PID pidMsg;
@@ -30,13 +47,13 @@ void pidMsgCallback(unsigned char *data) {
   pidMsg.deserialize(data);
   pidVelocity.SetTunings(pidMsg.kp, pidMsg.ki, pidMsg.kd);
 }
-ros::Subscriber pidSub("base/pid", &pidMsg, &pidMsgCallback);
+ros::Subscriber pidSub("pid", &pidMsg, &pidMsgCallback);
 
 void velMsgCallback(unsigned char *data) {
   velMsg.deserialize(data);
   feedback_setVelocity(velMsg.linear);
 }
-ros::Subscriber velSub("base/velocity", &velMsg, &velMsgCallback);
+ros::Subscriber velSub("vel", &velMsg, &velMsgCallback);
 
 void setup() {
   // Initialize ROS node

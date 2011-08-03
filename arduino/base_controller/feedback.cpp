@@ -3,7 +3,7 @@
  * feedback.cpp
  *
  * AUTHOR: John Wang
- * VERSION: 0.1  (21 Jul 2011)
+ * VERSION: 0.1  (2 Aug 2011)
  *
  * DESCRIPTION:
  * PID feedback control for velocity control and steering.
