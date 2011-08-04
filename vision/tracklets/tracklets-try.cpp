@@ -109,7 +109,7 @@ vector <Point2f> Do_Contours(Mat);
 vector <Point2f> Blobify(Mat);
 vector <Seed_Triplet> Find_Seed_Triplet(vector <Point2f>, vector <Point2f>, vector <Point2f>);
 Velocity_Model Fit_Model(int, int, int, Point2f, Point2f, Point2f);
-Point2f Position_Estimate(Velocity_Model, Point2f, int, int);
+Point2f Position_Estimate(Velocity_Model, Point2f, float, float);
 vector <Supports> Find_Support(vector <vector <Point2f> >, Velocity_Model, Point2f, int, float);
 float Get_Cost(vector <vector <Point2f> >, Velocity_Model, int, Point2f, float);
 void Get_Support_Frames(vector <Supports> S, int &k_min, int &blob_num_min, int &k_max, int &blob_num_max, int &k_mid, int &blob_num_mid);
@@ -262,30 +262,31 @@ vector <Seed_Triplet> Find_Seed_Triplet(vector <Point2f> p, vector <Point2f> cur
 	vector <Seed_Triplet> triplets;
 	triplets.resize(curr.size());
 
-	for(unsigned int i = 0; i< curr.size(); i++)
-	{
+	if(!curr.empty())
+		for(unsigned int i = 0; i< curr.size(); i++)
+		{
 
-		triplets[i].ref = i;
+			triplets[i].ref = i;
 
-		if(!p.empty())
-			for(unsigned int k = 0; k< p.size(); k++) // check in the previous frame
-			{
-				if(norm(p[k] - curr[i]) <= d_thresh && norm(p[k] - curr[i]) >= 5.0 )
-					triplets[i].prev.push_back(k);
-			}
+			if(!p.empty())
+				for(unsigned int k = 0; k< p.size(); k++) // check in the previous frame
+				{
+					if(norm(p[k] - curr[i]) <= d_thresh && norm(p[k] - curr[i]) >= 2.0 )
+						triplets[i].prev.push_back(k);
+				}
 
-		if(!n.empty())
-			for(unsigned int k = 0; k< n.size(); k++) // check in the next frame
-			{
-				if(norm(n[k] - curr[i]) <= d_thresh && norm(n[k] - curr[i]) >= 5.0)
-					triplets[i].nxt.push_back(k);
+			if(!n.empty())
+				for(unsigned int k = 0; k< n.size(); k++) // check in the next frame
+				{
+					if(norm(n[k] - curr[i]) <= d_thresh && norm(n[k] - curr[i]) >= 2.0)
+						triplets[i].nxt.push_back(k);
 
-			}
+				}
 
-		if (triplets[i].nxt.size()<1 || triplets[i].prev.size()<1) // Invalidate the blob if no triplet corresponding to that blob is found
-			triplets[i].ref = -1;
+			if (triplets[i].nxt.size()<1 || triplets[i].prev.size()<1) // Invalidate the blob if no triplet corresponding to that blob is found
+				triplets[i].ref = -1;
 
-	}
+		}
 	return triplets;
 }
 
@@ -304,8 +305,6 @@ vector <Supports> Find_Support(vector <vector <Point2f> > blob_pos, Velocity_Mod
 
 
 	vector <Supports> spprts;
-
-	cout<<"blob_pos size: "<<blob_pos.size()<<endl;
 
 	for(unsigned int i = 0; i< blob_pos.size(); i++) // for all frames in the window
 	{
@@ -392,7 +391,7 @@ Velocity_Model Fit_Model(int k1, int k2, int k3, Point2f p1, Point2f p2, Point2f
 	return m;
 }
 
-Point2f Position_Estimate(Velocity_Model m, Point2f p1, int k1, int k) // Returns estimated position given initial position and velocity model
+Point2f Position_Estimate(Velocity_Model m, Point2f p1, float k1, float k) // Returns estimated position given initial position and velocity model
 {
 	Point2f est;
 	est = p1 + m.v*(k-k1) + m.a*(k-k1)*(k-k1)*0.5;
@@ -436,9 +435,8 @@ Trajectory Get_Optimised_Trajectory(vector <vector <Point2f> > blobs_pos, Point2
 
 
 	Velocity_Model m = Fit_Model( 6, 7, 8, prev, ref, nxt), m_prev;
-	cout<<"Got first model!"<<endl;
 	cost_curr = Get_Cost(blobs_pos, m, 7, ref, d_th);
-	cout<<"Got first cost!"<<endl;
+
 
 	vector <Supports> S = Find_Support(blobs_pos, m, m.ref, k_mid_prev, 5.0);
 	vector<Supports> S_prev;
@@ -466,8 +464,6 @@ Trajectory Get_Optimised_Trajectory(vector <vector <Point2f> > blobs_pos, Point2
 	// use "prev" : they represent the optimized parameters
 	Trajectory T;
 	T.model = m_prev;
-	cout<<"Velocity: "<<norm(m_prev.v)<<endl;
-	cout<<"Acc: "<<norm(m_prev.a)<<endl;
 	T.support = S_prev;
 	T.cost = cost_prev;
 
@@ -490,24 +486,33 @@ Trajectory Get_Best_Trajectory(vector <vector <Point2f> > wnd_blobs, vector <See
 	{
 		for(unsigned int k = 0; k < seed_trip.size(); k++)
 		{
-			for(unsigned int j = 0; j < seed_trip[k].prev.size(); j++)
-				for(unsigned int i = 0; i< seed_trip[k].nxt.size(); i++)
-				{
-					cout<<"Gettting optimized traj for seed #: "<<k<<endl;
-					Trajectory t = Get_Optimised_Trajectory(wnd_blobs, wnd_blobs[6][seed_trip[k].prev[j]], wnd_blobs[7][seed_trip[k].ref], wnd_blobs[8][seed_trip[k].nxt[i]], 5.0);
-					cout<<"Got trajectory!"<<endl;
-					trajs[k] = t;
+			if(seed_trip[k].ref >= 0) // do only for valid seeds
+				if(!seed_trip[k].prev.empty())
+					for(unsigned int j = 0; j < seed_trip[k].prev.size(); j++)
+						if(!seed_trip[k].nxt.empty())
+							for(unsigned int i = 0; i< seed_trip[k].nxt.size(); i++)
+							{
+								Trajectory t = Get_Optimised_Trajectory(wnd_blobs, wnd_blobs[6][seed_trip[k].prev[j]], wnd_blobs[7][seed_trip[k].ref], wnd_blobs[8][seed_trip[k].nxt[i]], 5.0);
+								trajs[k] = t;
 
-					if(t.cost < min_cost)
-					{
-						idx = k;
-						min_cost = t.cost;
-					}
+								if(t.cost < min_cost)
+								{
+									idx = k;
+									min_cost = t.cost;
+								}
+						    }
+			}}
 
-				}
-		}}
 	if(!trajs.empty())
 		return trajs[idx];
+	else
+	{
+		Trajectory trj;
+		trj.cost = -1000;
+		return trj;
+	}
+
+
 
 }
 
@@ -524,13 +529,24 @@ void Process_Window(Mat_Color_Gray wnd[15])
 
 	for(int k = 0; k<15; k++) // get the x,y position of blobs in each frame in the window
 	{
-		wind_blobs[k] =  Blobify(wnd[k].bin);
+		vector <Point2f> b = Blobify(wnd[k].bin);
+		if(!b.empty())
+			wind_blobs[k] = b;
+		else
+			wind_blobs[k].clear();
 	}
 
 
-	vector <Seed_Triplet> seed_trip  = Find_Seed_Triplet(wind_blobs[6], wind_blobs[7], wind_blobs[8],30.0); //find the seed triplets
-	cout<<"Getting best trajectory"<<endl;
+	vector <Seed_Triplet> s_t = Find_Seed_Triplet(wind_blobs[6], wind_blobs[7], wind_blobs[8],30.0); //find the seed triplets
+	vector <Seed_Triplet> seed_trip;
+	if (!s_t.empty())
+		seed_trip = s_t;
+	else
+		seed_trip.clear();
+
 	Trajectory t = Get_Best_Trajectory(wind_blobs, seed_trip);
+	if(t.cost == -1000)
+		return;
 
 
 	/****************** Debug ************************************
@@ -544,22 +560,27 @@ void Process_Window(Mat_Color_Gray wnd[15])
 	// Display the blobs superposed on the frame
 
 	Mat tmp_cont = Mat::zeros(frame_now.size(), CV_8UC3);
+	Mat Mat_ones = Mat::ones(frame_now.size(), CV_8UC1);
+
+	Mat temp1, temp2, temp3, dst;
 
 	for(unsigned int j = 0; j< wind_blobs[7].size(); j++) // Paint the blobs
-	{	ellipse( tmp_cont, wind_blobs[7][j], Size(3,3), 0, 0, 360, Scalar(0,255,0), -1, 8, 0 );
+	{	ellipse( tmp_cont, wind_blobs[7][j], Size(3,3), 0, 0, 360, Scalar(255,255,0), -1, 8, 0 );
 	}
 
+	for(float n = -3; n<3; n+= 0.1) // Paint the trajectory
+		ellipse( tmp_cont,Position_Estimate(t.model, t.model.ref, 7, 7+n) , Size(1,1), 0, 0, 360, Scalar(0,0,255), -1, 8, 0 );
 
-	ellipse( tmp_cont,Position_Estimate(t.model, t.model.ref, 7, 4) , Size(3,3), 0, 0, 360, Scalar(0,0,255), -1, 8, 0 );
-	ellipse( tmp_cont,Position_Estimate(t.model, t.model.ref, 7, 5) , Size(3,3), 0, 0, 360, Scalar(0,0,255), -1, 8, 0 );
-	ellipse( tmp_cont,Position_Estimate(t.model, t.model.ref, 7, 6) , Size(3,3), 0, 0, 360, Scalar(0,0,255), -1, 8, 0 );
-	ellipse( tmp_cont,Position_Estimate(t.model, t.model.ref, 7, 8) , Size(3,3), 0, 0, 360, Scalar(0,0,255), -1, 8, 0 );
-	ellipse( tmp_cont,Position_Estimate(t.model, t.model.ref, 7, 9) , Size(3,3), 0, 0, 360, Scalar(0,0,255), -1, 8, 0 );
-	ellipse( tmp_cont,Position_Estimate(t.model, t.model.ref, 7, 10) , Size(3,3), 0, 0, 360, Scalar(0,0,255), -1, 8, 0 );
-	ellipse( tmp_cont,Position_Estimate(t.model, t.model.ref, 7, 11) , Size(3,3), 0, 0, 360, Scalar(0,0,255), -1, 8, 0 );
 
-	imshow("Tracker", tmp_cont+wnd[7].col);
-	waitKey(200);
+	cvtColor(tmp_cont, temp1, CV_RGB2GRAY); //convert it to grayscale
+	threshold (temp1, temp2, 10.0 , 255, THRESH_BINARY);
+	threshold (Mat_ones, temp1, 0.5 , 255, THRESH_BINARY);
+	absdiff( temp1, temp2, dst);
+
+	wnd[7].col.copyTo(temp3, dst);
+
+	imshow("Tracker", temp3+tmp_cont);
+	waitKey(100);
 	/*********************************************************************/
 
 }
@@ -605,10 +626,10 @@ vector <Point2f> Do_Contours(Mat input)
 	        	    float delta = (abs(contourArea(contours[idx]) - ellipse_area))/contourArea(contours[idx]);
 	        	    float r = Major_axis/Minor_axis;
 
-	        	    //if ((delta < 0.2) && (r < 1.5)) // filter based on shape and fullness
-	        	    //{
+	        	    if (r < 2) // filter based on shape and fullness
+	        	    {
 	        	    	blobs.push_back(ellipse_bounding_box.center); //store the center
-	        	    //}
+	        	    }
 	            } // Size filtering
 	        }}
 	return blobs;
@@ -628,7 +649,7 @@ VideoCapture Init_Video(int argc, char** argv)
 		return -1;
 	}
 	capture.set(CV_CAP_PROP_CONVERT_RGB,1); //tell the capture to convert frames to RGB format
-	cout<<"Fram Rate: "<<capture.get(CV_CAP_PROP_FPS)<<endl;
+	cout<<"Frame Rate: "<<capture.get(CV_CAP_PROP_FPS)<<endl;
 	return capture;
 }
 
