@@ -41,9 +41,9 @@
 //  int16    angular velocity (16-bit binary angle / s)
 #define CMD_GET_ODOMETRY  0x61
 
-#define SERVO_LEFT   57
+#define SERVO_RIGHT  57
 #define SERVO_CENTER 92
-#define SERVO_RIGHT  127
+#define SERVO_LEFT   127
 
 extern SimpleMotorController driveMotor;
 

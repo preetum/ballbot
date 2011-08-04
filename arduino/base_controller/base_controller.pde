@@ -31,6 +31,15 @@ IMU imu(7, 10);
 
 Packet packet;
 
+void setSteering(int angle) {
+  angle = -angle + SERVO_CENTER;
+  if (angle > SERVO_LEFT)
+    angle = SERVO_LEFT;
+  else if (angle < SERVO_RIGHT)
+    angle = SERVO_RIGHT;
+  steering.write((unsigned char)angle);
+}
+
 /* Note: this reuses the global packet object and is not thread-safe!
  * Only call in the same thread as packet.receive()
  */
@@ -65,6 +74,7 @@ void packetReceived (void) {
     int linear = packet.data[1] << 8 | packet.data[2];
     int angular = packet.data[3] << 8 | packet.data[4];
     feedback_setVelocity(linear);
+    setSteering(angular);
     // TODO
     break;
   }

@@ -40,7 +40,12 @@ void feedback_update(void) {
   double lastVelocityOutput = velocityOutput;
   pidVelocity.Compute();   // computes only if sample time is reached
   if (velocityOutput != lastVelocityOutput) {  // save some SoftwareSerial time
-    driveMotor.setPWM((int)velocityOutput);
+    // motor deadband
+    if (velocityOutput > 200 ||
+        velocityOutput < -200)
+      driveMotor.setPWM((int)velocityOutput);
+    else
+      driveMotor.setPWM(0);
   }
 }
 
