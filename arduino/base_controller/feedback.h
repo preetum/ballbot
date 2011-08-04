@@ -5,8 +5,13 @@
 
 void feedback_initialize(void);
 void feedback_update(void);
-void feedback_setVelocity(double vel);
+void feedback_setVelocity(int vel);
 
 extern PID pidVelocity;
+
+// For debug only
+extern double velocityInput,
+  velocityOutput,
+  velocitySetpoint;
 
 #endif

@@ -8,12 +8,26 @@
  * State machine for AVR processor. Receives command packets from
  * the main processor via UART.
  */
+#include <WProgram.h>
 #include "packet.h"
 
-/* Registers the packetReceived callback.
- */
-void Packet::setCallback(void (*callback)(Packet&)) {
-  packetReceived = callback;
+void Packet::send(void) {
+  if (length > MAX_PACKET_LENGTH)
+    length = MAX_PACKET_LENGTH;
+
+  // Print packet header
+  Serial.print((unsigned char)START_BYTE);
+  Serial.print(length);
+
+  // Print data
+  checksum = 0;  // compute checksum as we go
+  for (unsigned char i = 0; i < length; i += 1) {
+    Serial.print(data[i]);
+    checksum ^= data[i];
+  }
+
+  // Print checksum
+  Serial.print(checksum);
 }
 
 /*
@@ -21,11 +35,7 @@ void Packet::setCallback(void (*callback)(Packet&)) {
  * Decodes packets and calls packetReceived() when a full valid packet arrives.
  * Returns true if byte was the last byte of a full valid packet.
  */
-unsigned char Packet::byteReceived (unsigned char byte) {
-  static unsigned char state = WAIT;
-  static unsigned char i = 0;
-  static unsigned char checksum = 0;
-
+unsigned char Packet::receive (unsigned char byte) {
   unsigned char rv = false;
 
   switch (state) {
@@ -36,27 +46,24 @@ unsigned char Packet::byteReceived (unsigned char byte) {
 
   case READ_LENGTH:
     length = byte;
-    i = 0;
+    index = 0;
     checksum = byte;
     state = READ_DATA;
     break;
 
   case READ_DATA:
-    if (i < length) {
-      data[i++] = byte;
+    if (index < length) {
+      data[index++] = byte;
       checksum = checksum ^ byte;
     }
 
-    if (i >= length)
+    if (index >= length)
       state = READ_CHECKSUM;
     break;
 
   case READ_CHECKSUM:
-    checksum = byte;
-    if (byte == checksum && packetReceived != NULL)
-      packetReceived(*this);
+    rv = (byte == checksum);
     state = WAIT;
-    rv = true;
     break;
 
   default:

@@ -54,7 +54,10 @@ void SimpleMotorController::setPWM(int pwm) {
 
   buffer[1] = pwm & 0x1F;
   buffer[2] = pwm >> 5;
+
+  cli();
   serialWrite(serial, buffer, 3);
+  sei();
 }
 
 /* Sets the braking mode of the motor controller (either

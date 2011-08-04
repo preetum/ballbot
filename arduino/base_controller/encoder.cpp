@@ -10,9 +10,9 @@ volatile long encoder0Count = 0L;
 void encoder0Handler() {
   // hard code the port instead of digitalRead for execution speed
   if (PINB & (1 << PB4)) {
-    encoder0Count += 1;
-  } else {
     encoder0Count -= 1;
+  } else {
+    encoder0Count += 1;
   }
 }
 

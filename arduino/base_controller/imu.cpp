@@ -47,7 +47,7 @@ void IMU::update(void) {
 
   // Process packet
   for (unsigned char i = 0; i < IMU_PACKET_LENGTH; i += 1)
-    if (packet.byteReceived(buf[i])) {
+    if (packet.receive(buf[i])) {
       // Read 4 big-endian bytes and convert bytewise to float32
       float *tmp = (float*)packet.data;
       yaw = *tmp;
