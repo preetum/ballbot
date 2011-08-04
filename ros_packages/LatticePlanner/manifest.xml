@@ -1,0 +1,15 @@
+<package>
+  <description brief="LatticePlanner">
+
+     LatticePlanner
+
+  </description>
+  <author>Karthik Lakshmanan</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/LatticePlanner</url>
+  <depend package="rospy"/>
+
+</package>
+
+
