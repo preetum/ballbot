@@ -1,0 +1,15 @@
+<package>
+  <description brief="ros_arduino_interface">
+
+     ros_arduino_interface
+
+  </description>
+  <author>Ankush Gupta</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/ros_arduino_interface</url>
+  <depend package="rospy"/>
+
+</package>
+
+
