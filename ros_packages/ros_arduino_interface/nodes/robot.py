@@ -1,6 +1,51 @@
 import serial
 import sys, re, struct, time, thread
 
+class Packet:
+  START_BYTE = 0xFF
+
+  WAIT = 0
+  READ_LENGTH = 1
+  READ_DATA = 2
+  READ_CHECKSUM = 3
+
+  def __init__(self, callback):
+    self.state = Packet.WAIT
+    self.callback = callback;
+
+    self.length = 0
+    self.data = ''
+    self.checksum = 0
+
+  def read(self, data_string):
+    for char in data_string:
+      byte = ord(char)
+
+      if self.state == Packet.WAIT:
+        if byte == Packet.START_BYTE:
+          self.state = Packet.READ_LENGTH
+
+      elif self.state == Packet.READ_LENGTH:
+        self.length = byte
+        self.data = ''
+        self.checksum = byte
+        self.state = Packet.READ_DATA
+
+      elif self.state == Packet.READ_DATA:
+        if (len(self.data) < self.length):
+          self.data += char
+          self.checksum ^= byte
+        if (len(self.data) >= self.length):
+          self.state = Packet.READ_CHECKSUM
+
+      elif self.state == Packet.READ_CHECKSUM:
+        if byte == self.checksum:
+          self.callback(self)
+          self.state = Packet.WAIT
+
+      else:
+        self.state = Packet.WAIT
+
 class BaseController:
   '''
   Encapsulates the hardware functionality of the robot.
@@ -10,8 +55,9 @@ class BaseController:
   CMD_SET_RAW = 0x41
   CMD_SET_VELOCITY = 0x42
   CMD_SET_PICKUP = 0x43
-  CMD_SET_PID = 0x44
-  CMD_GET_ODOMETRY = 0x61
+  CMD_SET_VELOCITY_PID = 0x44
+  CMD_SET_STEERING_PID = 0x45
+  CMD_SYNC_ODOMETRY = 0x61
   
   SERVO_LEFT = 57
   SERVO_CENTER = 92
@@ -39,6 +85,26 @@ class BaseController:
     time.sleep(2)
     self.reset()
 
+    # Start serial read thread
+    thread.start_new_thread(self.serial_read_thread, ())
+
+  def serial_read_callback(self, packet):
+    '''
+    Called whenever a full packet is received back from the arduino
+    '''
+    if ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
+      cmd, counts, counts_delta, angle, angular_velocity = \
+          struct.unpack('>Bllhh', packet.data)
+      print '%d\t%d\t%d\t%d' % (counts, counts_delta, angle, angular_velocity)
+
+  def serial_read_thread(self):
+    recv_packet = Packet(self.serial_read_callback)
+    while True:
+      # Read as many characters as possible
+      data_string = self.serial.read(100)
+      # Fill the packet object
+      recv_packet.read(data_string)      
+
   def reset(self):
     self.set_steering(0)
     self.set_drive(0)
@@ -48,11 +114,26 @@ class BaseController:
     data_string = struct.pack('>Bhh', BaseController.CMD_SET_VELOCITY, linear, angular)
     self.send_arduino_packet(data_string)
 
-  def set_pid(self, kp, ki, kd):
+  def set_pickup(self, state):
+    data_string = struct.pack('>Bb', BaseController.CMD_SET_PICKUP, state)
+    self.send_arduino_packet(data_string)
+
+  def set_velocity_pid(self, kp, ki, kd):
     kp = int(kp * 100)
     ki = int(ki * 100)
     kd = int(kd * 100)
-    data_string = struct.pack('>Bhhh', BaseController.CMD_SET_PID, kp, ki, kd)
+    data_string = struct.pack('>Bhhh', BaseController.CMD_SET_VELOCITY_PID, kp, ki, kd)
+    self.send_arduino_packet(data_string)
+
+  def set_steering_pid(self, kp, ki, kd):
+    kp = int(kp * 100)
+    ki = int(ki * 100)
+    kd = int(kd * 100)
+    data_string = struct.pack('>Bhhh', BaseController.CMD_SET_STEERING_PID, kp, ki, kd)
+    self.send_arduino_packet(data_string)
+
+  def sync_odometry(self, heading):
+    data_string = struct.pack('>Bh', BaseController.CMD_SYNC_ODOMETRY, heading)
     self.send_arduino_packet(data_string)
 
   def refresh(self):
@@ -82,12 +163,12 @@ class BaseController:
     checksum = length ^ reduce(lambda x,y: x^y, bytearray(data_string), 0)
     
     # Construct full packet
-    string = chr(BaseController.START_BYTE) + chr(length) + \
+    string = chr(Packet.START_BYTE) + chr(length) + \
               data_string + chr(checksum)
     
     self.serial.write(string)
     self.serial.flush()
-  
+
   def set_steering(self, angle):
     '''
     Set the steering servo to the given angle in degrees.
@@ -115,20 +196,16 @@ class BaseController:
 	velocity = BaseController.MAX_VELOCITY
     self.cmd_packet[2] = int(velocity)
 
-def update_thread(serial):
-  # Print from serial terminal
-  while True:
-    b = serial.read(100)
-    if b:
-      print b,
-    time.sleep(0.5)
-
 def main():
   '''
-  Test stub: takes a comma separated list of values
-  steering, motor, sweeper, hopper
+  Test stub: reads values from the command line
 
-  Optional argument: com port
+  vel (velocity in cm/s), (turn angle in deg)
+  vpid kp,ki,kd
+  spid kp,ki,kd
+  pickup state
+
+  Usage: python robot.py [com port]
   '''
   if len(sys.argv) > 1:
     robot = BaseController(sys.argv[1])
@@ -136,9 +213,8 @@ def main():
     robot = BaseController()
 
   velocity_values = [0, 0]
-  pid_values = [0, 0, 0]
-
-  thread.start_new_thread(update_thread, (robot.serial,))
+  vpid_values = [0, 0, 0]
+  spid_values = [0, 0, 0]
 
   try:
     while (True):
@@ -149,16 +225,28 @@ def main():
           values = [int(v) for v in line.split(',')]
           for i in range(min(len(values), 2)):
             velocity_values[i] = values[i]
-            robot.set_velocity(*velocity_values)
+          robot.set_velocity(*velocity_values)
           print 'velocity:', velocity_values
-        elif re.match('pid', line):
-          line = line[3:]
+        elif re.match('vpid', line):
+          line = line[4:]
           values = [float(v) for v in line.split(',')]
           for i in range(min(len(values), 3)):
-            pid_values[i] = values[i]
-            robot.set_pid(*pid_values)
-          print 'pid constants:', pid_values
-          
+            vpid_values[i] = values[i]
+          robot.set_velocity_pid(*vpid_values)
+          print 'vel pid constants:', vpid_values
+        elif re.match('spid', line):
+          line = line[4:]
+          values = [float(v) for v in line.split(',')]
+          for i in range(min(len(values), 3)):
+            spid_values[i] = values[i]
+          robot.set_velocity_pid(*spid_values)
+          print 'steer pid constants:', spid_values
+        elif re.match('pickup', line):
+          line = line[6:]
+          robot.set_pickup(int(line))
+
+      robot.sync_odometry(42)
+
   except:
     # In case of error or Ctrl-C, zero motor values
     robot.reset()
