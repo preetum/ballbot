@@ -23,6 +23,7 @@
 #include "encoder.h"
 #include "feedback.h"
 #include "imu.h"
+#include "pickup.h"
 
 // Globals
 Servo steering;
@@ -88,13 +89,19 @@ void packetReceived (void) {
     int angular = packet.data[3] << 8 | packet.data[4];
     feedback_setVelocity(linear);
     setSteering(angular);
-    // TODO
+    // TODO steering PID
     break;
   }
 
   case CMD_SET_PICKUP: {
     signed char value = packet.data[1];
-    // TODO
+    if (value == 0)
+      pickup_stop();
+    else if (value == 1) {
+      pickup_forward();
+    } else if (value == -1) {
+      pickup_reverse();
+    }
     break;
   }
 
@@ -106,6 +113,7 @@ void packetReceived (void) {
 
     if (packet.data[0] == CMD_SET_VELOCITY_PID)
       pidVelocity.SetTunings(kp/100.0, ki/100.0, kd/100.0);
+    // TODO steering PID
     break;
   }
         
@@ -133,6 +141,7 @@ void setup() {
   
   encoder_initialize();
   feedback_initialize();
+  pickup_initialize();
 
   // Use external Vref (3.3V)
   analogReference(EXTERNAL);
