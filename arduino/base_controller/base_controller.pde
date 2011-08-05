@@ -27,9 +27,11 @@
 // Globals
 Servo steering;
 SimpleMotorController driveMotor(5);
-IMU imu(7, 10);
+//IMU imu(7, 10);
 
 Packet packet;
+
+int heading;
 
 void setSteering(int angle) {
   angle = -angle + SERVO_CENTER;
@@ -38,6 +40,15 @@ void setSteering(int angle) {
   else if (angle < SERVO_RIGHT)
     angle = SERVO_RIGHT;
   steering.write((unsigned char)angle);
+}
+
+/* Writes the first LEN bytes of SOURCE in reverse order into DESTINATION buffer */
+void reverse_memcpy(void *destination, const void *source, size_t len) {
+  char *dest = (char*)destination;
+  char *src = (char*)source;
+
+  while (len-- > 0)
+    *(dest+len) = *src++;
 }
 
 /* Note: this reuses the global packet object and is not thread-safe!
@@ -52,10 +63,12 @@ void writeOdometry(void) {
   lastEncoderCount = tmpEncoderCount;
 
   packet.length = 13;
-  packet.data[0] = CMD_GET_ODOMETRY;
-  memcpy(packet.data+1, &tmpEncoderCount, 4);
-  memcpy(packet.data+5, &delta, 4);
-  memset(packet.data+9, 0, 2); // TODO angle
+  packet.data[0] = CMD_SYNC_ODOMETRY;
+
+  long *pDest = (long*)(packet.data+1);
+  reverse_memcpy(packet.data+1, &tmpEncoderCount, 4);
+  reverse_memcpy(packet.data+5, &delta, 4);
+  reverse_memcpy(packet.data+9, &heading, 2);
   memset(packet.data+11, 0, 2);
   packet.send();
 }
@@ -85,15 +98,19 @@ void packetReceived (void) {
     break;
   }
 
-  case CMD_SET_PID: {
+  case CMD_SET_VELOCITY_PID: 
+  case CMD_SET_STEERING_PID: {
     int kp = packet.data[1] << 8 | packet.data[2];
     int ki = packet.data[3] << 8 | packet.data[4];
     int kd = packet.data[5] << 8 | packet.data[6];
 
-    pidVelocity.SetTunings(kp/100.0, ki/100.0, kd/100.0);
+    if (packet.data[0] == CMD_SET_VELOCITY_PID)
+      pidVelocity.SetTunings(kp/100.0, ki/100.0, kd/100.0);
+    break;
   }
         
-  case CMD_GET_ODOMETRY:
+  case CMD_SYNC_ODOMETRY:
+    heading = packet.data[1] << 8 | packet.data[2];
     writeOdometry();
     break;
 
