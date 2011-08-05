@@ -6,9 +6,7 @@
  * VERSION: 0.1  (2 Aug 2011)
  *
  * DESCRIPTION:
- * Communicates with SparkFun Razor IMU via SoftwareSerial. A custom version
- * of SoftwareSerial is provided that has a read() timeout (although
- * this has not been debugged).
+ * Communicates with SparkFun Razor IMU via SoftwareSerial.
  *
  * Be cautious of calling update() too often since it is slow. This code is
  * quite whack. We may have to find a better way to interface the IMU.
@@ -38,10 +36,7 @@ void IMU::update(void) {
   // Read the bytes
   cli();
   for (unsigned char i = 0; i < IMU_PACKET_LENGTH; i += 1) {
-    int c;
-    if ((c = serial.read(1)) == -1) // timeout
-      return;
-    buf[i] = c;
+    buf[i] = serial.read();
   }
   sei();
 
