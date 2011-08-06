@@ -132,7 +132,7 @@ def received_odometry(data):
 def listener():
     rospy.init_node('Controller',anonymous = True)
     rospy.Subscriber('path', Path, newPath_arrived)    
-    rospy.Subscriber('odometry', Pose, received_odometry)
+    #rospy.Subscriber('odometry_vicon', Pose, received_odometry)
     controller_PD() 
     rospy.spin()
     
