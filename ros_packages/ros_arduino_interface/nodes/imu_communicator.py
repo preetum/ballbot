@@ -23,6 +23,7 @@ class IMU:
 
     self.rate = ask_rate
     self.headingBAMS = 0
+    self.gyro_z = 0
 
     # Start serial read thread
     thread.start_new_thread(self.serial_to_fro_thread, ())
@@ -38,8 +39,12 @@ class IMU:
             accelero_x_raw, accelero_y_raw, accelero_z_raw, \
             magneto_x_raw, magneto_y_raw, magneto_z_raw \
             = struct.unpack('<hhhhhhhhhhhh', packet.data)
+      print float(yawBAMS)*180.0/32768.0
       self.headingBAMS = yawBAMS
+      self.gyro_z = gyro_z_raw
+
     except:
+      print "Read error...Retrying"
       pass
       
   def serial_to_fro_thread(self):
