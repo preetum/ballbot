@@ -8,6 +8,7 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/ros_arduino_interface</url>
+  <depend package="roscpp"/>
   <depend package="rospy"/>
   <depend package="bb_msgs"/>
 
