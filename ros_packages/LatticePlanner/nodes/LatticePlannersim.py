@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import math
 import util
 import time
@@ -5,8 +6,15 @@ import graphics
 import controlset
 from Tkinter import *
 
+import roslib; roslib.load_manifest('LatticePlanner')
+import rospy
+from std_msgs.msg import String
+
 startNode = None
 goalNode = None
+plan = [] # stores the computed plan, as [(node1,action1),(node2,action2)....]
+path = [] # stores the computed path, as a sequence of (x,y,theta) values
+pub = rospy.Publisher('ValidPath',String)
 
 def startPlanner(x1,y1,th1,d_goal,th_goal):
     """
@@ -15,21 +23,11 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
     """
     Draw court
     """
-
-    global startNode,goalNode
-
+    global startNode,goalNode,plan,path
     graphics.canvas.delete(ALL)
     util.costmap.draw_costmap()
     graphics.draw_court()    
     th1 = math.radians(th1)
-
-    """
-    state = util.LatticeNode(stateparams = (787.5,1715.0,5*math.pi/4,util.ROBOT_SPEED_MAX))
-    nextstate  = util.LatticeNode(stateparams = (682.5,1820.0,math.pi,util.ROBOT_SPEED_MAX))
-    print "cost of action",util.cost(state,"RS_f",nextstate)
-    print "cost of cell at 682.5,1820.0",util.costmap.cost_cell(682.5,1820.0)
-    return
-    """
 
     (x1,y1,th1,v) = util.point_to_lattice(x1,y1,th1,util.ROBOT_SPEED_MAX)
     
@@ -44,7 +42,6 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
     if(x1 < 0) or (x1 > util.COURT_WIDTH) or (y1 < 0) or (y1 > util.COURT_LENGTH):
         print "Invalid start!"
         return
-
     if(x2 < 0) or (x2 > util.COURT_WIDTH) or (y2 < 0) or (y2 > util.COURT_LENGTH):
         print "Invalid goal!"
         return    
@@ -61,43 +58,6 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
     graphics.draw_point(x2,y2,th2,'red')
     graphics.canvas.update_idletasks()
 
-    """
-    Print allowed car motions from startNode 
-    
-    #graphics.draw_segment(startNode,"F")
-    #graphics.draw_segment(startNode,"F3")
-    graphics.draw_segment(startNode,"B")
-    graphics.draw_segment(startNode,"R_f")
-    graphics.draw_segment(startNode,"R_b")
-    graphics.draw_segment(startNode,"L_f")
-    graphics.draw_segment(startNode,"L_b")
-    #graphics.draw_segment(startNode,"SR_f")
-    #graphics.draw_segment(startNode,"SL_f")
-    graphics.draw_segment(startNode,"RS_f_short")
-    graphics.draw_segment(startNode,"LS_f_short")
-    graphics.draw_segment(startNode,"sidestep_R_f")
-    graphics.draw_segment(startNode,"sidestep_L_f")   
-    graphics.draw_segment(startNode,"SL_f_2")
-    graphics.draw_segment(startNode,"SR_f_2")
-    
-    graphics.draw_segment(startNode,"LSL_f")
-    graphics.draw_segment(startNode,"RSR_f")
-    return        
-    graphics.draw_segment(startNode,"RS_f")
-    graphics.draw_segment(startNode,"LS_f")
-    graphics.draw_segment(startNode,"F_diag")
-    graphics.draw_segment(startNode,"F_diag3")
-    graphics.draw_segment(startNode,"B_diag")
-    graphics.draw_segment(startNode,"L2_f")
-    graphics.draw_segment(startNode,"R2_f")
-    return    
-    graphics.draw_segment(startNode,"F1_26.6")
-    graphics.draw_segment(startNode,"B1_26.6")
-    return
-    
-    graphics.draw_segment(startNode,"LSL1_f_63.4")
-    return
-    """
     if (util.SEARCHALGORITHM == "A*"):
         Astarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "LPA*"):
@@ -106,24 +66,32 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
     elif (util.SEARCHALGORITHM == "MT-AdaptiveA*"):
         print "running MT-AdaptiveA*"
         MTAdaptiveAstarsearch(startNode,goalNode)
+        
+    print "Hit enter to drive along path"
+    raw_input()    
+    path.append(startNode.get_stateparams()[0:3])
+    path = path + util.plan_to_path(plan)
+    print path
+    raw_input()
+    pub.publish(String("ValidPath"))
 
 def Astarsearch(startNode,goalNode):
+    global plan
     (x1,y1,th1,v1) = startNode.get_stateparams()
     time_exec = time.time()
     goalNode = util.Astarsearch(startNode,goalNode)    
     if(goalNode != None):
-        print "found goal! in",time.time() - time_exec,"s"    
-        path = []
+        print "found goal! in",time.time() - time_exec,"s"            
         node = goalNode
         while(node.getParent()!= None):
             parent = node.getParent()
             #print parent.get_stateparams(),node.getAction(),node.get_stateparams()
             #print node.getAction(),util.controlset.len_action(node.getAction())
-            path.append(node.getAction())
+            plan.append((parent,node.getAction()))
             graphics.draw_segment(parent,node.getAction())        
             node = parent  
         print ""            
-        path.reverse()
+        plan.reverse()
         (x2,y2,th2,v2) = goalNode.get_stateparams()        
         graphics.draw_point_directed(x1,y1,th1,'red')
         graphics.draw_point_directed(x2,y2,th2,'red')
@@ -132,6 +100,7 @@ def Astarsearch(startNode,goalNode):
         print "No path to goal!"
 
 def LPAstarsearch(startNode,goalNode):
+    global plan
     util.LPAstarsearch(startNode,goalNode)
 
     graphics.canvas.delete(ALL)
@@ -148,13 +117,13 @@ def LPAstarsearch(startNode,goalNode):
     graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')
 
 def MTAdaptiveAstarsearch(startNode,goalNode):
-
+    global plan
     (start_x,start_y,start_th,start_v) = startNode.get_stateparams()
     (goal_x,goal_y,goal_th,goal_v) = goalNode.get_stateparams()
     graphics.draw_point_directed(start_x,start_y,start_th,'red')
     graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')
-    path = util.MTAdaptiveAstarsearch(startNode,goalNode)    
-    for segment in path:
+    plan = util.MTAdaptiveAstarsearch(startNode,goalNode)    
+    for segment in plan:
         (node,action) = segment
         util.agentNode = node
         (car_x,car_y,car_th,car_v) = util.agentNode.get_stateparams()

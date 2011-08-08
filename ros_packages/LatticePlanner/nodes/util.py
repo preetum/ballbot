@@ -925,3 +925,198 @@ def go_Straight(state,direction,d = CELL_SIZE):
   return(x2,y2,th2,v)
 
 ####################################################################################################
+# -------- utilities for converting plan to path ------------------------------------#
+def points_turnLeft(state,direction,distance,radius):
+    points = []
+    d = 5
+    while(d <= distance):
+        (x2,y2,theta2,v2) = turn_Left((x,y,theta,v),direction,d,radius)
+        points.append((x2,y2,theta2))
+        d+=5
+    (x_temp,y_temp,theta_temp,v_temp) = turn_Left((x,y,theta,v),direction,distance,radius)
+    points.append((x_temp,y_temp,theta_temp))
+    return points
+
+def points_turnRight(state,direction,distance,radius):
+    points = []
+    d = 5
+    while(d <= distance):
+        (x2,y2,theta2,v2) = turn_Right((x,y,theta,v),direction,d,radius)
+        points.append((x2,y2,theta2))
+        d+=5
+    (x_temp,y_temp,theta_temp,v_temp) = turn_Right((x,y,theta,v),direction,distance,radius)
+    points.append((x_temp,y_temp,theta_temp))
+    return points
+
+def points_goStraight(x,y,theta,v,direction,distance):
+    points = []
+    d = 5
+    while(d <= distance):
+        (x2,y2,theta2,v2) = go_Straight((x,y,theta,v),direction,d)
+        points.append((x2,y2,theta2))
+        d+=5
+    (x_temp,y_temp,theta_temp,v_temp) = go_Straight((x,y,theta,v),direction,distance)
+    points.append((x_temp,y_temp,theta_temp))
+    return points
+
+def plan_to_path(plan):
+    path = []
+    for (Node,action) in plan:
+        (x,y,theta,v) = Node.get_stateparams()
+        if action in ("B","L_b","R_b","B_diag","B1_26.6","B1_63.4"):
+            direction = "b"
+        else:
+            direction = "f"
+    
+        if action in ("R_f","R_b"): # turning right
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)
+            
+        elif action in ("L_f","L_b"): # turning left
+            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)
+    
+        elif action in ("F","B"):
+            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE)
+
+        elif action in ("F3"):
+            path = path + points_goStraight(x,y,theta,v,direction,3*CELL_SIZE)
+
+        elif action == "SL_f":
+            path = path + points_goStraight(x,y,theta,v,direction,20.5)
+            path = path + points_turnLeft(path[-1][0],path[-1][1],path[-1][2],v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)
+
+        elif action == "SR_f":
+            path = path + points_goStraight(x,y,theta,v,direction,20.5)            
+            path = path + points_turnRight(path[-1][0],path[-1][1],path[-1][2],v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)   
+    
+        elif action == "LS_f":
+            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,20.5)
+
+        elif action == "RS_f":
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,20.5)       
+
+        elif action == "F_diag":            
+            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE*math.sqrt(2))  
+    
+        elif action == "F_diag3":
+            path = path + points_goStraight(x,y,theta,v,direction,3*CELL_SIZE*math.sqrt(2))  
+
+        elif action == "B_diag":
+            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE*math.sqrt(2))
+
+        elif action == "RS_f_short":
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,14.4957)        
+                
+        elif action == "LS_f_short":
+            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,14.4957)
+
+        elif action == "sidestep_R_f":
+            path = path + points_turnRight(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,49.5)
+            (x_temp,y_temp,theta_temp) = path[-1]                        
+            path = path + points_turnLeft(x_temp,y_temp,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)       
+
+        elif action == "sidestep_L_f":
+            path = path + points_turnRight(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,49.5)
+            (x_temp,y_temp,theta_temp) = path[-1]                        
+            path = path + points_turnLeft(x_temp,y_temp,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)
+
+        elif action == "L2_f":
+            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_4*math.pi/2,ROBOT_RADIUS_4)    
+    
+        elif action == "R2_f":
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_4*math.pi/2,ROBOT_RADIUS_4)        
+            
+        elif action == "SR_f_2":
+            path = path + points_goStraight(x,y,theta,v,direction,13.369)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_turnRight(x_temp,y_temp,theta_temp,v,direction,(63.4/360.0)*2*math.pi*ROBOT_RADIUS_5,ROBOT_RADIUS_5)      
+
+        elif action == "SL_f_2":
+            path = path + points_goStraight(x,y,theta,v,direction,13.369)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_turnLeft(x_temp,y_temp,theta_temp,v,direction,(63.4/360.0)*2*math.pi*ROBOT_RADIUS_5,ROBOT_RADIUS_5)
+
+        elif action == "RSR_f":
+            path = path + points_turnRight(x,y,theta,v,direction,13.3968,ROBOT_RADIUS_5)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,53.9857)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_turnRight(x_temp,y_temp,theta_temp,v,direction,22.2,ROBOT_RADIUS_5)       
+        
+        elif action == "LSL_f":
+            path = path + points_turnLeft(x,y,theta,v,direction,13.3968,ROBOT_RADIUS_5)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,53.9857)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_turnLeft(x_temp,y_temp,theta_temp,v,direction,22.2,ROBOT_RADIUS_5)       
+            
+        elif action in ("F1_26.6","B1_26.6","F1_63.4","B1_63.4"):
+            path = path + points_goStraight(x,y,theta,v,direction,39.131)
+
+        elif action == "LSL1_f_26.6":
+            path = path + points_turnLeft(x,y,theta,v,direction,41.95,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path +  points_goStraight(x_temp,y_temp,theta_temp,v,direction,28.496)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_turnLeft(x_temp,y_temp,theta_temp,v,direction,35.508,ROBOT_RADIUS_MIN)        
+
+        elif action == "LSL2_f_26.6":
+            path = path + points_turnLeft(x,y,theta,v,direction,12.99,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,65.6)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_turnLeft(x_temp,y_temp,theta_temp,v,direction,9.487,ROBOT_RADIUS_MIN)       
+
+        elif action == "RSR1_f_26.6":
+            path = path + points_turnRight(x,y,theta,v,direction,14.625,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,39.952)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_turnRight(x_temp,y_temp,theta_temp,v,direction,17.873,ROBOT_RADIUS_MIN)
+
+        elif action == "RSR2_f_26.6":
+            path = path + points_turnRight(x,y,theta,v,direction,84.055,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,32.613)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_turnRight(x_temp,y_temp,theta_temp,v,direction,3.42,ROBOT_RADIUS_MIN)
+        
+        elif action == "LSL1_f_63.4":
+            path = path + points_turnLeft(x,y,theta,v,direction,14.625,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,39.952)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_turnLeft(x_temp,y_temp,theta_temp,v,direction,17.783,ROBOT_RADIUS_MIN)        
+
+        elif action == "LSL2_f_63.4":
+            path = path + points_turnLeft(x,y,theta,v,direction,84.055,ROBOT_RADIUS_MIN)            
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,32.613)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_turnLeft(x_temp,y_temp,theta_temp,v,direction,3.42,ROBOT_RADIUS_MIN)            
+
+        elif action == "RSR1_f_63.4":
+            path = path + points_turnRight(x,y,theta,v,direction,41.95,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,28.496)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_turnRight(x_temp,y_temp,theta_temp,v,direction,35.508,ROBOT_RADIUS_MIN)
+
+        elif action == "RSR2_f_63.4":
+            path = path + points_turnRight(x,y,theta,v,direction,12.99,ROBOT_RADIUS_MIN)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_goStraight(x_temp,y_temp,theta_temp,v,direction,65.6)
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            path = path + points_turnRight(x_temp,y_temp,theta_temp,v_temp,direction,9.487,ROBOT_RADIUS_MIN)
+    return path
