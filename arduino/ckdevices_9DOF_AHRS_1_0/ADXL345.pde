@@ -72,7 +72,7 @@ void Read_Accel()
   
   
     }
-  else
-    Serial.println("!ERR: Error reading accelerometer info!");
+//  else
+  //  Serial.println("!ERR: Error reading accelerometer info!");
 }
 

@@ -79,7 +79,7 @@ void Read_Gyro()
       sen_data.gyro_z *= SENSOR_SIGN[2];    // Z axis
    
     }
-  else
-    Serial.println("!ERR: Error reading Gyro info!");
+//  else
+  //  Serial.println("!ERR: Error reading Gyro info!");
 }
 

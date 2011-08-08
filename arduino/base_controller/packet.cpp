@@ -20,7 +20,7 @@ void Packet::send(void) {
   Serial.print(length);
 
   // Print data
-  checksum = 0;  // compute checksum as we go
+  checksum = length;  // compute checksum as we go
   for (unsigned char i = 0; i < length; i += 1) {
     Serial.print(data[i]);
     checksum ^= data[i];

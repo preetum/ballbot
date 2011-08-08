@@ -42,6 +42,7 @@
 #include <EEPROM.h>
 #include <Wire.h>
 
+#define pi 3.1415926536
 #define ToRad(x) (x*0.01745329252)  // *pi/180
 #define ToDeg(x) (x*57.2957795131)  // *180/pi
 
@@ -181,14 +182,15 @@ float DCM_Matrix[3][3]       = {{1,0,0},{0,1,0},{0,0,1}};
 float Update_Matrix[3][3]    = {{0,1,2},{3,4,5},{6,7,8}}; 
 float Temporary_Matrix[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
  
-
+//Function Headers
+int radians2BAMS(float angle);
+void SendInt(unsigned char * Bytes, unsigned char &checksum);
 
 void setup()
 { 
-  Serial.begin(9600);
+  Serial.begin(115200); // Increased Baud Rate from 9600 --> 115200
   pinMode (STATUS_LED,OUTPUT);  // Status LED
   
-
   //Serial.println();
   //Serial.println("ckdevices Mongoose v1.0 - 9DOF IMU + Baro");
   //Serial.println("9 Degree of Freedom Attitude and Heading Reference System with barometric pressure");
@@ -228,22 +230,60 @@ void setup()
   GPS_counter=0;
 }
 
+int radians2BAMS(float angle)
+{ // Converts angle in radians to binaryAngle in Binary Angle Measurement System
+  int binaryAngle  = (int) (angle*(32768.0/(float)pi));
+  return binaryAngle;
+}
+
+void SendInt(unsigned char * Bytes, unsigned char &checksum)
+{
+ unsigned char length = 2; // ints are 16 bit => 2 bytes
+ for (unsigned char i = 0; i < length; i += 1)
+  {
+      Serial.print(Bytes[i], BYTE);
+      checksum ^= Bytes[i];
+  }
+}
+
 
 void loop() //Main Loop
 {
   if (Serial.available() && Serial.read() == 'a') // Check for requests
   {
-    unsigned char* pBytes = (unsigned char*)(&yaw);
-    unsigned char length = 4,
-        checksum = length;
-    
+    //Convert Float {yaw, pitch, roll} to BAMS (ints)
+    int yawBAMS = radians2BAMS(yaw), 
+    	rollBAMS = radians2BAMS(roll),
+	pitchBAMS = radians2BAMS(pitch);
+
+    // 12 int variables: {rollBAMS, pitchBAMS, yawBAMS}, {gyro, magentom, accel}_{x, y, z}_raw
+    unsigned char  length = 4*12, checksum = length;
+
     Serial.print(0xFF, BYTE); // START
     Serial.print(length, BYTE); // LENGTH
-    for (unsigned char i = 0; i < length; i += 1) { // DATA
-      Serial.print(pBytes[i], BYTE);
-      checksum ^= pBytes[i];
-    }
-    Serial.print(checksum, BYTE); // CHECKSUM
+      
+    //Send Roll, Pitch, Yaw
+    SendInt((unsigned char *)(&rollBAMS), checksum);
+    SendInt((unsigned char *)(&pitchBAMS), checksum);
+    SendInt((unsigned char *)(&yawBAMS), checksum);
+
+    //Send Gyro Raw
+    SendInt((unsigned char *)(&sen_data.gyro_x_raw), checksum);
+    SendInt((unsigned char *)(&sen_data.gyro_y_raw), checksum);
+    SendInt((unsigned char *)(&sen_data.gyro_z_raw), checksum);
+    
+    //Send Acceleromater Raw
+    SendInt((unsigned char *)(&sen_data.accel_x_raw), checksum);
+    SendInt((unsigned char *)(&sen_data.accel_y_raw), checksum);
+    SendInt((unsigned char *)(&sen_data.accel_z_raw), checksum);
+
+    //Send Magnetometer Raw
+    SendInt((unsigned char *)(&sen_data.magnetom_x_raw), checksum);
+    SendInt((unsigned char *)(&sen_data.magnetom_y_raw), checksum);
+    SendInt((unsigned char *)(&sen_data.magnetom_z_raw), checksum);
+
+    //Send Checksum
+    Serial.print(checksum, BYTE);
   }
   
   if((DIYmillis()-timer)>=20)  // Main loop runs at 50Hz
