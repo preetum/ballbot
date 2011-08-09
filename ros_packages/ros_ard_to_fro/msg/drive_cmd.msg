@@ -1,2 +1,0 @@
-int16 drive_speed
-int16 steer_angle
