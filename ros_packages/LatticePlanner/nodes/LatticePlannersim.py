@@ -69,7 +69,7 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
         
     print "Hit enter to drive along path"
     raw_input()    
-    path.append(startNode.get_stateparams()[0:3])
+    path.append((x1/100.0,y1/100.0,th1))
     path = path + util.plan_to_path(plan)
     print path
     raw_input()
@@ -123,16 +123,6 @@ def MTAdaptiveAstarsearch(startNode,goalNode):
     graphics.draw_point_directed(start_x,start_y,start_th,'red')
     graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')
     plan = util.MTAdaptiveAstarsearch(startNode,goalNode)    
-    for segment in plan:
-        (node,action) = segment
-        util.agentNode = node
-        (car_x,car_y,car_th,car_v) = util.agentNode.get_stateparams()
-        print "drew car"
-        car_drawing = graphics.draw_car(car_x,car_y,car_th)
-        graphics.canvas.update_idletasks()
-        time.sleep(0.5)
-        graphics.canvas.delete(car_drawing[0])
-        graphics.canvas.delete(car_drawing[1])
     
     graphics.draw_point_directed(start_x,start_y,start_th,'red')
     graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')

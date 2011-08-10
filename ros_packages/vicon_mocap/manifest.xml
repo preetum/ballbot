@@ -1,0 +1,16 @@
+<package>
+  <description brief="vicon_mocap">
+
+     vicon_mocap
+
+  </description>
+  <author>Karthik Lakshmanan</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/vicon_mocap</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+
+</package>
+
+
