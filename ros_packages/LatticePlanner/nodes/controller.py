@@ -6,7 +6,7 @@ controller.py - implements a controller to make Ballbot drive along the planned 
 """
 import roslib; roslib.load_manifest('LatticePlanner')
 import rospy
-import LatticePlannersim
+import util
 import math
 from std_msgs.msg import String
 from bb_msgs.msg import Pose,DriveCmd,Path
@@ -25,6 +25,8 @@ Ballbot_speed = 0    # m/s
 
 # CONTROLLER PARAMETRS
 targetlookahead = 15.0 # PD steering control to reach a moving target 15 cm ahead of the car
+
+pub_velcmd = rospy.Publisher('vel_cmd', DriveCmd)
 
 def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
     """
@@ -55,8 +57,7 @@ def controller_PD():
     """
     Implements controller
     """    
-    pub = rospy.Publisher('vel_cmd', Drive_Cmd)
-    global path,newPath,Ballbot_steering,Ballbot_speed
+    global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
     Ballbot_speed = 0.0
     Ballbot_steering = 0
   
@@ -73,9 +74,10 @@ def controller_PD():
     theta_old = 0.0 # stores previous theta value for D-term
 
     while not rospy.is_shutdown():
-        
-        while(not util.goalTest(currentNode)):
-            currentNode = util.LatticeNode(Ballbot_X,Ballbot_Y,Ballbot_TH)        
+        if newPath == False:
+            continue
+        while(currentindex_inPath != len(path)):
+            Ballbot_speed = 0.0 # set speed                   
             if(newPath == True):
                 # if there is a new path, restart driving along this path
                 newPath = False
@@ -85,7 +87,7 @@ def controller_PD():
                 break
             else:                                    
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
-                targetindex_inPath = currentindex_inPath + int(targetlookahead/5.0) # points are at a separation of 5 cm
+                targetindex_inPath = min(len(path),currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
 
                 # P - Proportional term
                 error = Ballbot_TH - path[targetindex_inPath].theta
@@ -101,15 +103,13 @@ def controller_PD():
                     Ballbot_steering = math.radians(30)
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
-                pub.publish(Ballbot_speed,Ballbot_steering)
+                pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
         # goal reached!
+        print "goalreached"
         Ballbot_speed = 0
         Ballbot_steering = 0
-        pub.publish(Ballbot_speed,Ballbot_steering)
-        while(newPath == False):
-            print goal_arrived
-            #do nothing
+        pub_velcmd.publish(Ballbot_speed,Ballbot_steering)                    
 
 def newPath_arrived(data):
     """
@@ -118,6 +118,7 @@ def newPath_arrived(data):
     global path,newPath
     path = data.poses
     newPath = True
+    print "newpathseen! length",len(path)
 
 def received_odometry(data):
     """
