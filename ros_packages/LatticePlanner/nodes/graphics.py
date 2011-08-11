@@ -221,7 +221,8 @@ def draw_segment(state,action):
         draw_turn_Right(x,y,theta,v,direction,util.ROBOT_RADIUS_4*math.pi/2,util.ROBOT_RADIUS_4)        
             
     elif action == "SR_f_2":
-        (x_temp,y_temp,theta_temp,v_temp) = draw_go_Straight(x,y,theta,v,direction,13.369)x        draw_turn_Right(x_temp,y_temp,theta_temp,v_temp,direction,(63.4/360.0)*2*math.pi*util.ROBOT_RADIUS_5,util.ROBOT_RADIUS_5)      
+        (x_temp,y_temp,theta_temp,v_temp) = draw_go_Straight(x,y,theta,v,direction,13.369)
+        draw_turn_Right(x_temp,y_temp,theta_temp,v_temp,direction,(63.4/360.0)*2*math.pi*util.ROBOT_RADIUS_5,util.ROBOT_RADIUS_5)      
 
     elif action == "SL_f_2":
         (x_temp,y_temp,theta_temp,v_temp) = draw_go_Straight(x,y,theta,v,direction,13.369)
