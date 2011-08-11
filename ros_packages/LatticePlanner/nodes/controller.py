@@ -9,7 +9,7 @@ import rospy
 import LatticePlannersim
 import math
 from std_msgs.msg import String
-from bb_msgs.msg import Pose,DriveCmd
+from bb_msgs.msg import Pose,DriveCmd,Path
 
 path = None
 newPath = False
@@ -39,7 +39,7 @@ def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
         """
         Search only from the currentindex.
         """
-        d = util.distance_Euclidean(point[0],point[1],x,y)
+        d = util.distance_Euclidean(point.x,point.y,x,y)
         if(d < d_min):
             d_min = d
             index_min = index
@@ -65,7 +65,7 @@ def controller_PD():
 
     # PID stuff
     # -- tuning parameters
-    steering_P = 0.0
+    steering_P = 1.0
     steering_D = 0.0
     
     # -- state parameters
@@ -88,7 +88,7 @@ def controller_PD():
                 targetindex_inPath = currentindex_inPath + int(targetlookahead/5.0) # points are at a separation of 5 cm
 
                 # P - Proportional term
-                error = Ballbot_TH - path[targetindex_inPath][2]
+                error = Ballbot_TH - path[targetindex_inPath].theta
                 Pterm = steering_P * error
                 
                 # D - Differential term
@@ -97,6 +97,10 @@ def controller_PD():
 
                 # set output
                 Ballbot_steering = Pterm - Dterm
+                if(Ballbot_steering > math.radians(30)):
+                    Ballbot_steering = math.radians(30)
+                elif(Ballbot_steering < -math.radians(30)):
+                    Ballbot_steering = -math.radians(30)
                 pub.publish(Ballbot_speed,Ballbot_steering)
 
         # goal reached!
@@ -109,14 +113,13 @@ def controller_PD():
 
 def newPath_arrived(data):
     """
-    A new path has been computed. Feed it into newPath and signal the controller by setting newPath = True
+    A new path has been computed. Feed it into path and set newPath to true
     """
-    global newPath
-    if(data.data == "ValidPath"):
-        newPath = True
-        path = LatticePlannersim.path
+    global path,newPath
+    path = data.poses
+    newPath = True
 
-def update_Pose(data):
+def received_odometry(data):
     """
     Update pose of the car
     """
@@ -127,8 +130,8 @@ def update_Pose(data):
 
 def listener():
     rospy.init_node('Controller',anonymous = True)
-    rospy.Subscriber('ValidPath', String, newPath_arrived)    
-    rospy.Subscriber('Odometry', Pose, update_Pose)
+    rospy.Subscriber('path', Path, newPath_arrived)    
+    rospy.Subscriber('odometry', Pose, received_odometry)
     controller_PD() 
     rospy.spin()
     

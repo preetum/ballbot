@@ -5,8 +5,8 @@ Contains functions to implement A* search, LPA* search
 """
 import math
 import heapq
-import graphics 
 import controlset
+import graphics
 
 startNode = None # startNode
 goalNode = None  # goalNode
@@ -692,7 +692,7 @@ def ComputeShortestPath():
     while ((U[0][0],U[0][1]) < CalcKey(goalNode)) or (goalNode.get_rhs() != goalNode.get_g()):            
         (Nodekey1,Nodekey2,Node) = heapq.heappop(U)       
         (x,y,theta,v) = Node.get_stateparams()
-        graphics.draw_point(x,y,theta,'blue')
+        #graphics.draw_point(x,y,theta,'blue')
         count_expandednodes += 1
         #print Node.get_stateparams(),"key",CalcKey(Node)
         #print "Nodekey",(Nodekey1,Nodekey2),"goalKey",CalcKey(goalNode),"goalrhs",goalNode.get_rhs(),"goalg",goalNode.get_g()
@@ -860,8 +860,8 @@ def MTAdaptiveAstarsearch(start,goal):
             parent = node.getParent()
             print parent.get_stateparams(),node.getAction(),node.get_stateparams()
             path.append((parent,node.getAction()))
-            graphics.draw_segment(parent,node.getAction())        
-            graphics.canvas.update_idletasks()            
+            #graphics.draw_segment(parent,node.getAction())        
+            #graphics.canvas.update_idletasks()            
             node = parent         
         print "path of length",len(path)
         path.reverse()
