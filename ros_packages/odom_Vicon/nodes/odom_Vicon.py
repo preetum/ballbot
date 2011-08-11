@@ -11,7 +11,7 @@ from std_msgs.msg import String
 from vicon_mocap.msg import Markers
 from vicon_mocap.msg import Marker
 
-pub = rospy.Publisher('Pose', Pose )
+pub = rospy.Publisher('odometry', Pose )
 def callback(data):
     """
     receives an array of markers and publishes pose of the rear axle's center
@@ -44,7 +44,7 @@ def callback(data):
     x_car += 1000.0
     y_car += 1000.0
     pub.publish(x_car/100.0,y_car/100.0,theta_car)  
-    print (x_car/100.0,y_car/100.0,theta_car)    
+    #print (x_car/100.0,y_car/100.0,theta_car)    
 
 def listener():    
     rospy.init_node('Vicon_pose')        

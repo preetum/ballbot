@@ -6,7 +6,6 @@ Contains functions to implement A* search, LPA* search
 import math
 import heapq
 import controlset
-import graphics
 
 startNode = None # startNode
 goalNode = None  # goalNode

@@ -3,7 +3,6 @@ import math
 import util
 import time
 import controlset
-from Tkinter import *
 
 import roslib; roslib.load_manifest('LatticePlanner')
 import rospy
