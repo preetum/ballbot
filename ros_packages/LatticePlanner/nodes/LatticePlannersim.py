@@ -16,9 +16,9 @@ plan = [] # stores the computed plan, as [(node1,action1),(node2,action2)....]
 path = [] # stores the computed path, as a sequence of (x,y,theta) values
 
 pub_path = rospy.Publisher('path',Path)
-Ballbot_x = 350.0
-Ballbot_y = 350.0
-Ballbot_theta = math.pi/2
+Ballbot_x = 0
+Ballbot_y = 0
+Ballbot_theta = 0
 
 def received_odometry(data):
     global Ballbot_x,Ballbot_y,Ballbot_theta

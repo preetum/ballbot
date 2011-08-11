@@ -39,7 +39,11 @@ def callback(data):
     x_car = xmid - 29.21*y21*length13/(y31*x21 - y21*x31)
     y_car = ymid - 29.21*x21*length13/(x31*y21 - x21*y31)
     theta_car = math.atan2(y1-y3,x1-x3)%(2*math.pi)
-    pub.publish(x_car/100.0,y_car/100.0,theta_car)        
+
+    # transform such that center of vicon system is at (10.0,10.0)
+    x_car += 1000.0
+    y_car += 1000.0
+    pub.publish(x_car/100.0,y_car/100.0,theta_car)  
     print (x_car/100.0,y_car/100.0,theta_car)    
 
 def listener():    
