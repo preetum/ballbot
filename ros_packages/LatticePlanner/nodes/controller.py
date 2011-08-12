@@ -84,7 +84,7 @@ def controller_PD():
                 currentindex_inPath = 0
                 targetindex_inPath = 0
                 theta_old = Ballbot_TH
-                break
+                continue
             else:                                    
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
                 targetindex_inPath = min(len(path),currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
@@ -119,6 +119,8 @@ def newPath_arrived(data):
     path = data.poses
     newPath = True
     print "newpathseen! length",len(path)
+    print "Hit any key to begin driving"
+    raw_input()
 
 def received_odometry(data):
     """

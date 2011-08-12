@@ -62,8 +62,8 @@ def received_odometry(data):
         graphics.canvas.delete(Ballbot_Tkobjects[1])
     """
     redraw car at new position
-    """
-    Ballbot_Tkobjects = graphics.draw_car(data.x*100.0,data.y*100.0,data.theta)
+    """            
+    Ballbot_Tkobjects = graphics.draw_car(data.x*100.0 + 17.41*math.cos(data.theta) ,data.y*100.0+ 17.41*math.sin(data.theta),data.theta)
 
 def received_path(data):
     """

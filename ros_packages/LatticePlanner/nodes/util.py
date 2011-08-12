@@ -933,6 +933,7 @@ def points_turnLeft(x,y,theta,v,direction,distance,radius):
         points.append((x2/100.0,y2/100.0,theta2))
         d+=5
     (x_temp,y_temp,theta_temp,v_temp) = turn_Left((x,y,theta,v),direction,distance,radius)
+    
     points.append((x_temp/100.0,y_temp/100.0,theta_temp))
     return points
 
@@ -963,20 +964,14 @@ def plan_to_path(plan):
     for (Node,action) in plan:
         (x,y,theta,v) = Node.get_stateparams()
 
-        # plan uses center of car, so transform such that path has points to be traversed by rear axle center,
-        # which is 17.41 cm away from the center
-
-        x = x - 17.41*math.cos(theta)
-        y = y - 17.41*math.sin(theta)
-
         if action in ("B","L_b","R_b","B_diag","B1_26.6","B1_63.4"):
             direction = "b"
         else:
             direction = "f"
     
-        if action in ("R_f","R_b"): # turning right
-            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)
-            
+        if action in ("R_f","R_b"): # turning right            
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)        
+
         elif action in ("L_f","L_b"): # turning left
             path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)
     
@@ -1018,10 +1013,10 @@ def plan_to_path(plan):
             (x_temp,y_temp,theta_temp) = path[-1]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957)        
                 
-        elif action == "LS_f_short":
+        elif action == "LS_f_short":            
             path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3)
             (x_temp,y_temp,theta_temp) = path[-1]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957)
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957)            
 
         elif action == "sidestep_R_f":
             path = path + points_turnRight(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)

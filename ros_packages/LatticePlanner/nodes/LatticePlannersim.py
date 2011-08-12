@@ -27,7 +27,7 @@ def received_odometry(data):
 
 def startPlanner(data):
     global startNode,goalNode,plan,path
-
+    
     (x1,y1,th1,v) = util.point_to_lattice(Ballbot_x,Ballbot_y,Ballbot_theta,util.ROBOT_SPEED_MAX)    
  
     v2 = util.ROBOT_SPEED_MAX
@@ -56,19 +56,17 @@ def startPlanner(data):
         print "running MT-AdaptiveA*"
         MTAdaptiveAstarsearch(startNode,goalNode)
         
-    print "Hit enter to drive along path"
-    raw_input()    
+    path = []
     path.append((x1/100.0,y1/100.0,th1))
-    path = path + util.plan_to_path(plan)
-    print path
-    print "Hit enter to continue"
-    raw_input()    
+    path = path + util.plan_to_path(plan)        
 
     path_to_send = Path()    
     for point in path:
         pose = Pose()
-        pose.x = point[0]
-        pose.y = point[1]
+        # plan uses center of car, so transform such that path has points to be traversed by rear axle center,
+        # which is 17.41 cm away from the center        
+        pose.x = point[0] - 17.41*math.cos(point[2])/100.0
+        pose.y = point[1] - 17.41*math.sin(point[2])/100.0
         pose.theta = point[2]
         path_to_send.poses.append(pose)
 
@@ -77,6 +75,7 @@ def startPlanner(data):
 
 def Astarsearch(startNode,goalNode):
     global plan
+    plan = []
     (x1,y1,th1,v1) = startNode.get_stateparams()
     time_exec = time.time()
     goalNode = util.Astarsearch(startNode,goalNode)    
