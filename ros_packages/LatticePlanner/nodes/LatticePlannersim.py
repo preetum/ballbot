@@ -2,42 +2,36 @@
 import math
 import util
 import time
-import graphics
 import controlset
-from Tkinter import *
 
 import roslib; roslib.load_manifest('LatticePlanner')
 import rospy
 from std_msgs.msg import String
+from bb_msgs.msg import Pose,Path
 
 startNode = None
 goalNode = None
 plan = [] # stores the computed plan, as [(node1,action1),(node2,action2)....]
 path = [] # stores the computed path, as a sequence of (x,y,theta) values
-pub = rospy.Publisher('ValidPath',String)
 
-def startPlanner(x1,y1,th1,d_goal,th_goal):
-    """
-    Start A* search to connect start to goal :)
-    """
-    """
-    Draw court
-    """
+pub_path = rospy.Publisher('path',Path)
+Ballbot_x = 0
+Ballbot_y = 0
+Ballbot_theta = 0
+
+def received_odometry(data):
+    global Ballbot_x,Ballbot_y,Ballbot_theta
+    Ballbot_x = data.x*100.0
+    Ballbot_y = data.y*100.0
+    Ballbot_theta = data.theta
+
+def startPlanner(data):
     global startNode,goalNode,plan,path
-    graphics.canvas.delete(ALL)
-    util.costmap.draw_costmap()
-    graphics.draw_court()    
-    th1 = math.radians(th1)
-
-    (x1,y1,th1,v) = util.point_to_lattice(x1,y1,th1,util.ROBOT_SPEED_MAX)
     
-    th_goal = th1 - math.radians(th_goal)     # angle to goal in global coord
-                                              # = angle of car in global coord - angle to goal from car (which is in [-90deg,90deg]
-    x2 = x1 + d_goal*math.cos(th_goal)
-    y2 = y1 + d_goal*math.sin(th_goal)
-    th2 = th1                                   # doesn't matter for goal test
+    (x1,y1,th1,v) = util.point_to_lattice(Ballbot_x,Ballbot_y,Ballbot_theta,util.ROBOT_SPEED_MAX)    
+ 
     v2 = util.ROBOT_SPEED_MAX
-    (x2,y2,th2,v2) = util.point_to_lattice(x2,y2,th2,util.ROBOT_SPEED_MAX)
+    (x2,y2,th2,v2) = util.point_to_lattice(data.x,data.y,data.theta,util.ROBOT_SPEED_MAX)
     
     if(x1 < 0) or (x1 > util.COURT_WIDTH) or (y1 < 0) or (y1 > util.COURT_LENGTH):
         print "Invalid start!"
@@ -53,11 +47,6 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
     (x1,y1,th1,v1) = startNode.get_stateparams()
     (x2,y2,th2,v2) = goalNode.get_stateparams()
 
-    #return
-    graphics.draw_point_directed(x1,y1,th1,'red')
-    graphics.draw_point(x2,y2,th2,'red')
-    graphics.canvas.update_idletasks()
-
     if (util.SEARCHALGORITHM == "A*"):
         Astarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "LPA*"):
@@ -67,16 +56,26 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
         print "running MT-AdaptiveA*"
         MTAdaptiveAstarsearch(startNode,goalNode)
         
-    print "Hit enter to drive along path"
-    raw_input()    
-    path.append(startNode.get_stateparams()[0:3])
-    path = path + util.plan_to_path(plan)
-    print path
-    raw_input()
-    pub.publish(String("ValidPath"))
+    path = []
+    path.append((x1/100.0,y1/100.0,th1))
+    path = path + util.plan_to_path(plan)        
+
+    path_to_send = Path()    
+    for point in path:
+        pose = Pose()
+        # plan uses center of car, so transform such that path has points to be traversed by rear axle center,
+        # which is 17.41 cm away from the center        
+        pose.x = point[0] - 17.41*math.cos(point[2])/100.0
+        pose.y = point[1] - 17.41*math.sin(point[2])/100.0
+        pose.theta = point[2]
+        path_to_send.poses.append(pose)
+
+    pub_path.publish(path_to_send)
+    print "path published"
 
 def Astarsearch(startNode,goalNode):
     global plan
+    plan = []
     (x1,y1,th1,v1) = startNode.get_stateparams()
     time_exec = time.time()
     goalNode = util.Astarsearch(startNode,goalNode)    
@@ -87,56 +86,25 @@ def Astarsearch(startNode,goalNode):
             parent = node.getParent()
             #print parent.get_stateparams(),node.getAction(),node.get_stateparams()
             #print node.getAction(),util.controlset.len_action(node.getAction())
-            plan.append((parent,node.getAction()))
-            graphics.draw_segment(parent,node.getAction())        
+            plan.append((parent,node.getAction()))                   
             node = parent  
         print ""            
         plan.reverse()
-        (x2,y2,th2,v2) = goalNode.get_stateparams()        
-        graphics.draw_point_directed(x1,y1,th1,'red')
-        graphics.draw_point_directed(x2,y2,th2,'red')
-    #simulator.init_simulator(startNode,path)
+        (x2,y2,th2,v2) = goalNode.get_stateparams()                        
     else:
         print "No path to goal!"
 
 def LPAstarsearch(startNode,goalNode):
-    global plan
-    util.LPAstarsearch(startNode,goalNode)
-
-    graphics.canvas.delete(ALL)
-    util.costmap.draw_costmap()
-    graphics.draw_court()
+    global plan   
 
     # draw plan        
     for (node,action) in util.plan_LPAstar:
-        graphics.draw_segment(node,action)
-
-    (start_x,start_y,start_th,start_v) = startNode.get_stateparams()
-    (goal_x,goal_y,goal_th,goal_v) = goalNode.get_stateparams()
-    graphics.draw_point_directed(start_x,start_y,start_th,'red')
-    graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')
+        graphics.draw_segment(node,action)   
 
 def MTAdaptiveAstarsearch(startNode,goalNode):
-    global plan
-    (start_x,start_y,start_th,start_v) = startNode.get_stateparams()
-    (goal_x,goal_y,goal_th,goal_v) = goalNode.get_stateparams()
-    graphics.draw_point_directed(start_x,start_y,start_th,'red')
-    graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')
+    global plan    
     plan = util.MTAdaptiveAstarsearch(startNode,goalNode)    
-    for segment in plan:
-        (node,action) = segment
-        util.agentNode = node
-        (car_x,car_y,car_th,car_v) = util.agentNode.get_stateparams()
-        print "drew car"
-        car_drawing = graphics.draw_car(car_x,car_y,car_th)
-        graphics.canvas.update_idletasks()
-        time.sleep(0.5)
-        graphics.canvas.delete(car_drawing[0])
-        graphics.canvas.delete(car_drawing[1])
-    
-    graphics.draw_point_directed(start_x,start_y,start_th,'red')
-    graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')
-    
+        
 
 def obstacle_added(event):        
     util.costmap.new_obstacle(event)
@@ -154,64 +122,18 @@ def obstacle_added(event):
         graphics.draw_point_directed(start_x,start_y,start_th,'red')
         graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')
 
-def main():
-    util.controlset = controlset.ControlSet()
-    util.costmap = util.CostMap()
-    root = graphics.root
-    root.title("Lattice Planner")
-    root.configure(background = 'grey')
-    graphics.canvas.pack()
 
-    # x initial
-    entryLabel_x1 = Label(root)
-    entryLabel_x1["text"] = "init: X"
-    entryLabel_x1.pack(side = LEFT)
-    entryWidget_x1 = Entry(root)
-    entryWidget_x1["width"] = 5
-    entryWidget_x1.pack(side = LEFT)
+def init_planner():
+    rospy.init_node('LatticePlanner', anonymous=True)
+    rospy.Subscriber("goal", Pose, startPlanner)
+    rospy.Subscriber("odometry",Pose,received_odometry)
+    rospy.spin()
 
-    # y initial
-    entryLabel_y1 = Label(root)
-    entryLabel_y1["text"] = "Y"
-    entryLabel_y1.pack(side = LEFT)
-    entryWidget_y1 = Entry(root)
-    entryWidget_y1["width"] = 5
-    entryWidget_y1.pack(side = LEFT)
 
-    # theta initial
-    entryLabel_th1 = Label(root)
-    entryLabel_th1["text"] = "TH"
-    entryLabel_th1.pack(side = LEFT)
-    entryWidget_th1 = Entry(root)
-    entryWidget_th1["width"] = 5
-    entryWidget_th1.pack(side = LEFT)
+if __name__ == '__main__':
+    try:
+        util.controlset = controlset.ControlSet()
+        util.costmap = util.CostMap()
+        init_planner()
+    except rospy.ROSInterruptException: pass
 
-    # d goal (cm)
-    entryLabel_d = Label(root)
-    entryLabel_d["text"] = "    goal: d"
-    entryLabel_d.pack(side = LEFT)
-    entryWidget_d = Entry(root)
-    entryWidget_d["width"] = 5
-    entryWidget_d.pack(side = LEFT)
-
-    # theta goal
-    entryLabel_th = Label(root)
-    entryLabel_th["text"] = "TH"
-    entryLabel_th.pack(side = LEFT)
-    entryWidget_th = Entry(root)
-    entryWidget_th["width"] = 5
-    entryWidget_th.pack(side = LEFT)
-    
-    b = Button(root,text = "Go",command = lambda: startPlanner(float(entryWidget_x1.get()),float(entryWidget_y1.get()),float(entryWidget_th1.get()),float(entryWidget_d.get()),float(entryWidget_th.get())))
-    g = Button(root,text = "Show lattice",command = lambda:graphics.draw_lattice())
-    g.pack(side = RIGHT)
-    b.pack(side = RIGHT)
-    util.costmap.draw_costmap()
-    graphics.draw_court()
-
-    graphics.canvas.configure(cursor = "crosshair")
-    graphics.canvas.bind("<Button-1>",obstacle_added)
-   
-    root.mainloop()
-
-main()

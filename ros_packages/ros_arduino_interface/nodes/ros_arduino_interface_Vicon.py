@@ -41,11 +41,11 @@ def odometry_broadcast(ballBot, odometryPublisher, imu_angular_velocity):
 def initializer():
     ballBot = robot.BaseController()
     rospy.init_node('ros_arduino_interface', anonymous=True)
-    odometryPublisher = rospy.Publisher('odometry', Odometry)
+    #odometryPublisher = rospy.Publisher('odometry', Odometry)
     rospy.Subscriber("vel_cmd", DriveCmd,
                      lambda pkt: recieved_drive_packet(ballBot, pkt))
-    imu = imu_communicator.IMU() # Initialize IMU
-    send_heading_to_arduino(ballBot, imu, odometryPublisher)
-    		
+    #imu = imu_communicator.IMU() # Initialize IMU
+    #send_heading_to_arduino(ballBot, imu, odometryPublisher)
+    rospy.spin()		
 if __name__ == '__main__':
     initializer()

@@ -1,0 +1,16 @@
+<package>
+  <description brief="odometry_position_plotter">
+
+     odometry_position_plotter
+
+  </description>
+  <author>Ankush Gupta</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/odometry_position_plotter</url>
+  <depend package="rospy"/>
+  <depend package="bb_msgs"/>
+
+</package>
+
+
