@@ -57,12 +57,13 @@ def received_odometry(data):
     """
     delete old car
     """
-    graphics.canvas.delete(Ballbot_Tkobjects[0])
-    graphics.canvas.delete(Ballbot_Tkobkjects[1])
+    if(Ballbot_Tkobjects!=None):
+        graphics.canvas.delete(Ballbot_Tkobjects[0])
+        graphics.canvas.delete(Ballbot_Tkobjects[1])
     """
     redraw car at new position
-    """
-    Ballbot_Tkobjects = graphics.draw_car(data.x/100.0,data.y/100.0,data.theta)
+    """            
+    Ballbot_Tkobjects = graphics.draw_car(data.x*100.0 + 17.41*math.cos(data.theta) ,data.y*100.0+ 17.41*math.sin(data.theta),data.theta)
 
 def received_path(data):
     """
@@ -82,8 +83,7 @@ def received_path(data):
     graphics.canvas.update_idletasks()
     print "drew path"
 
-def initialize_gui():
-    pub = rospy.Publisher('chatter', String)
+def initialize_gui():    
     rospy.init_node('GUI')
     while not rospy.is_shutdown():
         root = graphics.root
