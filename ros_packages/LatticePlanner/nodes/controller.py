@@ -72,7 +72,7 @@ def controller_PD():
     # -- state parameters
     error = 0.0
     theta_old = 0.0 # stores previous theta value for D-term
-
+    r = rospy.Rate(10)
     while not rospy.is_shutdown():
         if newPath == False:
             continue
@@ -91,6 +91,7 @@ def controller_PD():
 
                 # P - Proportional term
                 error = Ballbot_TH - path[targetindex_inPath].theta
+	        print "error",error
                 Pterm = steering_P * error
                 
                 # D - Differential term
@@ -104,13 +105,13 @@ def controller_PD():
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
-
+	     r.sleep()	
         # goal reached!
         print "goalreached"
         Ballbot_speed = 0
         Ballbot_steering = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering)                    
-
+	
 def newPath_arrived(data):
     """
     A new path has been computed. Feed it into path and set newPath to true
@@ -130,6 +131,7 @@ def received_odometry(data):
     Ballbot_X  = data.x
     Ballbot_Y  = data.y
     Ballbot_TH = data.th
+
 
 def listener():
     rospy.init_node('Controller',anonymous = True)
