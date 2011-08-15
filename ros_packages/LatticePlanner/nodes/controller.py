@@ -45,7 +45,7 @@ def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
         if(d < d_min):
             d_min = d
             index_min = index
-        elif(d < 5): # if error is less than 5 cm, take this as the nearest point
+        elif(d < 0.05): # if error is less than 5 cm, take this as the nearest point
             d_min = d
             index_min = index
             break
@@ -58,7 +58,7 @@ def controller_PD():
     Implements controller
     """    
     global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
-    Ballbot_speed = 0.0
+    Ballbot_speed = 1.0
     Ballbot_steering = 0
   
     currentindex_inPath = 0 # path index that the car is closest to
@@ -76,7 +76,7 @@ def controller_PD():
     while not rospy.is_shutdown():
         if newPath == False:
             continue
-        while(currentindex_inPath != len(path)):
+        while(currentindex_inPath < len(path)-1) and not (rospy.is_shutdown()):
             Ballbot_speed = 0.0 # set speed                   
             if(newPath == True):
                 # if there is a new path, restart driving along this path
@@ -87,11 +87,19 @@ def controller_PD():
                 continue
             else:                                    
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
-                targetindex_inPath = min(len(path),currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
-
+                targetindex_inPath = min(len(path)-1,currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
+                #print "currentindex",currentindex_inPath,"targetindex",targetindex_inPath,"length",len(path)
                 # P - Proportional term
+
                 error = Ballbot_TH - path[targetindex_inPath].theta
 	        print "error",error
+
+                heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
+                error = Ballbot_TH - heading
+                #print "Ballbot",(Ballbot_X,Ballbot_Y,Ballbot_TH),"targetpoint",(path[targetindex_inPath].x,path[targetindex_inPath].y)
+                #print "heading",heading,"error",error
+                #raw_input()
+
                 Pterm = steering_P * error
                 
                 # D - Differential term
@@ -105,7 +113,9 @@ def controller_PD():
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
+
 	     r.sleep()	
+        
         # goal reached!
         print "goalreached"
         Ballbot_speed = 0
@@ -130,13 +140,13 @@ def received_odometry(data):
     global Ballbot_X,Ballbot_Y,Ballbot_TH
     Ballbot_X  = data.x
     Ballbot_Y  = data.y
-    Ballbot_TH = data.th
+    Ballbot_TH = data.theta
 
 
 def listener():
     rospy.init_node('Controller',anonymous = True)
     rospy.Subscriber('path', Path, newPath_arrived)    
-    #rospy.Subscriber('odometry_vicon', Pose, received_odometry)
+    rospy.Subscriber('odometry', Pose, received_odometry)
     controller_PD() 
     rospy.spin()
     
