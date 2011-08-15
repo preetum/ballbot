@@ -7,7 +7,7 @@ import controlset
 import roslib; roslib.load_manifest('LatticePlanner')
 import rospy
 from std_msgs.msg import String
-from bb_msgs.msg import Pose,Path
+from bb_msgs.msg import Pose,Path,Goal
 
 startNode = None
 goalNode = None
@@ -31,7 +31,7 @@ def startPlanner(data):
     (x1,y1,th1,v) = util.point_to_lattice(Ballbot_x,Ballbot_y,Ballbot_theta,util.ROBOT_SPEED_MAX)    
  
     v2 = util.ROBOT_SPEED_MAX
-    (x2,y2,th2,v2) = util.point_to_lattice(data.x,data.y,data.theta,util.ROBOT_SPEED_MAX)
+    (x2,y2,th2,v2) = util.point_to_lattice(data.pose.x,data.pose.y,data.pose.theta,util.ROBOT_SPEED_MAX)
     
     if(x1 < 0) or (x1 > util.COURT_WIDTH) or (y1 < 0) or (y1 > util.COURT_LENGTH):
         print "Invalid start!"
@@ -43,7 +43,7 @@ def startPlanner(data):
     startNode = util.LatticeNode(stateparams = (x1,y1,th1,v))
     goalNode  = util.LatticeNode(stateparams = (x2,y2,th2,v2))    
     
-    print "start ",startNode.get_stateparams()," goal ",goalNode.get_stateparams()
+    print " start ",startNode.get_stateparams()," goal ",goalNode.get_stateparams()
     (x1,y1,th1,v1) = startNode.get_stateparams()
     (x2,y2,th2,v2) = goalNode.get_stateparams()
 
@@ -54,11 +54,15 @@ def startPlanner(data):
         LPAstarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "MT-AdaptiveA*"):
         print "running MT-AdaptiveA*"
-        MTAdaptiveAstarsearch(startNode,goalNode)
+        MTAdaptiveAstarsearch(startNode,goalNode,data.goaltype.data)
         
     path = []
     path.append((x1/100.0,y1/100.0,th1))
     path = path + util.plan_to_path(plan)        
+
+    print "plan of length",len(plan)
+    for (Node,action) in plan:
+        print Node.get_stateparams(),action
 
     path_to_send = Path()    
     for point in path:
@@ -101,10 +105,15 @@ def LPAstarsearch(startNode,goalNode):
     for (node,action) in util.plan_LPAstar:
         graphics.draw_segment(node,action)   
 
-def MTAdaptiveAstarsearch(startNode,goalNode):
+def MTAdaptiveAstarsearch(startNode,goalNode,goaltype):
     global plan    
-    plan = util.MTAdaptiveAstarsearch(startNode,goalNode)    
-        
+    if(goaltype == "newball"):
+        plan = util.MTAdaptiveAstarsearch_start(startNode,goalNode)    
+    elif(goaltype == "updategoal"):
+        plan = util.MTAdaptiveAstarsearch_update(startNode,goalNode)
+    else:
+        print "unknown goal type",goaltype
+    
 
 def obstacle_added(event):        
     util.costmap.new_obstacle(event)
@@ -125,7 +134,7 @@ def obstacle_added(event):
 
 def init_planner():
     rospy.init_node('LatticePlanner', anonymous=True)
-    rospy.Subscriber("goal", Pose, startPlanner)
+    rospy.Subscriber("goal", Goal, startPlanner)
     rospy.Subscriber("odometry",Pose,received_odometry)
     rospy.spin()
 
