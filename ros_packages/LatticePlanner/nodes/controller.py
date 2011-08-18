@@ -89,9 +89,7 @@ def controller_PD():
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
                 targetindex_inPath = min(len(path)-1,currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
                 #print "currentindex",currentindex_inPath,"targetindex",targetindex_inPath,"length",len(path)
-                # P - Proportional term
-
-                error = Ballbot_TH - path[targetindex_inPath].theta
+                # P - Proportional term               
 	        #print "error",error
 
                 # P - Proportional term                
