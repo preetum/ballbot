@@ -84,7 +84,7 @@ def received_odometry(data):
     """
     if(Ballbot_Tkobjects!=None):
         graphics.canvas.delete(Ballbot_Tkobjects[0])
-        graphics.canvas.delete(Ballbot_Tkobjects[1])
+        #graphics.canvas.delete(Ballbot_Tkobjects[1])
     """
     redraw car at new position
     """            

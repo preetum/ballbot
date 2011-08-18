@@ -66,8 +66,8 @@ def controller_PD():
 
     # PID stuff
     # -- tuning parameters
-    steering_P = 0.7
-    steering_D = 0.2
+    steering_P = 1.0
+    steering_D = 0.0
     
     # -- state parameters
     error = 0.0
@@ -93,6 +93,8 @@ def controller_PD():
 
                 error = Ballbot_TH - path[targetindex_inPath].theta
 	        #print "error",error
+
+                # P - Proportional term                
 
                 heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading
