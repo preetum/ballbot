@@ -58,16 +58,16 @@ def controller_PD():
     Implements controller
     """    
     global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
-    Ballbot_speed = 1.0
-    Ballbot_steering = 0
+    Ballbot_speed = 0.0
+    Ballbot_steering = 0.0
   
     currentindex_inPath = 0 # path index that the car is closest to
     targetindex_inPath = 0  # path index that is 50 cm ahead of the car
 
     # PID stuff
     # -- tuning parameters
-    steering_P = 1.0
-    steering_D = 0.0
+    steering_P = 0.7
+    steering_D = 0.2
     
     # -- state parameters
     error = 0.0
@@ -77,7 +77,7 @@ def controller_PD():
         if newPath == False:
             continue
         while(currentindex_inPath < len(path)-1) and not (rospy.is_shutdown()):
-            Ballbot_speed = 0.0 # set speed                   
+            Ballbot_speed = 1.0 # set speed                   
             if(newPath == True):
                 # if there is a new path, restart driving along this path
                 newPath = False
@@ -92,7 +92,7 @@ def controller_PD():
                 # P - Proportional term
 
                 error = Ballbot_TH - path[targetindex_inPath].theta
-	        print "error",error
+	        #print "error",error
 
                 heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading
@@ -114,7 +114,7 @@ def controller_PD():
                     Ballbot_steering = -math.radians(30)
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
-	     r.sleep()	
+            r.sleep()	
         
         # goal reached!
         print "goalreached"
