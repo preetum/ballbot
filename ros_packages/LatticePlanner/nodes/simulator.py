@@ -31,8 +31,10 @@ def simulator():
     pub_odom = rospy.Publisher('odometry',Pose)            
 
     # each point is about 5 cm apart, therefore sleep for (Ballbot_speed/20) seconds
-    r = rospy.Rate(20.0/Ballbot_speed)
+    #r = rospy.Rate(20.0/Ballbot_speed)
+    r = rospy.Rate(3.0) # for debugging
     while not rospy.is_shutdown():
+        currentindex_inPath = 0
         if newPath == False:
             # wait for first path to arrive
             pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
@@ -51,15 +53,17 @@ def simulator():
                 Ballbot_theta = path[currentindex_inPath].theta
                 pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
                 currentindex_inPath += 1                            
-            r.sleep()
+            r.sleep()        
+        pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
+        
 
 def newPath_arrived(data):
     """
     A new path has been computed. Feed it into path and set newPath to true
     """
     global path,newPath
-    path = data.poses
-    newPath = True
+    path = data.poses    
+    newPath = True # commented for debugging MTAstar
     print "newpathseen! length",len(path)
 
 def listener():
