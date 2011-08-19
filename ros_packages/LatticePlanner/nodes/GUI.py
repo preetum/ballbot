@@ -25,6 +25,8 @@ Ballbot_Tkobjects = None
 Goal_x = 0.0
 Goal_y = 0.0
 
+root = None
+
 def startPlanner(x1,y1,th1,d_goal,th_goal):
     """
     Send a goal message to topic 'goal'
@@ -108,10 +110,17 @@ def received_path(data):
     graphics.canvas.update_idletasks()
     print "drew path"
 
+def windowclosed():
+    rospy.signal_shutdown("Window closed by user!") 
+    root.quit()
+
 def initialize_gui():    
+    global root
+
     rospy.init_node('GUI')
     while not rospy.is_shutdown():
         root = graphics.root
+        root.protocol("WM_DELETE_WINDOW", windowclosed)
         root.title("Lattice Planner")
         root.configure(background = 'grey')
         graphics.canvas.pack()
