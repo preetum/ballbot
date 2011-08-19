@@ -1,11 +1,7 @@
-/*
- * structs.cpp
- *
- *  Created on: Aug 17, 2011
- *      Author: ankush
- */
+#ifndef _structs_h
+#define _structs_h
 
-using namespace cv;
+#include <cv.h>
 
 struct variances
 {
@@ -15,7 +11,7 @@ struct variances
 		x = 20*20; // pixels-squared
 		y = 20*20; // pixels-squared
 		len = 50*50; // pixels-squared
-		angle = ((pi*pi)/(7.0*7.0)); // radians-squared
+		angle = (pi/7.0*pi/7.0); // radians-squared
 	}
 };
 
@@ -39,7 +35,7 @@ struct camera
 	 *theta, pan, tilt are in radians
 	 */
 
-	Point3d position;
+	cv::Point3d position;
 	double  theta, pan, tilt;
 	camera_intrinsic_values intrinsics;
 
@@ -58,38 +54,47 @@ struct camera
 
 struct line_segment_3d
 {
-	Point3d pt1, pt2;
+	cv::Point3d pt1, pt2;
 
 	line_segment_3d()
 	{
 		pt1.x = 0; pt1.y = 0; pt1.z = 0;
 		pt2.x = 0; pt2.y = 0; pt2.z = 0;
 	}
+
+	bool operator==(const line_segment_3d &other)
+		{
+			return (other.pt1 == pt1 && other.pt2 == pt2);
+		}
+
+	void operator=(const line_segment_3d &other)
+		{
+			pt1 = other.pt1;
+			pt2 = other.pt2;
+		}
+
 };
 
 struct line_segment_2d
 {
-	Point2d pt1, pt2;
+	cv::Point2d pt1, pt2;
 
 	line_segment_2d()
 	{
 		pt1.x = 0;  pt1.y = 0;
 		pt2.x = 0;  pt2.y = 0;
 	}
-};
+	
+	bool operator==(const line_segment_2d &other)
+		{
+			return (other.pt1 == pt1 && other.pt2 == pt2);
+		}
 
-struct line_candidate
-{
-	Point2d center;
-	double length;
-	double angle;
-
-	line_candidate()
-	{
-		center.x = 0; center.y = 0;
-		length =0;
-		angle =0;
-	}
+	void operator=(const line_segment_2d &other)
+		{
+			pt1 = other.pt1;
+			pt2 = other.pt2;
+		}
 };
 
 struct line_segment_all_frames
@@ -106,3 +111,5 @@ struct line_segment_all_frames
 	line_segment_3d camWorld;
 	line_segment_3d realWorld;
 };
+
+#endif
