@@ -152,7 +152,15 @@ def listener():
     controller_PD() 
     rospy.spin()
     
+def shdn():
+    """
+    When controller is shut down, send steering = 0, drive = 0
+    """
+    pub_velcmd.publish(0.0,0.0)
+    
+
 if __name__ == '__main__':
     try:
+	rospy.on_shutdown(shdn)	
         listener()
     except rospy.ROSInterruptException: pass
