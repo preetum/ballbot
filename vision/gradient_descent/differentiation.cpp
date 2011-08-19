@@ -15,17 +15,17 @@ double differential(Point3f real_world_position, Point3f cam_position,
 	 * Returns the value of d(num)/d(denom)
 	 *
 	 * real_world_position : position of the point in real world frame
-	 * cam_position  	   : position of the camera in real world frame
-	 * sin_phi			   : sin(pan+heading)
-	 * sin_phi			   : cos(pan+heading)
+	 * cam_position        : position of the camera in real world frame
+	 * sin_phi	       : sin(pan+heading)
+	 * sin_phi	       : cos(pan+heading)
 	 * sin_theta           : sin(tilt)
-	 * cos_theta		   : cos(tilt)
-	 * num				   : Indicator for the numerator.
-	 * 						 Can take only 3 values {1,2,3} <==>
-	 * 						 {x_cam_world, y_cam_world, z_cam_world}
-	 * denom			   : Indicator for denominator
-	 * 						 Can take only 5 values {1,2,3,4,5} <==>
-	 * 						 {x_cam, y_cam, z_cam, phi, theta}
+	 * cos_theta	       : cos(tilt)
+	 * num		       : Indicator for the numerator.
+	 * 			 Can take only 3 values {1,2,3} <==>
+	 * 			 {x_cam_world, y_cam_world, z_cam_world}
+	 * denom	       : Indicator for denominator
+	 * 			 Can take only 5 values {1,2,3,4,5} <==>
+	 * 			 {x_cam, y_cam, z_cam, phi, theta}
 	 */
 
 	switch (num)

@@ -5,13 +5,6 @@
  *      Author: ankush
  */
 
-/*
- * backproject.cpp
- *
- *  Created on: Aug 11, 2011
- *      Author: ankush
- */
-
 #include "include.h"
 
 using namespace cv;
@@ -93,22 +86,25 @@ struct _court
 
 
 Point3d get_camera_world_coordinates(Point3d real_world_position,
-									 Point3d camera_position,
-									 double heading, double pan,
-									 double tilt)
+		                     Point3d camera_position,
+				     double heading, double pan,
+				     double tilt)
 {
-	/*Returns position of a point in the Camera's World Frame
+	/* Returns position of a point in the Camera's World Frame
+	 * -------------------------------------------------------
+	 * Arguments:
 	 *
-	 *Assuming:
-	 *
-	 * world_position  : is the 3D position of a point in world frame
-	 * camera_position : is the 3D positi6on of the camera in the world frame
+	 * real_world_position  : is the 3D position of a point in world frame
+	 * camera_position      : is the 3D positi6on of the camera in the world frame
+	 * heading 	        : the heading of the robot
+	 * pan			: pan angle of the camera 
+	 * tilt			: tilt angle of the camera
 	 *
 	 * linear units: Centimeters
 	 * angluar units: radians
 	 *
-	 * 	Assumes:
-	 * 		1. that roll angle = 0
+	 * Assumes:
+	 * 	1. that roll angle = 0
 	 */
 
 	Point3d cam_world_position;
@@ -134,10 +130,10 @@ Point3d get_camera_world_coordinates(Point3d real_world_position,
 }
 
 Point3d get_world_coordinates(Point3d cam_world_position,
-							  Point3d camera_position,
-							  double heading, double pan, double tilt)
+                 	      Point3d camera_position,
+			      double heading, double pan, double tilt)
 {
-	/* Returns position of a point in World Frame
+	/* Returns position of a point in Real World Frame
 	 *
 	 * cam_world_position: the position of a point in camera's frame
 	 * camera_position   : the position of the camera in the world frame
@@ -172,6 +168,10 @@ Point2d cam_world_position_to_imageXY(Point3d cam_world_position, camera &bb_cam
 	/*
 	 * Finds pixel(x,y) given the position of the point in camera's
 	 * world and the camera position
+	 *
+	 * Arguments:
+	 * cam_world_position: Position of the point in camera-world frame
+	 * bb_cam            : Camera you are looking the point from
 	 */
 
 	Point2d imageXY;
@@ -187,7 +187,7 @@ Point2d cam_world_position_to_imageXY(Point3d cam_world_position, camera &bb_cam
 }
 
 Point3d image_plane_to_camera_world_position(Point2f pixel_pos, double depth,
-											 camera cam)
+					     camera cam)
 {
 	/* Returns the camera world position (3D) of a point
 	 * whose projection in the image plane is known (pixel_pos) and
@@ -250,13 +250,22 @@ double find_depth(Point2d pt1, Point2d pt2, Point2d q, double z1, double z2)
 }
 
 vector <line_segment_all_frames> get_view_lines(camera particle_camera,
-												Size frame_size,
-												Mat &view_frame,
-												float near_dist = 0.2)
+	                                         Size frame_size,
+						 Mat &view_frame,
+						 float near_dist = 0.2)
 {
 	/* Retruns a vector of type line_segment_all_frames
-	 * which contains the line segments that are visible
+	 * which contains the line segments that are VISIBLE
 	 * with the given particle_camera pose
+	 * 
+	 * Arguments:
+	 * -------------------------------------------------------------
+	 * particle_camera : The camera in respect to which the view lines
+	 *                   are to be calculated
+	 * frame_size      : the size of the frame on which to project the lines
+	 * view_frame      : the frame on which the view lines are drawn
+	 * near_dist       : the closest distance out that the camera can see
+	 *
 	 */
 	vector <line_segment_all_frames> view_lines;
 
@@ -285,7 +294,7 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 	    // Find the points in the camera world coordinates which
 	    // are actually to be drawn
 		Point3d image_plane_point = find_intersection(cam_world_pt1,
-													 cam_world_pt2, near_dist);
+							      cam_world_pt2, near_dist);
 		Point3d draw_pt1, draw_pt2;
 
 		// Flags for indicating which point has been
@@ -340,7 +349,7 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 			}
 		else
 			continue; // skip the line if both the projection
-					  // points lie outside the frame
+			          // points lie outside the frame
 
 		if(!pt1_out && !image_pt1_out)
 		{
@@ -351,11 +360,11 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 		else if (pt1_out && !image_pt1_out)
 		{
 			Point3d realWorld_pt = get_world_coordinates(
-											image_plane_point,
-											particle_camera.position,
-											particle_camera.theta,
-											particle_camera.pan,
-											particle_camera.tilt);
+				                                     image_plane_point,
+								     particle_camera.position,
+								     particle_camera.theta,
+								     particle_camera.pan,
+								     particle_camera.tilt);
 
 			line_seg.realWorld.pt1 = realWorld_pt;
 			line_seg.camWorld.pt1 = image_plane_point;
@@ -370,11 +379,11 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 									  image_pt1_round, image_pt1_depth,
 									  particle_camera);
 			Point3d realWorld_pt = get_world_coordinates(
-											camWorld_pt,
-											particle_camera.position,
-											particle_camera.theta,
-											particle_camera.pan,
-											particle_camera.tilt);
+								     camWorld_pt,
+								     particle_camera.position,
+								     particle_camera.theta,
+								     particle_camera.pan,
+								     particle_camera.tilt);
 
 			line_seg.realWorld.pt1 = realWorld_pt;
 			line_seg.camWorld.pt1  = camWorld_pt;
@@ -390,11 +399,11 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 		else if(pt2_out && !image_pt2_out)
 		{
 			Point3d realWorld_pt = get_world_coordinates(
-											image_plane_point,
-											particle_camera.position,
-											particle_camera.theta,
-											particle_camera.pan,
-											particle_camera.tilt);
+								     image_plane_point,
+								     particle_camera.position,
+								     particle_camera.theta,
+								     particle_camera.pan,
+								     particle_camera.tilt);
 
 			line_seg.realWorld.pt2 = realWorld_pt;
 			line_seg.camWorld.pt2 = image_plane_point;
@@ -409,11 +418,11 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 									  image_pt2_round, image_pt2_depth,
 									  particle_camera);
 			Point3d realWorld_pt = get_world_coordinates(
-											camWorld_pt,
-											particle_camera.position,
-											particle_camera.theta,
-											particle_camera.pan,
-											particle_camera.tilt);
+								     camWorld_pt,
+								     particle_camera.position,
+								     particle_camera.theta,
+								     particle_camera.pan,
+								     particle_camera.tilt);
 			line_seg.realWorld.pt2 = realWorld_pt;
 			line_seg.camWorld.pt2  = camWorld_pt;
 			line_seg.imgPlane.pt2  = image_pt2_round;
@@ -431,11 +440,13 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 }
 
 void hill_climb(vector <line_segment_2d> actual_view,
-				camera particle_camera, Mat &particle_frame, Mat &actual_frame,
-				unsigned int iterations, double epsilon)
+		camera particle_camera, Mat &particle_frame, Mat &actual_frame,
+		unsigned int iterations, double epsilon)
 {
-	/*
+	/* Implements the gradient ascent algorithm
+	 * 
 	 * Arguments:
+	 * -------------------------------------------------------------------
 	 * actual_view      : vector of the 2D line segments in the actual view
 	 * particle_view    : vector of line-segments (in 3 frames) backprojected
 	 * 					  from the 3d model of the court, given the particle
@@ -502,8 +513,8 @@ void hill_climb(vector <line_segment_2d> actual_view,
 
 		}
 		else
-			cout<<"Mistmatch: Different number of lines in actual view"
-										   <<" and particle view"<<endl;
+		      cout<<"Mistmatch: Different number of lines in actual view"
+			  <<" and particle view"<<endl;
 	num_iters += 1;
 
 	}
@@ -568,6 +579,7 @@ void update_view_on_trackbar_change(int, void* )
 	bb_camera.tilt = ((double) tilt-180)*pi/180.0;
 	bb_camera.pan = ((double) pan)*pi/180.0;
 
+	// Create a fake particle camera
 	camera particle_cam;
 	particle_cam.position.x = bb_camera.position.x-10;
 	particle_cam.position.y = bb_camera.position.y-5;
@@ -588,10 +600,9 @@ void update_view_on_trackbar_change(int, void* )
 		actual_segments.push_back(actual_view[k].imgPlane);
 	}
 
-
 	hill_climb(actual_segments,
-			   particle_cam, particle_frame, frame,
-			   1000, 0.001);
+		   particle_cam, particle_frame, frame,
+		   1000, 0.001);
 
 	cout<<"--------------------------------"<<endl;
 	imshow("Particle", particle_frame);
@@ -600,7 +611,7 @@ void update_view_on_trackbar_change(int, void* )
 
 int main(int argc, char** argv)
 {
-	namedWindow("Court", CV_WINDOW_AUTOSIZE);
+    namedWindow("Court", CV_WINDOW_AUTOSIZE);
 
     createTrackbar("x", "Court", &x_pos, 2600, update_view_on_trackbar_change);
     createTrackbar("y", "Court", &y_pos, 1200, update_view_on_trackbar_change);
@@ -608,8 +619,8 @@ int main(int argc, char** argv)
     createTrackbar("pan", "Court", &pan, 360, update_view_on_trackbar_change);
     createTrackbar("tilt", "Court", &tilt, 360, update_view_on_trackbar_change);
 
-   	update_view_on_trackbar_change(0,0);
-   	waitKey(0);
+    update_view_on_trackbar_change(0,0);
+    waitKey(0);
 
-	return 0;
+    return 0;
 }

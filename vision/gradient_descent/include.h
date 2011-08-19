@@ -16,7 +16,6 @@ const double pi = 3.1415926535897;
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits>
-#include "structs.cpp"
-#include "differentiation.cpp"
+#include "structs.h"
+#include "differentiation.h"
 
-//double inf =  numeric_limits<double>::infinity();
