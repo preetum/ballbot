@@ -24,7 +24,7 @@ Ballbot_steering = 0 # radians
 Ballbot_speed = 0    # m/s
 
 # CONTROLLER PARAMETRS
-targetlookahead = 15.0 # PD steering control to reach a moving target 15 cm ahead of the car
+targetlookahead = 25.0 # PD steering control to reach a moving target 15 cm ahead of the car
 
 pub_velcmd = rospy.Publisher('vel_cmd', DriveCmd)
 
@@ -45,7 +45,7 @@ def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
         if(d < d_min):
             d_min = d
             index_min = index
-        elif(d < 5): # if error is less than 5 cm, take this as the nearest point
+        elif(d < 0.05): # if error is less than 5 cm, take this as the nearest point
             d_min = d
             index_min = index
             break
@@ -59,7 +59,7 @@ def controller_PD():
     """    
     global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
     Ballbot_speed = 0.0
-    Ballbot_steering = 0
+    Ballbot_steering = 0.0
   
     currentindex_inPath = 0 # path index that the car is closest to
     targetindex_inPath = 0  # path index that is 50 cm ahead of the car
@@ -67,17 +67,17 @@ def controller_PD():
     # PID stuff
     # -- tuning parameters
     steering_P = 1.0
-    steering_D = 0.0
+    steering_D = 0.1
     
     # -- state parameters
     error = 0.0
     theta_old = 0.0 # stores previous theta value for D-term
-
+    r = rospy.Rate(60)
     while not rospy.is_shutdown():
         if newPath == False:
             continue
-        while(currentindex_inPath != len(path)):
-            Ballbot_speed = 0.0 # set speed                   
+        while(currentindex_inPath < len(path)-1) and not (rospy.is_shutdown()):
+            Ballbot_speed = 1.0 # set speed                   
             if(newPath == True):
                 # if there is a new path, restart driving along this path
                 newPath = False
@@ -87,10 +87,19 @@ def controller_PD():
                 continue
             else:                                    
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
-                targetindex_inPath = min(len(path),currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
+                targetindex_inPath = min(len(path)-1,currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
+                #print "currentindex",currentindex_inPath,"targetindex",targetindex_inPath,"length",len(path)
+                # P - Proportional term               
+	        #print "error",error
 
-                # P - Proportional term
-                error = Ballbot_TH - path[targetindex_inPath].theta
+                # P - Proportional term                
+
+                heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
+                error = Ballbot_TH - heading
+                #print "Ballbot",(Ballbot_X,Ballbot_Y,Ballbot_TH),"targetpoint",(path[targetindex_inPath].x,path[targetindex_inPath].y)
+                #print "heading",heading,"error",error
+                #raw_input()
+
                 Pterm = steering_P * error
                 
                 # D - Differential term
@@ -105,22 +114,26 @@ def controller_PD():
                     Ballbot_steering = -math.radians(30)
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
+            r.sleep()	
+        
         # goal reached!
         print "goalreached"
         Ballbot_speed = 0
         Ballbot_steering = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering)                    
-
+	
 def newPath_arrived(data):
     """
     A new path has been computed. Feed it into path and set newPath to true
     """
     global path,newPath
     path = data.poses
-    newPath = True
+
     print "newpathseen! length",len(path)
     print "Hit any key to begin driving"
     raw_input()
+    
+    newPath = True
 
 def received_odometry(data):
     """
@@ -129,12 +142,13 @@ def received_odometry(data):
     global Ballbot_X,Ballbot_Y,Ballbot_TH
     Ballbot_X  = data.x
     Ballbot_Y  = data.y
-    Ballbot_TH = data.th
+    Ballbot_TH = data.theta
+
 
 def listener():
     rospy.init_node('Controller',anonymous = True)
     rospy.Subscriber('path', Path, newPath_arrived)    
-    #rospy.Subscriber('odometry_vicon', Pose, received_odometry)
+    rospy.Subscriber('odometry', Pose, received_odometry)
     controller_PD() 
     rospy.spin()
     

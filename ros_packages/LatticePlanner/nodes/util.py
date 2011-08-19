@@ -11,7 +11,7 @@ startNode = None # startNode
 goalNode = None  # goalNode
 agentNode = None # node occupied by agent
 
-SEARCHALGORITHM = "A*"
+SEARCHALGORITHM = "straightline"
 count_expandednodes = 0
 S = [] # list of all nodes seen so far by LPA* search, represents the graph S
 U = []
@@ -774,10 +774,10 @@ def InitializeState_MTAdaptiveAstar(node):
     node_search = node.get_search()
     node_h = node.get_h()
     if (node_search != counter) and (node_search != 0): # node has been generated during a previous search
-        if(node.get_g() + node_h() < pathcost[node_search]): # node has been expanded during the same search
+        if(node.get_g() + node.get_h() < pathcost[node_search]): # node has been expanded during the same search
             node_h = pathcost[node_search] - node.get_g()
-            node.set_h(node_h)
-
+            node.set_h(node_h)        
+        #print "counter",counter
         node_h = node_h - (deltah[counter] - deltah[node_search])
         node_h = max(node_h,heuristic_aroundNet(node,goalNode))
         node.set_h(node_h)
@@ -832,18 +832,36 @@ def ComputePath_MTAdaptiveAstar():
       return current_Node
   else:
       return None
-            
-def MTAdaptiveAstarsearch(start,goal):
+       
+def MTAdaptiveAstarsearch_update(start,goal):
+    """
+    update plan using Lazy MT-AdaptiveA*
+    """
     global startNode,goalNode,counter,deltah,Generated
-    startNode = start
-    goalNode = goal
-    Generated = []
-    Generated.append(startNode)
-    deltah.append("head of deltah")
-    deltah.append(0)
-    pathcost.append("head of pathcost")
-    counter = 0
-    if(startNode.get_stateparams() != goalNode.get_stateparams()):
+    startNode = start    
+    
+    # check if startNode has already been generated, so we don't generate a duplicate
+    startNodecheck = isGenerated_MTAdaptiveAstar(startNode.get_stateparams())
+    if(startNodecheck != None):
+        startNode = startNodecheck
+    else:    
+        Generated.append(startNode)
+
+    # check if goal has already been generated, so we don't generate a duplicate
+    goalNodecheck = isGenerated_MTAdaptiveAstar(goal.get_stateparams())
+    if(goalNodecheck != None):
+        goal = goalNodecheck
+    else:
+        Generated.append(goal)
+
+    if(not goalTest(startNode)):
+        InitializeState_MTAdaptiveAstar(goalNode)
+        if (goal.get_g() + goal.get_h() < pathcost[counter]):
+            goal.set_h(pathcost[counter] - goal.get_g())
+        deltah.append(deltah[counter] + goal.get_h())
+        goalNode = goal
+
+        # wrap around (line 28 - 37 in paper)        
         counter += 1
         InitializeState_MTAdaptiveAstar(startNode)
         InitializeState_MTAdaptiveAstar(goalNode)
@@ -858,11 +876,44 @@ def MTAdaptiveAstarsearch(start,goal):
         while(node.getParent()!= None):
             parent = node.getParent()
             print parent.get_stateparams(),node.getAction(),node.get_stateparams()
-            path.append((parent,node.getAction()))
-            #graphics.draw_segment(parent,node.getAction())        
-            #graphics.canvas.update_idletasks()            
+            path.append((parent,node.getAction()))                       
             node = parent         
-        print "path of length",len(path)
+        #print "path of length",len(path)
+        path.reverse()
+        return path
+
+def MTAdaptiveAstarsearch_start(start,goal):
+    """
+    start new MTAdaptiveAstar search
+    """
+    global startNode,goalNode,counter,deltah,Generated
+    startNode = start
+    goalNode = goal
+    Generated = []
+    Generated.append(startNode)
+    deltah.append("head of deltah")
+    deltah.append(0)
+    pathcost.append("head of pathcost")
+    counter = 0
+    #if(startNode.get_stateparams() != goalNode.get_stateparams()):
+    if(not goalTest(startNode)):
+        counter += 1
+        InitializeState_MTAdaptiveAstar(startNode)
+        InitializeState_MTAdaptiveAstar(goalNode)
+        startNode.set_g(0)        
+        finalnode = ComputePath_MTAdaptiveAstar()                  
+        pathcost.append(finalnode.get_g())
+        if finalnode == None: # goal unreachable
+            return None 
+        
+        node = finalnode
+        path = []        
+        while(node.getParent()!= None):
+            parent = node.getParent()
+            #print parent.get_stateparams(),node.getAction(),node.get_stateparams()
+            path.append((parent,node.getAction()))                       
+            node = parent         
+        #print "path of length",len(path)
         path.reverse()
         return path
 ##################################################################################################
@@ -1026,11 +1077,11 @@ def plan_to_path(plan):
             path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)       
 
         elif action == "sidestep_L_f":
-            path = path + points_turnRight(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)
+            path = path + points_turnLeft(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)
             (x_temp,y_temp,theta_temp) = path[-1]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,49.5)
             (x_temp,y_temp,theta_temp) = path[-1]                        
-            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)
+            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)
 
         elif action == "L2_f":
             path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_4*math.pi/2,ROBOT_RADIUS_4)    
