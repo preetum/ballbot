@@ -12,10 +12,19 @@ from vicon_mocap.msg import Markers
 from vicon_mocap.msg import Marker
 
 pub = rospy.Publisher('odometry', Pose )
+Ballbot_X = None
+Ballbot_Y = None
+Ballbot_TH = None
+Ballbot_X_old = None
+Ballbot_Y_old = None
+Ballbot_TH_old = None
+
 def callback(data):
     """
     receives an array of markers and publishes pose of the rear axle's center
     """             
+    gobal Ballbot_X, Ballbot_Y,Ballbot_TH,Ballbot_X_old,Ballbot_Y_old,Ballbot_TH_old
+
     for marker in data.markers:
         if marker.marker_name == "Marker1":
             x1 = marker.translation.x/10.0
@@ -43,12 +52,29 @@ def callback(data):
     # transform such that center of vicon system is at (10.0,10.0)
     x_car += 1000.0
     y_car += 1000.0
-    pub.publish(x_car/100.0,y_car/100.0,theta_car)  
+
+    Ballbot_X = x_car/100.0
+    Ballbot_Y = y_car/100.0
+    Ballbot_TH = theta_car
+
+    # first odometry, so see that all values get initialized properly
+    if (Ballbot_X == None):                
+        Ballbot_X_old = Ballbot_X
+        Ballbot_Y_old = Ballbot_Y
+        Ballbot_TH_old = Ballbot_TH
+
+    # else, check if the new point is absurdly different from the previous one (x,y within 5 cm, theta with 10 degrees)
+    elif(not (abs(Ballbot_X - Ballbot_X_old) <= 5) and (abs(Ballbot_Y - Ballbot_Y_old) <= 5) and (abs(Ballbot_TH - Ballbot_TH_old) <= 0.174)):            
+        Ballbot_X = Ballbot_X_old
+        Ballbot_Y = Ballbot_Y_old
+        Ballbot_TH = Ballbot_TH_old
+
+    pub.publish(Ballbot_X,Ballbot_Y,Ballbot_TH)  
     #print (x_car/100.0,y_car/100.0,theta_car)    
 
 def listener():    
     rospy.init_node('Vicon_pose')        
-    rospy.Subscriber("vicon_recv_direct/markers",Markers , callback)
+    rospy.Subscriber("vicon_recv_direct/markers",Markers,callback)
     print "initialized subscriber"
     rospy.spin()
 

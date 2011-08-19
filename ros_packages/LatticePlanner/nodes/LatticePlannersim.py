@@ -3,6 +3,7 @@ import math
 import util
 import time
 import controlset
+import debugpaths
 
 import roslib; roslib.load_manifest('LatticePlanner')
 import rospy
@@ -15,9 +16,9 @@ plan = [] # stores the computed plan, as [(node1,action1),(node2,action2)....]
 path = [] # stores the computed path, as a sequence of (x,y,theta) values
 
 pub_path = rospy.Publisher('path',Path)
-Ballbot_x = 0
-Ballbot_y = 0
-Ballbot_theta = 0
+Ballbot_x = 1000
+Ballbot_y = 1000
+Ballbot_theta = math.pi/2
 
 def received_odometry(data):
     global Ballbot_x,Ballbot_y,Ballbot_theta
@@ -49,29 +50,15 @@ def startPlanner(data):
 
     ########################################## DEBUGGING 
     if (util.SEARCHALGORITHM == "straightline"):
-        path = []
-        dist = util.distance_Euclidean(x1,y1,x2,y2)
-        state = (x1,y1,th1,v1)
-        d = 0
-        while d <= dist:
-            newstate = util.go_Straight(state,'f',5)
-            path.append((newstate[0]/100,newstate[1]/100,newstate[2]))
-            d += 5
-            state = newstate
-            #print "appended",d,"of",dist
-
-        path_to_send = Path()
-        for point in path:
-            pose = Pose()
-        # plan uses center of car, so transform such that path has points to be traversed by rear axle center,                                                     # which is 17.41 cm away from the center                                                                                                                                                                                                                                                                       
-            pose.x = point[0] - 17.41*math.cos(point[2])/100.0
-            pose.y = point[1] - 17.41*math.sin(point[2])/100.0
-            pose.theta = point[2]
-            path_to_send.poses.append(pose)
-
-        pub_path.publish(path_to_send)
-        print "path published"
+        debugpaths.straightLine((x1,y1,th1,v1),(x2,y2,th2,v2))
         return
+
+    elif (util.SEARCHALGORITHM == "figureofeight"):
+        debugpaths.figureofeight((x1,y1,th1,v1))
+        return
+    ###########################################################################################################
+        
+
 
     elif (util.SEARCHALGORITHM == "A*"):
         Astarsearch(startNode,goalNode)
@@ -80,21 +67,7 @@ def startPlanner(data):
         LPAstarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "MT-AdaptiveA*"):
         print "running MT-AdaptiveA*"
-        MTAdaptiveAstarsearch(startNode,goalNode,data.goaltype.data)    
-        
-    path_to_send = Path()
-    for point in path:
-        pose = Pose()
-        # plan uses center of car, so transform such that path has points to be traversed by rear axle center,                                               
-        # which is 17.41 cm away from the center                                                                                                             
-        pose.x = point[0] - 17.41*math.cos(point[2])/100.0
-        pose.y = point[1] - 17.41*math.sin(point[2])/100.0
-        pose.theta = point[2]
-        path_to_send.poses.append(pose)
-
-    pub_path.publish(path_to_send)
-    print "path published"
-
+        MTAdaptiveAstarsearch(startNode,goalNode,data.goaltype.data)            
 
     path = []
     path.append((x1/100.0,y1/100.0,th1))

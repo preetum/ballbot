@@ -17,9 +17,9 @@ from std_msgs.msg import String
 from bb_msgs.msg import Pose,Path,Goal
 
 pub_goal = rospy.Publisher('goal',Goal)
-Ballbot_x = 0.0
-Ballbot_y = 0.0
-Ballbot_theta = 0.0
+Ballbot_x = 10.0
+Ballbot_y = 10.0
+Ballbot_theta = math.pi/2
 Ballbot_Tkobjects = None
 
 Goal_x = 0.0
@@ -27,7 +27,7 @@ Goal_y = 0.0
 
 root = None
 
-def startPlanner(x1,y1,th1,d_goal,th_goal):
+def startPlanner(d_goal,th_goal):
     """
     Send a goal message to topic 'goal'
     """
@@ -46,7 +46,7 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
                                                      # = angle of car in global coord - angle to goal from car (which is in [-90deg,90deg]
     x2 = Ballbot_x*100.0 + d_goal*math.cos(th_goal)
     y2 = Ballbot_y*100.0 + d_goal*math.sin(th_goal)
-    th2 = th1                                   # doesn't matter for goal test
+    th2 = 0                                   # doesn't matter for goal test
 
     # publish goal
     goal_msg = Goal()
@@ -58,7 +58,8 @@ def startPlanner(x1,y1,th1,d_goal,th_goal):
     print "sent goal"
     Goal_x = x2
     Goal_y = y2
-    
+
+    return # remove for MTA*    
     while not rospy.is_shutdown():
         print "Hit enter to update goal"
         raw_input()
@@ -99,8 +100,7 @@ def received_path(data):
     graphics.canvas.delete(ALL)
     graphics.draw_court()    
     graphics.draw_point(Goal_x,Goal_y,0,color='red')
-    
-    
+        
     for pose in data.poses:        
         graphics.draw_point(pose.x*100.0,pose.y*100.0,pose.theta,color='green')    
         #print "drew",pose.x*100.0,pose.y*100.0,pose.theta
@@ -123,31 +123,7 @@ def initialize_gui():
         root.protocol("WM_DELETE_WINDOW", windowclosed)
         root.title("Lattice Planner")
         root.configure(background = 'grey')
-        graphics.canvas.pack()
-
-        # x initial
-        entryLabel_x1 = Label(root)
-        entryLabel_x1["text"] = "init: X"
-        entryLabel_x1.pack(side = LEFT)
-        entryWidget_x1 = Entry(root)
-        entryWidget_x1["width"] = 5
-        entryWidget_x1.pack(side = LEFT)
-
-        # y initial
-        entryLabel_y1 = Label(root)
-        entryLabel_y1["text"] = "Y"
-        entryLabel_y1.pack(side = LEFT)
-        entryWidget_y1 = Entry(root)
-        entryWidget_y1["width"] = 5
-        entryWidget_y1.pack(side = LEFT)
-
-        # theta initial
-        entryLabel_th1 = Label(root)
-        entryLabel_th1["text"] = "TH"
-        entryLabel_th1.pack(side = LEFT)
-        entryWidget_th1 = Entry(root)
-        entryWidget_th1["width"] = 5
-        entryWidget_th1.pack(side = LEFT)
+        graphics.canvas.pack()        
 
         # d goal (cm)
         entryLabel_d = Label(root)
@@ -165,7 +141,7 @@ def initialize_gui():
         entryWidget_th["width"] = 5
         entryWidget_th.pack(side = LEFT)
     
-        b = Button(root,text = "Go",command = lambda: startPlanner(float(entryWidget_x1.get()),float(entryWidget_y1.get()),float(entryWidget_th1.get()),float(entryWidget_d.get()),float(entryWidget_th.get())))
+        b = Button(root,text = "Go",command = lambda: startPlanner(float(entryWidget_d.get()),float(entryWidget_th.get())))
         g = Button(root,text = "Show lattice",command = lambda:graphics.draw_lattice())
         g.pack(side = RIGHT)
         b.pack(side = RIGHT)
