@@ -47,15 +47,55 @@ def startPlanner(data):
     (x1,y1,th1,v1) = startNode.get_stateparams()
     (x2,y2,th2,v2) = goalNode.get_stateparams()
 
-    if (util.SEARCHALGORITHM == "A*"):
+    ########################################## DEBUGGING 
+    if (util.SEARCHALGORITHM == "straightline"):
+        path = []
+        dist = util.distance_Euclidean(x1,y1,x2,y2)
+        state = (x1,y1,th1,v1)
+        d = 0
+        while d <= dist:
+            newstate = util.go_Straight(state,'f',5)
+            path.append((newstate[0]/100,newstate[1]/100,newstate[2]))
+            d += 5
+            state = newstate
+            #print "appended",d,"of",dist
+
+        path_to_send = Path()
+        for point in path:
+            pose = Pose()
+        # plan uses center of car, so transform such that path has points to be traversed by rear axle center,                                                     # which is 17.41 cm away from the center                                                                                                                                                                                                                                                                       
+            pose.x = point[0] - 17.41*math.cos(point[2])/100.0
+            pose.y = point[1] - 17.41*math.sin(point[2])/100.0
+            pose.theta = point[2]
+            path_to_send.poses.append(pose)
+
+        pub_path.publish(path_to_send)
+        print "path published"
+        return
+
+    elif (util.SEARCHALGORITHM == "A*"):
         Astarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "LPA*"):
         print "running LPA*"
         LPAstarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "MT-AdaptiveA*"):
         print "running MT-AdaptiveA*"
-        MTAdaptiveAstarsearch(startNode,goalNode,data.goaltype.data)
+        MTAdaptiveAstarsearch(startNode,goalNode,data.goaltype.data)    
         
+    path_to_send = Path()
+    for point in path:
+        pose = Pose()
+        # plan uses center of car, so transform such that path has points to be traversed by rear axle center,                                               
+        # which is 17.41 cm away from the center                                                                                                             
+        pose.x = point[0] - 17.41*math.cos(point[2])/100.0
+        pose.y = point[1] - 17.41*math.sin(point[2])/100.0
+        pose.theta = point[2]
+        path_to_send.poses.append(pose)
+
+    pub_path.publish(path_to_send)
+    print "path published"
+
+
     path = []
     path.append((x1/100.0,y1/100.0,th1))
     path = path + util.plan_to_path(plan)        
@@ -113,7 +153,7 @@ def MTAdaptiveAstarsearch(startNode,goalNode,goaltype):
         plan = util.MTAdaptiveAstarsearch_update(startNode,goalNode)
     else:
         print "unknown goal type",goaltype
-    
+
 
 def obstacle_added(event):        
     util.costmap.new_obstacle(event)

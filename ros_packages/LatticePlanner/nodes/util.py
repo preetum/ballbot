@@ -11,7 +11,7 @@ startNode = None # startNode
 goalNode = None  # goalNode
 agentNode = None # node occupied by agent
 
-SEARCHALGORITHM = "MT-AdaptiveA*"
+SEARCHALGORITHM = "straightline"
 count_expandednodes = 0
 S = [] # list of all nodes seen so far by LPA* search, represents the graph S
 U = []

@@ -24,7 +24,7 @@ Ballbot_steering = 0 # radians
 Ballbot_speed = 0    # m/s
 
 # CONTROLLER PARAMETRS
-targetlookahead = 15.0 # PD steering control to reach a moving target 15 cm ahead of the car
+targetlookahead = 25.0 # PD steering control to reach a moving target 15 cm ahead of the car
 
 pub_velcmd = rospy.Publisher('vel_cmd', DriveCmd)
 
@@ -67,12 +67,12 @@ def controller_PD():
     # PID stuff
     # -- tuning parameters
     steering_P = 1.0
-    steering_D = 0.0
+    steering_D = 0.1
     
     # -- state parameters
     error = 0.0
     theta_old = 0.0 # stores previous theta value for D-term
-    r = rospy.Rate(10)
+    r = rospy.Rate(60)
     while not rospy.is_shutdown():
         if newPath == False:
             continue
@@ -128,10 +128,12 @@ def newPath_arrived(data):
     """
     global path,newPath
     path = data.poses
-    newPath = True
+
     print "newpathseen! length",len(path)
     print "Hit any key to begin driving"
     raw_input()
+    
+    newPath = True
 
 def received_odometry(data):
     """
