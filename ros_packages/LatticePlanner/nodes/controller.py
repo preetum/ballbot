@@ -95,7 +95,12 @@ def controller_PD():
                 # P - Proportional term                
 
                 heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
-                error = Ballbot_TH - heading
+                error = Ballbot_TH - heading    
+                # correct roll-over problems with error:
+                # if abs(error) is greater than 180, then we'd rather turn the other way!
+                if abs(error) > 180:
+                    error = (2*math.pi - abs(error))*(-1*cmp(error,0))
+            
                 #print "Ballbot",(Ballbot_X,Ballbot_Y,Ballbot_TH),"targetpoint",(path[targetindex_inPath].x,path[targetindex_inPath].y)
                 #print "heading",heading,"error",error
                 #raw_input()
