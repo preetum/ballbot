@@ -1,17 +1,26 @@
 #!/usr/bin/env python
-import roslib; roslib.load_manifest('court_localization')
-import rospy
-
-from bb_msgs.msg import PoseArray
+#import roslib; roslib.load_manifest('court_localization')
+#import rospy
+#from bb_msgs.msg import PoseArray
 
 import random, time, thread, sys
-import math
-from findlines import *
+import numpy as np
 from Tkinter import *
 
-import models
-
 class Simulator:
+
+  lines = [
+    # Field boundaries
+    ((0, 0), (1189, 0)),
+    ((0, 1097), (1189, 1097)),
+    ((1189, 0), (1189, 1097)),
+    # Singles lines
+    ((0, 137), (1189, 137)),
+    ((0, 960), (1189, 960)),
+    # Center lines
+    ((0, 1097/2.0), (640, 1097/2.0)),
+    ((640, 137), (640, 960)),
+    ]
 
   def __init__(self):
     self.width = 800
@@ -26,63 +35,57 @@ class Simulator:
     
     self.draw_field()
   
-  def draw_robot(self, x0, y0, t=None):
+  def refresh(self, beliefs):
     '''
-    Draw a robot at (x0, y0) with optional heading t
-    x, y given in centimeters, t given in radians
+    Refresh the field, given a current list of robots:
+    x, y is the position in centimeters
+    t is the heading
     '''
-    x, y = self.transform(x0, y0)
-    self.canvas.create_oval(x-4, y-4, x+4, y+4, outline='orange')
-    if t is not None:
-      # t represents the angle of the robot frame's x-axis;
-      #  draw the y-axis representing the robot's heading
-      t = t + math.pi/2
-      self.draw_line(x0, y0, x0+12*math.cos(t), y0+12*math.sin(t), 
-                     fill='orange')
-  
-  def refresh(self, beliefs=None):
-    '''
-    Refresh the field, given a current list of robots
-    '''
-    if beliefs is None:
-      beliefs = self.pf.getBeliefs()
-
     self.draw_field()
-    for x, y, t in beliefs:
-      self.draw_robot(x, y, t)
-  
-  def transform(self, x, y):
+    beliefs = np.array(beliefs)
+
+    points = self.transform(beliefs[:,0:2])
+    angles = beliefs[:,2] - np.pi/2
+    A = np.cos(angles)
+    B = np.sin(angles)
+    R = np.array([[A, B], [-B, A]])
+
+    lowerLeft = points + np.dot([-4,4], R).T
+    center = points + np.dot([0,-4], R).T
+    lowerRight = points + np.dot([4,4], R).T
+
+    for l, c, r in zip(lowerLeft, center, lowerRight):
+      self.canvas.create_line(l[0], l[1], c[0], c[1], fill='blue')
+      self.canvas.create_line(r[0], r[1], c[0], c[1], fill='blue')
+
+  def transform(self, points):
     '''
     Flips the coordinate system so that (0,0) is in the bottom left.
     Adds a border and scales the system
     '''
-    return (self.border + (x*self.scale), self.height - self.border - (y*self.scale));
+    points = np.array(points)
 
-  def inverse_transform(self, x, y):
-    '''
-    Transforms pixel location to simulation coordinate system
-    '''
-    return (x - self.border) / self.scale, \
-        - (y + self.border - self.height) / self.scale
+    # x' = self.border + (x*self.scale)
+    # y' = self.height - self.border - (y*self.scale)
+    return np.array([self.scale, -self.scale]) * points + \
+        np.array([self.border, self.height-self.border])
   
-  def draw_line(self, x1, y1, x2, y2, *args, **kwargs):
+  def draw_line(self, line, *args, **kwargs):
     '''
     Helper for draw_field
     '''
-    x1, y1 = self.transform(x1, y1)
-    x2, y2 = self.transform(x2, y2)
+    (x1, y1), (x2, y2) = self.transform(line)
     self.canvas.create_line(x1, y1, x2, y2, *args, **kwargs)
 
   def draw_field(self):
     '''
     Redraws the field (use it to clear the simulation)
     '''
-    self.canvas.create_rectangle(0, 0, self.width, self.height, fill='dark green')
+    self.canvas.create_rectangle(0, 0, self.width, self.height, fill='#CCFF99')
     
     # Field boundaries (dimensions in cm)
-    for line in models.lines:
-      (x1, y1), (x2, y2) = line
-      self.draw_line(x1, y1, x2, y2, width=5, fill='white')
+    for line in Simulator.lines:
+      self.draw_line(line, width=5, fill='white')
     '''
     self.draw_line(0, 0, 1189, 0, width=5, fill='white')
     self.draw_line(0, 1097, 1189, 1097, width=5, fill='white')
@@ -97,10 +100,10 @@ class Simulator:
     self.draw_line(640, 137, 640, 960, width=5, fill='white')
     '''
     # Net
-    self.draw_line(0, 0, 0, 1097, width=4, fill='black')
+    self.draw_line(((0, 0), (0, 1097)), width=4, fill='black')
     
     # Center tick
-    self.draw_line(1150, 1097/2.0, 1189, 1097/2.0, width=5, fill='white')
+    self.draw_line(((1150, 1097/2.0), (1189, 1097/2.0)), width=5, fill='white')
 
 
 
@@ -117,6 +120,7 @@ def main():
   topic_name = rospy.get_param('~topic', 'filter/particles')
 
   sim = Simulator()
+  #sim.refresh(((500, 500, 0), (600, 500, np.pi/4), (500, 600, -3*np.pi/4)))
 
   # Initialize ROS listener
   rospy.init_node('particle_viewer')
