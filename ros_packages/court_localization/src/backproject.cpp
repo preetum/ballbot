@@ -262,7 +262,7 @@ double find_depth(Point2d pt1, Point2d pt2, Point2d q, double z1, double z2)
 vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 	                                         Size frame_size,
 						 Mat &view_frame,
-						 float near_dist = 0.2)
+						 float near_dist)
 {
 	/* Retruns a vector of type line_segment_all_frames
 	 * which contains the line segments that are VISIBLE

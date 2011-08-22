@@ -113,4 +113,8 @@ struct line_segment_all_frames
 	line_segment_3d realWorld;
 };
 
+vector <line_segment_all_frames> get_view_lines(camera particle_camera,
+                                                cv::Size frame_size,
+                                                cv::Mat &view_frame,
+                                                float near_dist = 0.2);
 #endif

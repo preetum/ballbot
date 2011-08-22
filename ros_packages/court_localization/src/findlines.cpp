@@ -102,6 +102,12 @@ double pointLineSegmentDistance(const Vec2i &point, const Vec4i &segment) {
     }
 }
 
+/* Given an input image frame, returns a set of court line candidates
+ * in groupedLines.
+ *
+ * Each line is represented as a two endpoints of a line segment,
+ * in pixel coordinates (x1, y1, x2, y2).
+ */
 void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
     Mat frame_save, frame_gray, frame_thresh, frame_edges;
 
@@ -269,11 +275,6 @@ void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
         if (pause) waitKey();
     }
 } // findLines()
-
-void matchLines(const vector<Vec4i> &seenLines,
-                const vector<line_segment_all_frames> &courtLines) {
-    
-}
 
 void test() {
     Vec4i a(1,2,3,4);

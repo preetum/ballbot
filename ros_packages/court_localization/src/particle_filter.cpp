@@ -8,9 +8,8 @@
  * DESCRIPTION:
  * Particle filter for court localization.
  */
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/objdetect/objdetect.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <cv.h>
+#include <highgui.h>
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
