@@ -1,4 +1,4 @@
-// -*- indent-tabs-mode: nil; c-basic-offset: 4 -*-
+// -*- indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*-
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -13,6 +13,7 @@ using namespace cv;
 // Globals
 bool verbose = false;
 bool display = false;
+bool pause = false;
 
 /* Normalize an angle to the range (-pi, pi] */
 double normalizeRadians(double rad) {
@@ -101,7 +102,7 @@ double pointLineSegmentDistance(const Vec2i &point, const Vec4i &segment) {
     }
 }
 
-void process(Mat &frame) {
+void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
     Mat frame_save, frame_gray, frame_thresh, frame_edges;
 
     // Resize input image
@@ -136,7 +137,6 @@ void process(Mat &frame) {
     // Hough transform
     vector<Vec4i> lines;
     HoughLinesP(frame_thresh, lines, 2, CV_PI/180, 80, 40, 10 );
-    printf("\n%d lines found\n", lines.size());
 
     /*
     // Draw all lines
@@ -150,7 +150,6 @@ void process(Mat &frame) {
     //*/
 
     // Consolidate duplicate lines
-    vector<Vec4i> groupedLines;
     vector<int> numVotes;
     RNG rng(0L);
     while (!lines.empty()) {
@@ -255,22 +254,26 @@ void process(Mat &frame) {
     } // while (!lines.empty())
 
     // Draw grouped lines
-    for( size_t i = 0; i < groupedLines.size(); i++ ) {
-        const Vec4i &l = groupedLines[i];
-        Scalar color(rng(256), rng(256), rng(256));
-
-        line( frame, Point(l[0], l[1]), Point(l[2], l[3]),
-              color, 2, 8 );
-        printf("Line (%d,%d) to (%d,%d) [votes: %d]\n",
-               l[0], l[1], l[2], l[3], numVotes[i]);
-    }
-    imshow("img", frame);
-    waitKey();
-
+    printf("\n%d lines found\n", groupedLines.size());
     if (display) {
+        for( size_t i = 0; i < groupedLines.size(); i++ ) {
+            const Vec4i &l = groupedLines[i];
+            Scalar color(rng(256), rng(256), rng(256));
+            
+            line( frame, Point(l[0], l[1]), Point(l[2], l[3]),
+                  color, 2, 8 );
+            printf("Line (%d,%d) to (%d,%d) [votes: %d]\n",
+                   l[0], l[1], l[2], l[3], numVotes[i]);
+        }
         imshow("img", frame);
+        if (pause) waitKey();
     }
-} // process
+} // findLines()
+
+void matchLines(const vector<Vec4i> &seenLines,
+                const vector<line_segment_all_frames> &courtLines) {
+    
+}
 
 void test() {
     Vec4i a(1,2,3,4);
@@ -292,13 +295,16 @@ int main(int argc, char **argv)
 
     // Parse command line args
     int c;
-    while ((c = getopt(argc, argv, "c:dvt")) != -1) {
+    while ((c = getopt(argc, argv, "c:dpvt")) != -1) {
         switch (c) {
         case 'c':
             videoCaptureName = optarg;
             break;
         case 'd':
             display = true;
+            break;
+        case 'p':
+            pause = true;
             break;
         case 'v':
             verbose = true;
@@ -333,7 +339,7 @@ int main(int argc, char **argv)
             return -1;
         }
         resize(frame, frame, Size(480, 640));
-        process(frame);
+        findLines(frame, vector<Vec4i>());
         waitKey(0);
     }
     // Use video capture
@@ -365,8 +371,11 @@ int main(int argc, char **argv)
 
         while (1) {
             if (run) {
+                vector<Vec4i> lines;
                 capture >> frame;
-                process(frame);
+                process(frame, lines);
+                
+
                 if (display) {
                     imshow("img", frame);
                 }
