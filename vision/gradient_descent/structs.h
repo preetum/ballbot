@@ -1,3 +1,4 @@
+// -*- indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*-
 #ifndef _structs_h
 #define _structs_h
 

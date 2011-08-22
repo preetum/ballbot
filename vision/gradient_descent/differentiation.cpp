@@ -1,3 +1,4 @@
+// -*- indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*-
 /*
  * differentiation.cpp
  *
@@ -5,6 +6,9 @@
  *      Author: ankush
  */
 
+#include "include.h"
+
+using namespace cv;
 using namespace std;
 
 double differential(Point3f real_world_position, Point3f cam_position,
