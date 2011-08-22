@@ -8,9 +8,23 @@
  * DESCRIPTION:
  * Particle filter for court localization.
  */
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
+#include <ros/ros.h>
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
+
 #include <stdio.h>
+
+#include "backproject.h"
 #include "particle_filter.h"
 
+#define PI 3.14159265359
+
+using namespace cv;
 using namespace std;
 
 double weightSum(vector<PoseParticle> *particles) {
@@ -51,9 +65,19 @@ void ParticleFilter::initializeUniformly(unsigned int n, Bounds xRange,
     normalize();
 }
 
+double backprojectionWeight(cv::Mat &observation, PoseParticle &particle) {
+    camera bb_camera;
+    bb_camera.position.x = particle.pose.x;
+    bb_camera.position.y = particle.pose.y;
+    bb_camera.position.z = 33;  // fixed camera height = 33cm
+    bb_camera.theta = particle.pose.theta;
+
+    return 0;
+}
+
 void ParticleFilter::observe(cv::Mat &observation) {
     for (unsigned int i = 0; i < particles->size(); i += 1) {
-        // TODO emissionFn(observation, particles[i]);
+        backprojectionWeight(observation, particles->at(i));
     }
 }
 
@@ -122,11 +146,49 @@ void ParticleFilter::print(int limit) const {
     }
 }
 
-int main() {
-    // Test stub
-    ParticleFilter pf;
-    pf.initializeUniformly(10, Bounds(0,10), Bounds(0,10), Bounds(0,6.28));
-    pf.transition();
+void ParticleFilter::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
+    cv_bridge::CvImagePtr cv_ptr;
+    try {
+        cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+
+        for (unsigned int i = 0; i < particles->size(); i += 1) {
+            PoseParticle &particle = particles->at(i);
+            
+            camera bb_camera;
+            bb_camera.position.x = particle.pose.x;
+            bb_camera.position.y = particle.pose.y;
+            bb_camera.position.z = 33;  // fixed camera height = 33cm
+            bb_camera.theta = particle.pose.theta;
+
+            Mat frame = back_projection(bb_camera);
+            imshow("Backprojection", frame + cv_ptr->image);
+            waitKey(0);
+        }
+    }
+    catch (cv_bridge::Exception& e) {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+}
+
+int main(int argc, char** argv) {
+    ros::init(argc, argv, "image_converter");
+
+    vector<PoseParticle> *particles = new vector<PoseParticle>();
+    PoseParticle initLoc(1900, 1100, 4);
+    for (int i = 0; i < 10; i += 1)
+        particles->push_back(initLoc);
+
+    ParticleFilter pf(particles);
+    pf.transition(Pose(), 50, 0.1);
+
+    ros::NodeHandle nh;
+    image_transport::ImageTransport it(nh);
+    image_transport::Subscriber image_sub;
+    nh.setParam("~image_transport", "compressed");
+    it.subscribe("gscam/image_raw", 1, &(ParticleFilter::imageCallback), &pf);
 
     pf.print();
+
+    namedWindow("Backprojection", CV_WINDOW_AUTOSIZE);
 }
