@@ -45,14 +45,14 @@ def received_odometry(data):
     Ballbot_y = data.y
     Ballbot_theta = data.theta
 
-"""
+
 def received_ballposition(data):
     global Ball_x,Ball_y,Ball_theta
     Ball_x = data.x
     Ball_y = data.y
     Ball_theta = data.theta
-"""
 
+"""
 def received_ballposition(data):
     global Ball_x,Ball_y
     heading_ball = data.theta
@@ -60,7 +60,7 @@ def received_ballposition(data):
     Ball_x = Ballbot_x + data.d*math.cos(heading_ball)
     Ball_y = Ballbot_y + data.d*math.sin(heading_ball)
     print "Ball_x",Ball_x,"Ball_y",Ball_y
-
+"""
 def received_status(data):
     global Ballbot_status
     Ballbot_status = data.data
@@ -141,14 +141,19 @@ def state_BALLPICKUP():
     #--------------------------------------
     # activate ball pickup for 10 seconds
     ballpickup_msg = BallPickup()
-    ballpickup_msg.direction = 1
+    ballpickup_msg.direction = -1
+    pub_ballpickup.publish(ballpickup_msg)
+        
+    
+    ballpickup_msg = BallPickup()
+    ballpickup_msg.direction = 0
     pub_ballpickup.publish(ballpickup_msg)
     
     rospy.sleep(10)
     
     # deactivate ball pickup
     ballpick_msg = BallPickup()
-    ballpickup_msg.direction = 0
+    ballpickup_msg.direction = 1
     pub_ballpickup.publish(ballpickup_msg)                
     
     #----------------------------------------
@@ -175,7 +180,7 @@ def state_BALLDELIVERY():
     
         # deactivate ball pickup
         ballpick_msg = BallPickup()
-        ballpickup_msg.direction = 0
+        ballpickup_msg.direction = 1
         pub_ballpickup.publish(ballpickup_msg)   
         return "delivered"
     else:
@@ -184,8 +189,8 @@ def state_BALLDELIVERY():
 def initialize_commandcenter():
     rospy.init_node('commandcenter', anonymous=True)
     rospy.Subscriber("pose", Pose, received_odometry)
-    #rospy.Subscriber("ball",Pose,received_ballposition)
-    rospy.Subscriber("ball",BallPosition,received_ballposition)
+    rospy.Subscriber("ball",Pose,received_ballposition)
+    #rospy.Subscriber("ball",BallPosition,received_ballposition)
     rospy.Subscriber("status",String,received_status)
 
     CMD_STATEMACHINE()
