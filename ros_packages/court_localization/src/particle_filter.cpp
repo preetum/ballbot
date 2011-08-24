@@ -15,7 +15,7 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
-#include <bb_msgs/Odometry.h>
+#include <bb_msgs/OdometryStamped.h>
 #include <bb_msgs/Pose.h>
 #include <bb_msgs/PoseArray.h>
 
@@ -386,20 +386,11 @@ void ParticleFilter::print(int limit) const {
 }
 
 /* On receiving odometry data, update this particle filter with a transition */
-void odometryCallback(const bb_msgs::OdometryConstPtr& msg) {
-    static double lastHeading = HUGE_VAL;
-
-    // On first message, initialize lastHeading
-    if (lastHeading == HUGE_VAL)
-        lastHeading = msg->heading;
-
+void odometryCallback(const bb_msgs::OdometryStampedConstPtr& msg) {
     // Transition particles according to motion model
-    double dtheta = lastHeading - msg->heading;
-    double dist = msg->distance_delta * 100;      // convert to cm
+    double dtheta = -1 * msg->odometry.heading_delta;
+    double dist = msg->odometry.distance_delta * 100;      // convert to cm
     pf.transition(dist, dtheta);
-
-    // Store last heading
-    lastHeading = msg->heading;
 }
 
 /* On receiving an image, update this particle filter with the observation. */
@@ -441,7 +432,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
         printTime("publish");
 
-        //imshow("image", cv_ptr->image);
+        imshow("image", cv_ptr->image);
     }
     catch (cv_bridge::Exception& e) {
         ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -467,7 +458,7 @@ int main(int argc, char** argv) {
     string imageTopic;
     if (!nhPrivate.hasParam("image_transport"))
         nhPrivate.setParam("image_transport", "compressed");
-    nhPrivate.param<string>("image", imageTopic, "gscam/image_raw");
+    nhPrivate.param<string>("image", imageTopic, "camera/image");
     imageSub = it.subscribe(imageTopic, 1, imageCallback);
 
     // Create odometry listener on topic ~odometry (default "odometry")
@@ -486,12 +477,12 @@ int main(int argc, char** argv) {
     //*
     vector<PoseParticle> *init = new vector<PoseParticle>();
     // Bottom strip
-    //drawUniformly(init, 50, Bounds(400, 800), Bounds(-300, 100),
-    //              Bounds(0,2*CV_PI));
+    drawUniformly(init, 50, Bounds(400, 800), Bounds(-300, 100),
+                  Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-250, 0),
     //                  Bounds(0,2*CV_PI));
     // Top strip
-    drawUniformly(init, 100, Bounds(400, 800), Bounds(997, 1397),
+    drawUniformly(init, 50, Bounds(400, 800), Bounds(997, 1397),
                   Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(1097, 1297),
     //                  Bounds(0,2*CV_PI));
