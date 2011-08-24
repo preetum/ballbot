@@ -51,7 +51,8 @@ def initializer():
     odometryPublisher = rospy.Publisher('odometry', Odometry)
     rospy.Subscriber("vel_cmd", DriveCmd,
                      lambda pkt: recieved_drive_packet(ballBot, pkt))
-    rospy.Subscriber("ball_pickup",BallPickup, lamba pkt: recieved_ballpickup_packet(ballBot,pkt))
+
+    rospy.Subscriber("ball_pickup",BallPickup, lambda pkt: recieved_ballpickup_packet(ballBot,pkt))
 
     imu = imu_communicator.IMU() # Initialize IMU
     send_heading_to_arduino(ballBot, imu, odometryPublisher)
