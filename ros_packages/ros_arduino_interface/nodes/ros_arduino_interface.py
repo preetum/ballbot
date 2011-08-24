@@ -44,7 +44,7 @@ def odometry_callback(packet, pub):
 
     # Calculate change in heading
     global lastHeading
-    heading = yaw #binaryangle_to_radians(imu.headingBAMS)
+    heading = binaryangle_to_radians(yaw)
 
     if lastHeading is None:
         lastHeading = heading
