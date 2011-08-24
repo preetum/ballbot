@@ -3,7 +3,7 @@
 import roslib; roslib.load_manifest('ros_arduino_interface')
 import rospy
 import robot
-from bb_msgs.msg import DriveCmd, Odometry
+from bb_msgs.msg import DriveCmd, Odometry,BallPickup
 import imu_communicator
 
 pi  = 3.141592654
