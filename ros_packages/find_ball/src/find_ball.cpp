@@ -226,7 +226,7 @@ void publishMessage(Point ballPosition) {
 
 void processNewFrame(Mat &frame) {
 
-  imshow("original", frame);
+  //imshow("original", frame);
   
   /** Split the cut-off frame into 2. Use different
       thresholds for posterization and then pu them
@@ -298,7 +298,7 @@ void processNewFrame(Mat &frame) {
   } else {
     ROS_INFO("no ball found");
   }
-  imshow("ball detected", ballFound+dst);
+  //imshow("ball detected", ballFound+dst);
   waitKey(3);
 }
 
