@@ -23,7 +23,7 @@ double pointLineDistance(const cv::Vec2d &point, const cv::Vec4d &line);
 double pointLineSegmentDistance(const cv::Vec2d &point, 
 				const cv::Vec4d &segment);
 
-
+/*
 // There's probably a better way to do this...
 inline double pointLineDistance(const cv::Vec2i &point,
                                 const cv::Vec4i &line) {
@@ -50,5 +50,5 @@ inline double pointLineSegmentDistance(const cv::Vec2i &point,
                                        const cv::Vec4d &segment) {
     return pointLineSegmentDistance(cv::Vec2d(point), segment);
 }
-
+*/
 #endif

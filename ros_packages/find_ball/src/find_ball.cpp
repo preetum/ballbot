@@ -17,7 +17,7 @@
 #include <time.h>
 #include "camera.h"
 #include <ros/ros.h>
-#include "bb_msgs/Pose.h"
+#include "bb_msgs/BallPosition.h"
 #include <sensor_msgs/CompressedImage.h>
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
@@ -36,7 +36,6 @@ using namespace std;
 int low_r = 18, low_g = 58, low_b = 11;
 int high_r = 100, high_g = 100, high_b = 17;
 
-const double radiansPerPixel = 0.0032;
 const double pi = 3.141592654;
 Mat img;
 int ffillMode = 1;
@@ -46,6 +45,7 @@ int isColor = true;
 bool useMask = true;
 int newMaskVal = 255;
 Point2d horizonPt;
+Size actualFrameSize;
 
 struct bgr
 {
@@ -168,7 +168,6 @@ bool withinBounds(int n, int m, int nMax, int mMax) {
 	  && (m+1 < mMax));
 }
 
-
 Mat floodFillPostprocess( Mat& img) {
   /** Finds connected components in the input image img.
    The similarity is based on color and intensity of neighbouring pixels.
@@ -206,6 +205,24 @@ Mat floodFillPostprocess( Mat& img) {
         }
     }
   return maskOut;
+}
+
+void publishMessage(Point ballPosition) {
+  double radians_per_px = 0.0016;
+  camera cam;
+  double theta = (double)(ballPosition.y - actualFrameSize.height/2)
+    * radians_per_px - cam.pan,
+    y = cam.position.z / tan(theta);
+	// Angle/X offset to target
+  double phi = (double)(ballPosition.x - actualFrameSize.width/2)
+    * radians_per_px + cam.pan,
+    x = y * tan(phi);
+  double d = sqrt(x*x + y*y);
+  // Publish ball position
+  bb_msgs::BallPosition msg;
+  msg.d = d;
+  msg.theta = phi;
+  ball_pub.publish(msg);
 }
 
 void processNewFrame(Mat &frame) {
@@ -247,10 +264,11 @@ void processNewFrame(Mat &frame) {
     }
   }
   if (maxColorConformityContour.sizeMeasure != -1) {
-    
+    Point updatedBallPosition = Point(maxColorConformityContour.pixelPosition.x,
+				      maxColorConformityContour.pixelPosition.y + (actualFrameSize.height - ballFound.size().height));
+    publishMessage(updatedBallPosition);
     ellipse( ballFound, maxColorConformityContour.pixelPosition, Size(5,5),
 	     0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);
-
   } else {
     ROS_INFO("No ball found!");
   }
@@ -270,6 +288,7 @@ void received_frame(const sensor_msgs::ImageConstPtr &msgFrame) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
     return;
   }
+  actualFrameSize = cvPtr->image.size();
   processNewFrame(cvPtr->image);
 }
 
@@ -284,7 +303,7 @@ int main( int argc, char** argv ) {
     nPrivate.setParam("image_transport", "compressed");
   nPrivate.param<string>("image", imageTopic, "gscam/image_raw");
   imageSub = it.subscribe(imageTopic, 1, received_frame);
-  ball_pub = n.advertise<bb_msgs::Pose>("ball", 1000);
+  ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1000);
   
   //find the horizon pt
   camera cam;
