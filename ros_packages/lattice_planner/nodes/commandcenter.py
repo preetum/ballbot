@@ -13,7 +13,7 @@ This node receives ball location from the tennis ball tracker, odometry informat
 import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 from std_msgs.msg import String
-from bb_msgs.msg import Goal,Pose,BallPickup
+from bb_msgs.msg import Goal,Pose,BallPickup,BallPosition
 import math
 
 pub_goal = rospy.Publisher("goal",Goal)
@@ -45,11 +45,21 @@ def received_odometry(data):
     Ballbot_y = data.y
     Ballbot_theta = data.theta
 
+"""
 def received_ballposition(data):
     global Ball_x,Ball_y,Ball_theta
     Ball_x = data.x
     Ball_y = data.y
     Ball_theta = data.theta
+"""
+
+def received_ballposition(data):
+    global Ball_x,Ball_y
+    heading_ball = data.theta
+    print "d =",data.d,"th=",heading_ball
+    Ball_x = Ballbot_x + data.d*math.cos(heading_ball)
+    Ball_y = Ballbot_y + data.d*math.sin(heading_ball)
+    print "Ball_x",Ball_x,"Ball_y",Ball_y
 
 def received_status(data):
     global Ballbot_status
@@ -174,7 +184,8 @@ def state_BALLDELIVERY():
 def initialize_commandcenter():
     rospy.init_node('commandcenter', anonymous=True)
     rospy.Subscriber("pose", Pose, received_odometry)
-    rospy.Subscriber("ball",Pose,received_ballposition)
+    #rospy.Subscriber("ball",Pose,received_ballposition)
+    rospy.Subscriber("ball",BallPosition,received_ballposition)
     rospy.Subscriber("status",String,received_status)
 
     CMD_STATEMACHINE()
