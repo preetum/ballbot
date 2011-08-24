@@ -1,0 +1,8 @@
+<launch>  
+  <node name="opencv_cam" pkg="opencv_cam" type="opencv_cam">
+    <param name="calib" value="$(find opencv_cam)/camera_parameters.txt" />
+  </node>
+  <node pkg="find_ball" type="find_ball" name="Ballfinder"/>
+  
+
+</launch>
