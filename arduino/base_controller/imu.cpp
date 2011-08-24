@@ -16,7 +16,7 @@
 #include "WProgram.h"
 
 IMU::IMU(HardwareSerial serial)
-  : mySerial(serial) {
+  : mySerial(serial), packet(serial) {
   mySerial.begin(115200);
 
   roll = 0.0;
