@@ -136,6 +136,7 @@ def controller_Stanley():
     Steering control is similar to that used by Stanford's Stanley (DARPA Grand Challenge winner)
     """
     global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
+    k = 3.0
     Ballbot_speed = 0.0
     Ballbot_steering = 0.0
   
@@ -151,13 +152,27 @@ def controller_Stanley():
                 # if there is a new path, restart driving along this path
                 newPath = False
                 currentindex_inPath = 0                               
+                targetindex_inPath = 0
                 continue
             else:
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
+                targetindex_inPath = min(len(path)-1,currentindex_inPath + int(targetlookahead/5.0))
                 point = path[currentindex_inPath]
 
                 # calculate cross-track error, x_t
                 x_t = util.distance_Euclidean(Ballbot_X,Ballbot_Y,point.x,point.y)
+
+                heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
+                error = Ballbot_TH - heading
+                """                                                                                                                                          
+                correct roll-over problems with error:                                                                                                       
+                if abs(error) is greater than 180, then we'd rather turn the other way!                                                                      
+                """
+                if abs(error) > math.pi:
+                    error = (2*math.pi - abs(error))*(-1*cmp(error,0))
+
+                if error < 0:
+                    x_t = -1*x_t
                 
                 # calculate heading error, psi_t
                 psi_t = Ballbot_TH - point.theta
@@ -170,7 +185,7 @@ def controller_Stanley():
                     psi_t = (2*math.pi - abs(psi_t))*(-1*cmp(psi_t,0))
                     
                 # Set output
-                Ballbot_steering = psi_t + math.atan(1*x_t/Ballbot_speed)
+                Ballbot_steering = psi_t + math.atan(k*x_t/Ballbot_speed)
                 if(Ballbot_steering > math.radians(30)):
                     Ballbot_steering = math.radians(30)
                 elif(Ballbot_steering < -math.radians(30)):
