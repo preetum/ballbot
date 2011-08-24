@@ -92,7 +92,7 @@ def state_IDLE():
 def state_BALLPICKUP():    
     global Ballbot_speed, Ballbot_steering
     Ballbot_speed = 1.0
-    Steering_gain = 1.0
+    Steering_gain = 1.6
     r = rospy.Rate(10)
     while((Ball_d >= 0.5) and not(rospy.is_shutdown())): 
         Ballbot_steering = Steering_gain * Ball_theta
