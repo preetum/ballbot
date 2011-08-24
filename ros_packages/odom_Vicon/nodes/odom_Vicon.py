@@ -23,7 +23,7 @@ def callback(data):
     """
     receives an array of markers and publishes pose of the rear axle's center
     """             
-    gobal Ballbot_X, Ballbot_Y,Ballbot_TH,Ballbot_X_old,Ballbot_Y_old,Ballbot_TH_old
+    global Ballbot_X, Ballbot_Y,Ballbot_TH,Ballbot_X_old,Ballbot_Y_old,Ballbot_TH_old
 
     for marker in data.markers:
         if marker.marker_name == "Marker1":
@@ -39,11 +39,17 @@ def callback(data):
     xmid = (x1 + x2)/2
     ymid = (y1 + y2)/2
 
+    if (xmid==0) and (ymid==0) and (length13==0):
+        return
+
+
     y21 = y2 - y1
     y31 = y3 - y1
     x21 = x2 - x1
     x31 = x3 - x1
-    
+
+    if(y21 ==0) and (y31==0) and (x21==0) and (x31==0):
+        return
     # calculate (x_car,y_car,theta_car) for the center of the rear axle
     x_car = xmid - 29.21*y21*length13/(y31*x21 - y21*x31)
     y_car = ymid - 29.21*x21*length13/(x31*y21 - x21*y31)
@@ -58,18 +64,24 @@ def callback(data):
     Ballbot_TH = theta_car
 
     # first odometry, so see that all values get initialized properly
-    if (Ballbot_X == None):                
+    if (Ballbot_X_old == None):            
         Ballbot_X_old = Ballbot_X
         Ballbot_Y_old = Ballbot_Y
         Ballbot_TH_old = Ballbot_TH
 
-    # else, check if the new point is absurdly different from the previous one (x,y within 5 cm, theta with 10 degrees)
-    elif(not (abs(Ballbot_X - Ballbot_X_old) <= 5) and (abs(Ballbot_Y - Ballbot_Y_old) <= 5) and (abs(Ballbot_TH - Ballbot_TH_old) <= 0.174)):            
+    # else, check if the new point is absurdly different from the previous one (x,y within 10 cm)
+    elif(not ((abs(Ballbot_X - Ballbot_X_old) <= 10) and (abs(Ballbot_Y - Ballbot_Y_old) <= 10)):   
         Ballbot_X = Ballbot_X_old
         Ballbot_Y = Ballbot_Y_old
         Ballbot_TH = Ballbot_TH_old
 
+    else:
+	Ballbot_X_old = Ballbot_X
+    	Ballbot_Y_old = Ballbot_Y
+   	Ballbot_TH_old = Ballbot_TH
+
     pub.publish(Ballbot_X,Ballbot_Y,Ballbot_TH)  
+    
     #print (x_car/100.0,y_car/100.0,theta_car)    
 
 def listener():    

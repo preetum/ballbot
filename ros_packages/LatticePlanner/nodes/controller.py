@@ -37,9 +37,9 @@ def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
     index_min = 0
 
     index = currentindex_inPath
-    for point in path[currentindex_inPath:]:
+    for point in path[currentindex_inPath:currentindex_inPath+10]:
         """
-        Search only from the currentindex.
+        Search only from the currentindex to currentindex+10
         """
         d = util.distance_Euclidean(point.x,point.y,x,y)
         if(d < d_min):
@@ -88,7 +88,7 @@ def controller_PD():
             else:                                    
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
                 targetindex_inPath = min(len(path)-1,currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
-                #print "currentindex",currentindex_inPath,"targetindex",targetindex_inPath,"length",len(path)
+                print "currentindex",currentindex_inPath,"targetindex",targetindex_inPath
                 # P - Proportional term               
 	        #print "error",error
 
@@ -98,12 +98,12 @@ def controller_PD():
                 error = Ballbot_TH - heading    
                 # correct roll-over problems with error:
                 # if abs(error) is greater than 180, then we'd rather turn the other way!
-                if abs(error) > 180:
+                if abs(error) > math.pi:
                     error = (2*math.pi - abs(error))*(-1*cmp(error,0))
             
                 #print "Ballbot",(Ballbot_X,Ballbot_Y,Ballbot_TH),"targetpoint",(path[targetindex_inPath].x,path[targetindex_inPath].y)
                 #print "heading",heading,"error",error
-                #raw_input()
+                #raw_input()		
 
                 Pterm = steering_P * error
                 
@@ -117,6 +117,8 @@ def controller_PD():
                     Ballbot_steering = math.radians(30)
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
+
+		print "error",error,"steering",Ballbot_steering
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
             r.sleep()	
