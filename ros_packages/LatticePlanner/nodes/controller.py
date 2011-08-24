@@ -235,7 +235,7 @@ def newPath_arrived(data):
     print "newpathseen! length",len(path)
     print "Hit any key to begin driving"
     raw_input()
-    
+    rospy.sleep(5)
     newPath = True
 
 def received_odometry(data):

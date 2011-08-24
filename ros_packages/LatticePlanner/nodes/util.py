@@ -871,7 +871,7 @@ def MTAdaptiveAstarsearch_update(start,goal):
         path = []        
         while(node.getParent()!= None):
             parent = node.getParent()
-            print parent.get_stateparams(),node.getAction(),node.get_stateparams()
+            #print parent.get_stateparams(),node.getAction(),node.get_stateparams()
             path.append((parent,node.getAction()))                       
             node = parent         
         #print "path of length",len(path)
