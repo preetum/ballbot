@@ -2,14 +2,14 @@
 import roslib; roslib.load_manifest('court_localization')
 import rospy
 from bb_msgs.msg import Pose
-from particle_viewer import Simulator
+from odometry_viewer import SingleSimulator
 
 import random, time, thread, sys
 import numpy as np
 
 def msg_callback(msg, sim):
-  beliefs = np.array([[msg.x, msg.y, msg.theta]])
-  sim.refresh(beliefs, trails=True)
+  belief = np.array([msg.x, msg.y, msg.theta])
+  sim.refresh(belief, trails=True)
 
 def spin_thread(sim):
   # While ROS is alive, wait for messages
@@ -21,7 +21,7 @@ def main():
   # Get config
   topic_name = rospy.get_param('~topic', 'pose')
 
-  sim = Simulator('Pose')
+  sim = SingleSimulator('Pose')
 
   # Initialize ROS listener
   rospy.init_node('pose_viewer', anonymous=True)
