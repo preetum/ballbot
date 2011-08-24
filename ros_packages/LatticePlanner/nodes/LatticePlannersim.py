@@ -72,6 +72,7 @@ def startPlanner(data):
     path = []
     path.append((x1/100.0,y1/100.0,th1,'s','f'))
     path = path + util.plan_to_path(plan)        
+    path[0] = (x1/100.0,y1/100.0,th1,path[1][3],path[1][4])
 
     print "plan of length",len(plan)
     # for (Node,action) in plan:
@@ -91,7 +92,8 @@ def startPlanner(data):
         path_element.type = point[3]
         path_element.direction = point[4]
         path_to_send.poses.append(path_element)
-
+    
+    #path[0] = (x1/100.0,y1/100.0,th1,path[1][3],path[1][4])
     pub_path.publish(path_to_send)
     print "path published"
 

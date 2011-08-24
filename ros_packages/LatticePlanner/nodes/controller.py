@@ -41,7 +41,7 @@ def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
         """
         Search only from the currentindex to currentindex+10
         """
-        d = util.distance_Euclidean(path_element.pose.x,point.path_element.y,x,y)
+        d = util.distance_Euclidean(path_element.pose.x,path_element.pose.y,x,y)
         if(d < d_min):
             d_min = d
             index_min = index
@@ -136,7 +136,7 @@ def controller_Stanley():
     Steering control is similar to that used by Stanford's Stanley (DARPA Grand Challenge winner)
     """
     global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
-    k = 3.0
+    k = 2.0
     Ballbot_speed = 0.0
     Ballbot_steering = 0.0
   
@@ -175,7 +175,7 @@ def controller_Stanley():
                     x_t = -1*x_t
                 
                 # calculate heading error, psi_t
-                psi_t = Ballbot_TH - point.theta
+                psi_t = Ballbot_TH - path_element.pose.theta
                
                 """
                 correct roll-over problems with error:
@@ -190,7 +190,22 @@ def controller_Stanley():
                     Ballbot_steering = math.radians(30)
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
-                
+
+
+                # Speed control
+                cur_dir = path_element.direction
+                lookahead_dir = path[targetindex_inPath].direction
+                print cur_dir,lookahead_dir
+                if(cur_dir != lookahead_dir):
+                    Ballbot_speed = 0.5
+                else:
+                    Ballbot_speed = 1.0
+                if(cur_dir == 'b'):
+                    Ballbot_speed = -1*abs(Ballbot_speed)
+                elif(cur_dir == 'f'):
+                    Ballbot_speed = abs(Ballbot_speed)
+                else:
+                    Ballbot_speed = 0.0
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
             r.sleep()
