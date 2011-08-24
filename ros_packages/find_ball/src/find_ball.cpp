@@ -259,11 +259,11 @@ void processNewFrame(Mat &frame) {
   Point pt2(0, top.rows);
   Mat roi2 = Mat(dst, Rect(pt2, bottom.size()));
   bottom.copyTo(roi2);
-  imshow("combined", dst);
+  //imshow("combined", dst);
 
   Mat mask = floodFillPostprocess(dst);
   //imshow("flood", dst);
-  imshow("flood fill filtered", mask);
+  //imshow("flood fill filtered", mask);
   
   ballContour prevBall(-1);
   vector <ballContour> candidates  = doContours(mask);
