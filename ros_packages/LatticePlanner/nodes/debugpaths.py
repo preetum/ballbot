@@ -42,7 +42,7 @@ def figureofeight((x1,y1,th1,v1)):
     (x1,y1,th1,v1) = state
     newstate = None
     d = 0
-    while d <= math.pi*util.ROBOT_RADIUS_MIN:
+    while d <= 2*math.pi*util.ROBOT_RADIUS_MIN:
         newstate = util.turn_Right(state,'f',5,util.ROBOT_RADIUS_MIN)
         path.append((newstate[0]/100,newstate[1]/100,newstate[2]))
         state = newstate
