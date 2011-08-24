@@ -28,7 +28,7 @@ def recieved_ballpickup_packet(ballBot,ballpickupPacket):
     This function is called when a ballpickup message is seen
     '''
     ballBot.set_pickup(ballpickupPacket.direction)
-    rospy.loginfo("Ball Pickup! Direction" % direction)
+    rospy.loginfo("Ball Pickup! Direction %d" % ballpickupPacket.direction)
 
 def send_heading_to_arduino(ballBot, imu, odometryPublisher):
     waiter = rospy.Rate(60)

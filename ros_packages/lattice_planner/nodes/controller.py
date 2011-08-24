@@ -216,7 +216,7 @@ def controller_Stanley():
                     Ballbot_speed = 0.5                
 
                 if(currentindex_inPath >= (len(path) - 20)): # if within 1 m of goal, slow down
-                    Ballbot_speed = 0.5
+                    Ballbot_speed = 1.0
 
                 if(cur_dir == 'b'):
                     Ballbot_speed = -1*abs(Ballbot_speed)
