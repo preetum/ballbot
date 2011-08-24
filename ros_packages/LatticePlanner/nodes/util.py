@@ -11,7 +11,7 @@ startNode = None # startNode
 goalNode = None  # goalNode
 agentNode = None # node occupied by agent
 
-SEARCHALGORITHM = "MT-AdaptiveA*"
+SEARCHALGORITHM ="MT-AdaptiveA*"
 count_expandednodes = 0
 S = [] # list of all nodes seen so far by LPA* search, represents the graph S
 U = []
@@ -267,7 +267,8 @@ def point_to_lattice(x,y,th=0,v=ROBOT_SPEED_MAX):
         closest_y = int(closest_y)* CELL_SIZE
     
     # resolve th
-    allowed_headings = [0,math.pi/2,math.pi,3*math.pi/2,math.pi/4,3*math.pi/4,5*math.pi/4,7*math.pi/4,5.177,3.606,2.035,0.464,1.107,5.819,2.677,4.248]
+    allowed_headings = controlset.allowed_headings
+    #allowed_headings = [0,math.pi/2,math.pi,3*math.pi/2,math.pi/4,3*math.pi/4,5*math.pi/4,7*math.pi/4,5.177,3.606,2.035,0.464,1.107,5.819,2.677,4.248]
     differences = [abs(allowed_heading - th) for allowed_heading in allowed_headings]
     closest_th = allowed_headings[differences.index(min(differences))]
     

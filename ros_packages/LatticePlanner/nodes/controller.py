@@ -147,7 +147,7 @@ def controller_Stanley():
         if newPath == False:
             continue
         while(currentindex_inPath < len(path)-1) and not (rospy.is_shutdown()):
-            Ballbot_speed = 1.0 # set speed                   
+            Ballbot_speed = 2.0 # set speed                   
             if(newPath == True):
                 # if there is a new path, restart driving along this path
                 newPath = False
@@ -196,18 +196,25 @@ def controller_Stanley():
                 # Speed control
                 cur_dir = path_element.direction
                 lookahead_dir = path[targetindex_inPath].direction
+                cur_type = path_element.type
+                lookahead_type = path[targetindex_inPath].type
+                #print cur_dir,lookahead_dir
+                
+                Ballbot_speed = 2.0
 
-                print cur_dir,lookahead_dir
-                if(cur_dir != lookahead_dir):
-                    Ballbot_speed = 0.5
-                else:
+                if(cur_type=='t') or (lookahead_type=='t'):
                     Ballbot_speed = 1.0
+
+                if(cur_dir != lookahead_dir):
+                    Ballbot_speed = 0.5                
+
                 if(cur_dir == 'b'):
                     Ballbot_speed = -1*abs(Ballbot_speed)
                 elif(cur_dir == 'f'):
                     Ballbot_speed = abs(Ballbot_speed)
                 else:
                     Ballbot_speed = 0.0
+                
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
             r.sleep()
