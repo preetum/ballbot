@@ -13,7 +13,7 @@ This node receives ball location from the ball finder, and drives the steering t
 import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 from std_msgs.msg import String
-from bb_msgs.msg import Goal,Pose,BallPickup,BallPosition
+from bb_msgs.msg import Goal,Pose,BallPickup,BallPosition,DriveCmd
 import math
 
 pub_goal = rospy.Publisher("goal",Goal)
@@ -83,7 +83,7 @@ def CMD_STATEMACHINE():
 def state_IDLE():
     global Ball_d,Ball_theta
     if (Ball_d >= 0):
-        print "new ball seen. Hit a key to pickup",Ball_x,Ball_y,Ball_theta
+        print "new ball seen. Hit a key to pickup",Ball_d,Ball_theta
         raw_input()        
         return "newballseen"    
     else:
@@ -92,9 +92,9 @@ def state_IDLE():
 def state_BALLPICKUP():    
     global Ballbot_speed, Ballbot_steering
     Ballbot_speed = 0.75
-    Steering_gain = 1.5
+    Steering_gain = 1.0
     r = rospy.Rate(60)
-    while((Ballbot_d >= 0.25) and not(rospy.is_shutdown())): 
+    while((Ball_d >= 0.5) and not(rospy.is_shutdown())): 
         Ballbot_steering = Steering_gain * Ball_theta
         if(Ballbot_steering >= math.radians(30)):
             Ballbot_steering = math.radians(30)
