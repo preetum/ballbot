@@ -53,11 +53,13 @@ int main(int argc, char** argv) {
 
 	cv::Mat frame;
 	cv::VideoCapture cam(0);
+    cam.set(CV_CAP_PROP_FRAME_WIDTH,640);
+    cam.set(CV_CAP_PROP_FRAME_HEIGHT,480);
 	while(nh.ok()) {
         // Capture frame
-	    cam >> frame;
-        //cv::undistort(frame_raw, frame, camera_info.K, camera_info.D);
-
+        //	    cam >> frame;
+        cam.read(frame);
+        //cv::undistort(frame_raw, frame, camera_info.K, camera_info.D);        
 	    // Convert to ROS image message
 	    int cols = frame.cols, rows = frame.rows;
 	    sensor_msgs::Image msg;
@@ -67,7 +69,8 @@ int main(int argc, char** argv) {
 	    msg.is_bigendian = false;
 	    msg.step = cols*3;
 	    msg.data.resize(rows*cols*3);
-
+        
+        // std::cout<<msg.width<<" "<<msg.height<<std::endl;
 	    // Copy raw pixels to image message data
 	    if (frame.isContinuous()) {
             cols *= rows;

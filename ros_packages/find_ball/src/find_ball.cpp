@@ -333,7 +333,7 @@ int main( int argc, char** argv ) {
   if (!nPrivate.hasParam("image_transport"))
     nPrivate.setParam("image_transport", "compressed");
 
-  nPrivate.param<string>("image", imageTopic, "gscam/image_raw");
+  nPrivate.param<string>("image", imageTopic, "camera/image");
   imageSub = it.subscribe(imageTopic, 1, received_frame);
   ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1);
   
