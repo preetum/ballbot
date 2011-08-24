@@ -88,7 +88,7 @@ def controller_PD():
             else:                                    
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
                 targetindex_inPath = min(len(path)-1,currentindex_inPath + int(targetlookahead/5.0)) # points are at a separation of 5 cm                
-                print "currentindex",currentindex_inPath,"targetindex",targetindex_inPath
+                #print "currentindex",currentindex_inPath,"targetindex",targetindex_inPath
                 # P - Proportional term               
 	        #print "error",error
 
@@ -118,7 +118,7 @@ def controller_PD():
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
 
-		print "error",error,"steering",Ballbot_steering
+		#print "error",error,"steering",Ballbot_steering
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
             r.sleep()	

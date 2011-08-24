@@ -37,24 +37,21 @@ def callback(data):
             y3 = marker.translation.y/10.0
     length13 = math.sqrt((x1-x3)*(x1-x3) + (y1-y3)*(y1-y3))
     xmid = (x1 + x2)/2
-    ymid = (y1 + y2)/2
-
-    if (xmid==0) and (ymid==0) and (length13==0):
-        return
-
+    ymid = (y1 + y2)/2    
 
     y21 = y2 - y1
     y31 = y3 - y1
     x21 = x2 - x1
     x31 = x3 - x1
-
-    if(y21 ==0) and (y31==0) and (x21==0) and (x31==0):
-        return
+    
     # calculate (x_car,y_car,theta_car) for the center of the rear axle
-    x_car = xmid - 29.21*y21*length13/(y31*x21 - y21*x31)
-    y_car = ymid - 29.21*x21*length13/(x31*y21 - x21*y31)
-    theta_car = math.atan2(y1-y3,x1-x3)%(2*math.pi)
+    try:
+        x_car = xmid - 29.21*y21*length13/(y31*x21 - y21*x31)
+        y_car = ymid - 29.21*x21*length13/(x31*y21 - x21*y31)
+        theta_car = math.atan2(y1-y3,x1-x3)%(2*math.pi)
 
+    except ZeroDivisionError:
+        return
     # transform such that center of vicon system is at (10.0,10.0)
     x_car += 1000.0
     y_car += 1000.0
@@ -69,8 +66,8 @@ def callback(data):
         Ballbot_Y_old = Ballbot_Y
         Ballbot_TH_old = Ballbot_TH
 
-    # else, check if the new point is absurdly different from the previous one (x,y within 10 cm)
-    elif(not ((abs(Ballbot_X - Ballbot_X_old) <= 10) and (abs(Ballbot_Y - Ballbot_Y_old) <= 10)):   
+    # else, check if the new point is absurdly different from the previous one (x,y within 50 cm)
+    elif(not ((abs(Ballbot_X - Ballbot_X_old) <= 0.5) and (abs(Ballbot_Y - Ballbot_Y_old) <= 0.5))):   
         Ballbot_X = Ballbot_X_old
         Ballbot_Y = Ballbot_Y_old
         Ballbot_TH = Ballbot_TH_old
