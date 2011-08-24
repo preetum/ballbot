@@ -40,7 +40,7 @@ def odometry_callback(packet, pub):
         ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
     cmd, counts, counts_delta, yaw, timestamp = \
         struct.unpack('>BllhL', packet.data)
-    print '%d\t%d\t%d' % (counts, counts_delta, timestamp)
+    #print '%d\t%d\t%d' % (counts, counts_delta, timestamp)
 
     # Calculate change in heading
     global lastHeading
