@@ -17,10 +17,14 @@ struct camera_intrinsic_values  //stores camera intrinsics
 
 	camera_intrinsic_values()
 	{
-		fx = 522.1019521747;
-		cx = 299.0472018951;
-		fy = 524.4051288723;
-		cy = 242.6572277189;
+	  //fx = 522.1019521747;
+	  //	cx = 299.0472018951;
+		fx = 261;
+	       	cx = 160;
+		//	fy = 524.4051288723;
+		fy = 262;
+		//		cy = 242.6572277189;
+		cy = 120;
 	}
 };
 
