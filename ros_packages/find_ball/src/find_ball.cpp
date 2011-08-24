@@ -304,7 +304,7 @@ void processNewFrame(Mat &frame) {
   } else {
     ROS_INFO("no ball found");
   }
-  imshow("ball detected", ballFound+dst);
+  //imshow("ball detected", ballFound+dst);
   waitKey(3);
 }
 
