@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <sys/timeb.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include "backproject.h"
@@ -43,6 +44,7 @@ double horizon = 0.0;
 // Utility functions
 
 void printTime(const char *label) {
+    /*
     static struct timeb prev = {0,0};
     struct timeb cur;
     double diff = 0;
@@ -54,6 +56,7 @@ void printTime(const char *label) {
     fprintf(stderr,"%30s  start = %d.%-3hu (+%5.3f)\n",
               label, (int)cur.time, cur.millitm, diff);
     prev = cur;
+    */
 }
 
 double weightSum(vector<PoseParticle> *particles) {
@@ -375,6 +378,7 @@ void ParticleFilter::publish(ros::Publisher &pub) const {
     bb_msgs::Pose poseMsg;
     poseMsg.x = 0.01*x / len; // converting to m
     poseMsg.y = 0.01*y / len; // converting to m
+
     poseMsg.theta = atan2(thetaY, thetaX);
     fprintf(stderr, "Avg pose: %.2f, %.2f @ %f deg ", poseMsg.x, poseMsg.y,
             poseMsg.theta * 180 / CV_PI);
@@ -493,13 +497,18 @@ int main(int argc, char** argv) {
     pf.particles = init;
     pf.numParticles = init->size();
     //*/
+
+    int initParticles = 25;
+    if (argc > 1) {
+        initParticles = atoi(argv[1]);
+    }
     //*
     vector<PoseParticle> *init = new vector<PoseParticle>();
     // Whole court
     //drawUniformly(init, 5000, Bounds(-200,1389), Bounds(-200, 1297),
     //                           Bounds(0,2*CV_PI));
     // Bottom strip
-    drawUniformly(init, 500, Bounds(300, 800), Bounds(-400, 100),
+    drawUniformly(init, initParticles, Bounds(300, 800), Bounds(-400, 100),
                   Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-250, 0),
     //                  Bounds(0,2*CV_PI));
