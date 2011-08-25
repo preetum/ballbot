@@ -14,18 +14,21 @@ from std_msgs.msg import String
 from bb_msgs.msg import Pose,Goal
 
 pub_goal = rospy.Publisher('goal',Goal)
-Ballbot_x = 10.0
-Ballbot_y = 10.0
-Ballbot_theta = math.pi/2
+Ballbot_x = -10.0
+Ballbot_y = -10.0
+Ballbot_theta = -math.pi/2
 
 def goalsender():
     argv = rospy.myargv(argv=sys.argv) 
+    if (Ballbot_x == -10):
+	rospy.sleep(2)
     if(len(argv) == 3):
         d_goal = float(argv[1])*100
         th_goal = float(argv[2])
 
         th_goal = Ballbot_theta - math.radians(th_goal)     # angle to goal in global coord
                                                      # = angle of car in global coord - angle to goal from car (which is in [-90deg,90deg]
+	th_goal = th_goal%(2*math.pi)
         x2 = Ballbot_x*100.0 + d_goal*math.cos(th_goal)
         y2 = Ballbot_y*100.0 + d_goal*math.sin(th_goal)
         th2 = 0                                   # doesn't matter for goal test
@@ -35,8 +38,8 @@ def goalsender():
         goal_msg.goaltype = String("newball")
         goal_msg.pose = Pose(x2,y2,th2)
         pub_goal.publish(goal_msg)
-        print "sent goal"
-        rospy.signal_shutdown("Exiting")
+	print "pose",(Ballbot_x,Ballbot_y,Ballbot_theta)
+        print "sent goal",(x2,y2,th2)        
         
     else:
         rospy.loginfo("Usage: rosrun lattice_planner goalsender.py d_dist[m] d_theta[deg]")
@@ -45,6 +48,7 @@ def goalsender():
 
 def received_odometry(data):
     global Ballbot_x,Ballbot_y,Ballbot_theta
+    #print "recd odom"
     # Coordinate frame conversion from localization frame to planner frame
     Ballbot_x = (data.y + 3.658)
     Ballbot_y = (30.17 - data.x)
@@ -52,8 +56,9 @@ def received_odometry(data):
 
 if __name__ == '__main__':
     try:
-        rospy.init_node('goalsender')
-        rospy.Subscriber("pose",Pose, received_odometry)         
+        rospy.init_node('goalsender',anonymous = True)
+        rospy.Subscriber('pose',Pose, received_odometry)         
         goalsender() 
+	rospy.spin()
     except rospy.ROSInterruptException: pass
 

@@ -154,7 +154,7 @@ def controller_Stanley():
         if newPath == False:
             continue
         while(currentindex_inPath < len(path)-1) and not (rospy.is_shutdown()):
-            Ballbot_speed = 2.0 # set speed                   
+            Ballbot_speed = 0.0 # set speed                   
             if(newPath == True):
                 # if there is a new path, restart driving along this path
                 newPath = False
@@ -234,6 +234,8 @@ def controller_Stanley():
                 else:
                     Ballbot_speed = 0.0
                 
+                Ballbot_speed = 0.0;
+                rospy.loginfo("Angle error %f Crosstrack error %f Steering %f",psi_t,x_t,Ballbot_steering)
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
             r.sleep()
