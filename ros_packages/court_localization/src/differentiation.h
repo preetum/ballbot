@@ -2,7 +2,7 @@
 #define _differentiation_h
 
 #include <cv.h>
-#include "structs.h"
+#include "backproject.h"
 
 double differential(cv::Point3f real_world_position, cv::Point3f cam_position,
 		    double sin_theta, double cos_theta, double sin_phi,

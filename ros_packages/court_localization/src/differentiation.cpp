@@ -6,7 +6,12 @@
  *      Author: ankush
  */
 
-#include "include.h"
+#include <cv.h>
+#include <iostream>
+#include "backproject.h"
+#include "differentiation.h"
+
+
 
 using namespace cv;
 using namespace std;

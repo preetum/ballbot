@@ -26,6 +26,7 @@
 using namespace cv;
 using namespace std;
 
+// Utility functions
 double weightSum(vector<PoseParticle> *particles) {
     double weightSum = 0.0;
     for (unsigned int i = 0; i < particles->size(); i += 1)
@@ -38,20 +39,28 @@ void weighUniformly(vector<PoseParticle> *particles, double weight) {
         particles->at(i).weight = weight;
 }
 
+/* Initializes an empty particle filter */
 ParticleFilter::ParticleFilter() {
     numParticles = 0;
     particles = new vector<PoseParticle>();
 }
 
+/* Initializes a particle filter with the given initial particles.
+ * Note that this does _not_ make a deep copy of the vector.
+ */
 ParticleFilter::ParticleFilter(vector<PoseParticle> *initialParticles) {
     // numParticles is the *initial* particle count
     numParticles = initialParticles->size();
     particles = initialParticles;
 }
 
+/* Clears the particle filter and (re)initializes it with N particles
+ * using a uniform distribution over the given bounds.
+ */
 void ParticleFilter::initializeUniformly(unsigned int n, Bounds xRange, 
                                          Bounds yRange, Bounds thetaRange) {
     cv::RNG rng;
+    particles->clear();
     particles->reserve(n);
     numParticles = n;
     while (n > 0) {
@@ -64,12 +73,16 @@ void ParticleFilter::initializeUniformly(unsigned int n, Bounds xRange,
     normalize();
 }
 
-double backprojectionWeight(cv::Mat &observation, PoseParticle &particle) {
-    camera bb_camera;
-    bb_camera.position.x = particle.pose.x;
-    bb_camera.position.y = particle.pose.y;
-    bb_camera.position.z = 33;  // fixed camera height = 33cm
-    bb_camera.theta = particle.pose.theta;
+double backprojectionWeight(cv::Mat &observation,
+                            const PoseParticle &particle) {
+    camera particle_camera;
+    particle_camera.position.x = particle.pose.x;
+    particle_camera.position.y = particle.pose.y;
+    particle_camera.position.z = 33;  // fixed camera height = 33cm
+    particle_camera.theta = particle.pose.theta;
+
+    vector<line_segment_all_frames> segments = 
+        get_view_lines(particle_camera, Size(640,480), observation);
 
     return 0;
 }
@@ -145,24 +158,13 @@ void ParticleFilter::print(int limit) const {
     }
 }
 
+/* On receiving an image, update this particle filter with the observation. */
 void ParticleFilter::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-
-        for (unsigned int i = 0; i < particles->size(); i += 1) {
-            PoseParticle &particle = particles->at(i);
-            
-            camera bb_camera;
-            bb_camera.position.x = particle.pose.x;
-            bb_camera.position.y = particle.pose.y;
-            bb_camera.position.z = 33;  // fixed camera height = 33cm
-            bb_camera.theta = particle.pose.theta;
-
-            Mat frame = back_projection(bb_camera);
-            imshow("Backprojection", frame + cv_ptr->image);
-            waitKey(0);
-        }
+        observe(cv_ptr->image);
+        imshow("image", cv_ptr->image);
     }
     catch (cv_bridge::Exception& e) {
         ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -172,22 +174,27 @@ void ParticleFilter::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "image_converter");
-
-    vector<PoseParticle> *particles = new vector<PoseParticle>();
-    PoseParticle initLoc(1900, 1100, 4);
-    for (int i = 0; i < 10; i += 1)
-        particles->push_back(initLoc);
-
-    ParticleFilter pf(particles);
-    pf.transition(Pose(), 50, 0.1);
-
     ros::NodeHandle nh;
+    ros::NodeHandle nh_private("~");
+
+    // Create particle filter
+    ParticleFilter pf;
+    pf.initializeUniformly(100, Bounds(0,1189), Bounds(0, 1097), 
+                           Bounds(0,2*CV_PI));
+    //pf.transition(Pose(), 50, 0.1);
+
+    // Create debug windows
+    namedWindow("image", CV_WINDOW_AUTOSIZE);
+
+    // Create ROS image listener
     image_transport::ImageTransport it(nh);
     image_transport::Subscriber image_sub;
-    nh.setParam("~image_transport", "compressed");
-    it.subscribe("gscam/image_raw", 1, &(ParticleFilter::imageCallback), &pf);
+    string image_topic;
+    if (!nh_private.hasParam("image_transport"))
+        nh_private.setParam("image_transport", "compressed");
+    nh_private.param<string>("image", image_topic, "gscam/image_raw");
+    it.subscribe("gscam/image_raw", 1, &ParticleFilter::imageCallback, &pf);
 
-    pf.print();
-
-    namedWindow("Backprojection", CV_WINDOW_AUTOSIZE);
+    // Spin
+    ros::spin();
 }

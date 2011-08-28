@@ -12,7 +12,7 @@ struct variances
 		x = 20*20; // pixels-squared
 		y = 20*20; // pixels-squared
 		len = 50*50; // pixels-squared
-		angle = (pi/7.0*pi/7.0); // radians-squared
+		angle = (CV_PI/7.0*CV_PI/7.0); // radians-squared
 	}
 };
 

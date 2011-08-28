@@ -53,6 +53,7 @@ public:
     void normalize();
     const std::vector<PoseParticle> & getBeliefs() const;
     void print(int limit=-1) const;
+    void imageCallback(const sensor_msgs::ImageConstPtr& msg);
 };
 
 #endif

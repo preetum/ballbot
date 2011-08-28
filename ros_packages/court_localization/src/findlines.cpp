@@ -13,7 +13,7 @@ using namespace cv;
 // Globals
 bool verbose = false;
 bool display = false;
-bool pause = false;
+//bool pause = false;
 
 /* Normalize an angle to the range (-pi, pi] */
 double normalizeRadians(double rad) {
@@ -275,7 +275,15 @@ void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
         if (pause) waitKey();
     }
 } // findLines()
-
+/*
+void matchLines(vector<Vec4i> &seenLines,
+                vector<line_segment_all_frames> predictedLines) {
+    for (int i = 0; i < predictedLines.size(); i += 1) {
+        line_segment2d &line = predictedLines[i].imgPlane;
+        pointLineSegmentDistance(
+    }
+}
+*/
 void test() {
     Vec4i a(1,2,3,4);
     Vec4i b = a;
@@ -288,6 +296,7 @@ void test() {
     printf("%f\n", pointLineDistance(Vec2i(0,1), Vec4i(-1,-1, 1,1)));
 }
 
+/*
 int main(int argc, char **argv)
 {
     bool run = true;
@@ -322,14 +331,12 @@ int main(int argc, char **argv)
     if (display) {
         namedWindow("img", CV_WINDOW_AUTOSIZE);
         cvMoveWindow("img", 50, 50);
-        /*
-          cvNamedWindow("gray", 0);
-          cvMoveWindow("gray", 400, 50);
-          cvNamedWindow("thresh", 0);
-          cvMoveWindow("thresh", 50, 350);
-          cvNamedWindow("edges", 0);
-          cvMoveWindow("edges", 400, 350);
-        */
+        //cvNamedWindow("gray", 0);
+        //cvMoveWindow("gray", 400, 50);
+        //cvNamedWindow("thresh", 0);
+        //cvMoveWindow("thresh", 50, 350);
+        //cvNamedWindow("edges", 0);
+        //cvMoveWindow("edges", 400, 350);
     }
 
     // Arguments remaining: load image file
@@ -392,3 +399,4 @@ int main(int argc, char **argv)
         }
     }
 }
+*/
