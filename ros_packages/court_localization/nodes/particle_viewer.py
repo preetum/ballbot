@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-#import roslib; roslib.load_manifest('court_localization')
-#import rospy
-#from bb_msgs.msg import PoseArray
+import roslib; roslib.load_manifest('court_localization')
+import rospy
+from bb_msgs.msg import PoseArray
 
 import random, time, thread, sys
 import numpy as np
@@ -106,31 +106,24 @@ class Simulator:
     self.draw_line(((1150, 1097/2.0), (1189, 1097/2.0)), width=5, fill='white')
 
 
-
-# On click, refresh the simulation
-def click_callback(event, sim):
-  sim.refresh()
-
 def msg_callback(msg, sim):
   sim.refresh(msg.data)
 
 def main():
   # Get config
-  rate = float(rospy.get_param('~refresh_rate', 1))
   topic_name = rospy.get_param('~topic', 'filter/particles')
 
   sim = Simulator()
   #sim.refresh(((500, 500, 0), (600, 500, np.pi/4), (500, 600, -3*np.pi/4)))
 
   # Initialize ROS listener
-  rospy.init_node('particle_viewer')
+  rospy.init_node('particle_viewer', anonymous=True)
   rospy.Subscriber(topic_name, PoseArray, lambda msg: msg_callback(msg, sim))
 
   # Start rospy spin thread
   thread.start_new_thread(rospy.spin, ())
 
   # Start main Tk loop
-  sim.canvas.bind('<Button-1>', lambda evt: click_callback(evt, sim))
   sim.root.mainloop()
 
 
