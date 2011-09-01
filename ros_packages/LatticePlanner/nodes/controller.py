@@ -96,8 +96,10 @@ def controller_PD():
 
                 heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading    
-                # correct roll-over problems with error:
-                # if abs(error) is greater than 180, then we'd rather turn the other way!
+                """
+                correct roll-over problems with error:
+                if abs(error) is greater than 180, then we'd rather turn the other way!
+                """
                 if abs(error) > math.pi:
                     error = (2*math.pi - abs(error))*(-1*cmp(error,0))
             
@@ -129,6 +131,61 @@ def controller_PD():
         Ballbot_steering = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering)                    
 	
+def controller_Stanley():
+    """
+    Steering control is similar to that used by Stanford's Stanley (DARPA Grand Challenge winner)
+    """
+    global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
+    Ballbot_speed = 0.0
+    Ballbot_steering = 0.0
+  
+    currentindex_inPath = 0 # path index that the car is closest to
+    targetindex_inPath = 0  # path index that is 50 cm ahead of the car
+    r = rospy.Rate(60)
+    while not rospy.is_shutdown():
+        if newPath == False:
+            continue
+        while(currentindex_inPath < len(path)-1) and not (rospy.is_shutdown()):
+            Ballbot_speed = 1.0 # set speed                   
+            if(newPath == True):
+                # if there is a new path, restart driving along this path
+                newPath = False
+                currentindex_inPath = 0                               
+                continue
+            else:
+                currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
+                point = path[currentindex_inPath]
+
+                # calculate cross-track error, x_t
+                x_t = util.distance_Euclidean(Ballbot_X,Ballbot_Y,point.x,point.y)
+                
+                # calculate heading error, psi_t
+                psi_t = Ballbot_TH - point.theta
+               
+                """
+                correct roll-over problems with error:
+                if abs(error) is greater than 180, then we'd rather turn the other way!
+                """
+                if abs(psi_t) > math.pi:
+                    psi_t = (2*math.pi - abs(psi_t))*(-1*cmp(psi_t,0))
+                    
+                # Set output
+                Ballbot_steering = psi_t + math.atan(1*x_t/Ballbot_speed)
+                if(Ballbot_steering > math.radians(30)):
+                    Ballbot_steering = math.radians(30)
+                elif(Ballbot_steering < -math.radians(30)):
+                    Ballbot_steering = -math.radians(30)
+                
+                pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
+
+            r.sleep()
+
+        # goal reached!
+        print "goalreached"
+        Ballbot_speed = 0
+        Ballbot_steering = 0
+        pub_velcmd.publish(Ballbot_speed,Ballbot_steering) 
+
 def newPath_arrived(data):
     """
     A new path has been computed. Feed it into path and set newPath to true
@@ -156,7 +213,8 @@ def listener():
     rospy.init_node('Controller',anonymous = True)
     rospy.Subscriber('path', Path, newPath_arrived)    
     rospy.Subscriber('odometry', Pose, received_odometry)
-    controller_PD() 
+    #controller_PD() 
+    controller_Stanley()
     rospy.spin()
     
 def shdn():
