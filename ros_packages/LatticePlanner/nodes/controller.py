@@ -37,11 +37,11 @@ def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
     index_min = 0
 
     index = currentindex_inPath
-    for point in path[currentindex_inPath:currentindex_inPath+10]:
+    for path_element in path[currentindex_inPath:currentindex_inPath+10]:
         """
         Search only from the currentindex to currentindex+10
         """
-        d = util.distance_Euclidean(point.x,point.y,x,y)
+        d = util.distance_Euclidean(path_element.pose.x,point.path_element.y,x,y)
         if(d < d_min):
             d_min = d
             index_min = index
@@ -94,7 +94,7 @@ def controller_PD():
 
                 # P - Proportional term                
 
-                heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
+                heading = (math.atan2(path[targetindex_inPath].pose.y-Ballbot_Y, path[targetindex_inPath].pose.x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading    
                 """
                 correct roll-over problems with error:
@@ -157,12 +157,12 @@ def controller_Stanley():
             else:
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
                 targetindex_inPath = min(len(path)-1,currentindex_inPath + int(targetlookahead/5.0))
-                point = path[currentindex_inPath]
+                path_element = path[currentindex_inPath]
 
                 # calculate cross-track error, x_t
-                x_t = util.distance_Euclidean(Ballbot_X,Ballbot_Y,point.x,point.y)
+                x_t = util.distance_Euclidean(Ballbot_X,Ballbot_Y,path_element.pose.x,path_element.pose.y)
 
-                heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
+                heading = (math.atan2(path[targetindex_inPath].pose.y-Ballbot_Y, path[targetindex_inPath].pose.x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading
                 """                                                                                                                                          
                 correct roll-over problems with error:                                                                                                       

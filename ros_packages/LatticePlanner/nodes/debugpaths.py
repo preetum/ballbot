@@ -22,7 +22,12 @@ def straightLine((x1,y1,th1,v1),(x2,y2,th2,v2)):
         pose.x = point[0] - 17.41*math.cos(point[2])/100.0
         pose.y = point[1] - 17.41*math.sin(point[2])/100.0
         pose.theta = point[2]
-        path_to_send.poses.append(pose)
+
+        pathelement = LatticePlannersim.PathElement()
+        pathelement.pose = pose
+        pathelement.type = 's'
+        pathelement.direction = 'f'
+        path_to_send.poses.append(pathelement)
             
     LatticePlannersim.pub_path.publish(path_to_send)
     print "path published"
@@ -55,7 +60,11 @@ def figureofeight((x1,y1,th1,v1)):
         pose.x = point[0] - 17.41*math.cos(point[2])/100.0
         pose.y = point[1] - 17.41*math.sin(point[2])/100.0
         pose.theta = point[2]
-        path_to_send.poses.append(pose)
+        pathelement = LatticePlannersim.PathElement()
+        pathelement.pose = pose
+        pathelement.type = 't'
+        pathelement.direction = 'f'
+        path_to_send.poses.append(pathelement)
             
     LatticePlannersim.pub_path.publish(path_to_send)
     print "path published"

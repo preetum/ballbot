@@ -31,8 +31,8 @@ def simulator():
     pub_odom = rospy.Publisher('odometry',Pose)            
 
     # each point is about 5 cm apart, therefore sleep for (Ballbot_speed/20) seconds
-    #r = rospy.Rate(20.0/Ballbot_speed)
-    r = rospy.Rate(3.0) # for debugging
+    r = rospy.Rate(20.0/Ballbot_speed)
+    #r = rospy.Rate(3.0) # for debugging
     while not rospy.is_shutdown():
         currentindex_inPath = 0
         if newPath == False:
@@ -48,9 +48,9 @@ def simulator():
                 currentindex_inPath = 0                            
                 continue
             else:                 
-                Ballbot_x = path[currentindex_inPath].x
-                Ballbot_y = path[currentindex_inPath].y
-                Ballbot_theta = path[currentindex_inPath].theta
+                Ballbot_x = path[currentindex_inPath].pose.x
+                Ballbot_y = path[currentindex_inPath].pose.y
+                Ballbot_theta = path[currentindex_inPath].pose.theta
                 pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
                 currentindex_inPath += 1                            
             r.sleep()        
