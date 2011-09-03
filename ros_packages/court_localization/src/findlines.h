@@ -5,5 +5,6 @@
 #include <cv.h>
 
 void findLines(cv::Mat &frame, std::vector<cv::Vec4i> &groupedLines);
+void drawLines(cv::Mat &frame, const std::vector<cv::Vec4i> &lines);
 
 #endif

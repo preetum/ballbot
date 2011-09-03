@@ -107,7 +107,8 @@ class Simulator:
 
 
 def msg_callback(msg, sim):
-  sim.refresh(msg.data)
+  beliefs = np.array([[p.x, p.y, p.theta] for p in msg.data])
+  sim.refresh(beliefs)
 
 def main():
   # Get config

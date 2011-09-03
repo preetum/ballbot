@@ -44,11 +44,11 @@ struct camera
 	{
 
 		position.x = 0;
-		position.y = 500;
-		position.z = 133; // Camera is 33cm above the ground
+		position.y = 0;
+		position.z = 33;
 		theta = 0;
 		pan = 0;
-		tilt = 175;
+		tilt = 0;
 	}
 
 };

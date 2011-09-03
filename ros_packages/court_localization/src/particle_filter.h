@@ -34,10 +34,10 @@ public:
 };
 
 class ParticleFilter {
+public:
     unsigned int numParticles;
     std::vector<PoseParticle> *particles;
 
-public:
     ParticleFilter();
     ParticleFilter(std::vector<PoseParticle> *initialParticles);
 
@@ -48,7 +48,7 @@ public:
     void observe(cv::Mat &observation);
     /* Transition the particles using movement and Gaussian noise */
     void transition(Pose movement=Pose(),
-                    double sigma_xy=5, double sigma_theta=0.1);
+                    double sigma_xy=5, double sigma_theta=0.01);
     void resample();
     void normalize();
     const std::vector<PoseParticle> & getBeliefs() const;

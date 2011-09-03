@@ -15,16 +15,22 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
+#include <bb_msgs/Pose.h>
+#include <bb_msgs/PoseArray.h>
 
 #include <stdio.h>
 
 #include "backproject.h"
 #include "particle_filter.h"
-
-#define PI 3.14159265359
+#include "findlines.h"
+#include "geometry.h"
 
 using namespace cv;
 using namespace std;
+
+// Globals
+ParticleFilter pf;
+ros::Publisher particle_pub;
 
 // Utility functions
 double weightSum(vector<PoseParticle> *particles) {
@@ -80,16 +86,54 @@ double backprojectionWeight(cv::Mat &observation,
     particle_camera.position.y = particle.pose.y;
     particle_camera.position.z = 33;  // fixed camera height = 33cm
     particle_camera.theta = particle.pose.theta;
+    particle_camera.tilt = -CV_PI/8;
 
-    vector<line_segment_all_frames> segments = 
+    // Find lines that should be visible
+    vector<line_segment_all_frames> modelLines = 
         get_view_lines(particle_camera, Size(640,480), observation);
 
-    return 0;
+    // Detect lines in the image
+    vector<Vec4i> seenLines;
+    findLines(observation, seenLines);
+    // Draw detected lines for debugging
+    drawLines(observation, seenLines);
+    imshow("image", observation);
+
+
+    // Calculate the weight for each line
+    // Let's weight each line equally
+    double weight = 0.0;
+    for (vector<Vec4i>::const_iterator it2 =
+             seenLines.begin(); it2 < seenLines.end(); it2 += 1) {
+        const Vec4i &viewLine = *it2;
+        Vec2i pt1(viewLine[0], viewLine[1]),
+            pt2(viewLine[2], viewLine[3]);
+        double viewLineAngle = lineAngle(viewLine);
+
+        // Calculate the weight contribution of each model line
+        for (vector<line_segment_all_frames>::const_iterator it =
+                 modelLines.begin(); it < modelLines.end(); it += 1) {
+            const line_segment_all_frames &modelLine = *it;
+            Vec4i line = pointsToLine(modelLine.imgPlane.pt1,
+                                      modelLine.imgPlane.pt2);
+            double modelLineAngle = lineAngle(line);
+            double headingError = 
+                abs(normalizeRadians(modelLineAngle - viewLineAngle));
+            double metric = pointLineSegmentDistance(pt1, line) +
+                pointLineSegmentDistance(pt2, line);
+            metric = metric * exp(3 * headingError);
+
+            weight += exp(-0.005*metric - 7*headingError);
+        }
+    }
+
+    return weight;
 }
 
 void ParticleFilter::observe(cv::Mat &observation) {
     for (unsigned int i = 0; i < particles->size(); i += 1) {
-        backprojectionWeight(observation, particles->at(i));
+        PoseParticle &particle = particles->at(i);
+        particle.weight *= backprojectionWeight(observation, particle);
     }
 }
 
@@ -159,11 +203,30 @@ void ParticleFilter::print(int limit) const {
 }
 
 /* On receiving an image, update this particle filter with the observation. */
-void ParticleFilter::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
+void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-        observe(cv_ptr->image);
+
+        // Update particle filter
+        pf.observe(cv_ptr->image);
+        pf.print();
+        printf("-----------\n");
+        pf.resample();
+        pf.transition();
+
+        // Publish particles
+        bb_msgs::PoseArray msg;
+        for (size_t i = 0; i < pf.particles->size(); i += 1) {
+            const PoseParticle &p = pf.particles->at(i);
+            bb_msgs::Pose poseMsg;
+            poseMsg.x = p.pose.x;
+            poseMsg.y = p.pose.y;
+            poseMsg.theta = p.pose.theta;
+            msg.data.push_back(poseMsg);
+        }
+        particle_pub.publish(msg);
+
         imshow("image", cv_ptr->image);
     }
     catch (cv_bridge::Exception& e) {
@@ -177,14 +240,22 @@ int main(int argc, char** argv) {
     ros::NodeHandle nh;
     ros::NodeHandle nh_private("~");
 
-    // Create particle filter
-    ParticleFilter pf;
-    pf.initializeUniformly(100, Bounds(0,1189), Bounds(0, 1097), 
-                           Bounds(0,2*CV_PI));
+    // Initialize particle filter
+    /*
+    vector<PoseParticle> *init = new vector<PoseParticle>();
+    init->push_back(PoseParticle(500, -100, 3*CV_PI/8, 1));
+    pf.particles = init;
+    pf.numParticles = 1;
+    */
+    pf.initializeUniformly(100, Bounds(0,1189), Bounds(0, 1097),
+                               Bounds(0,2*CV_PI));
     //pf.transition(Pose(), 50, 0.1);
 
     // Create debug windows
     namedWindow("image", CV_WINDOW_AUTOSIZE);
+
+    // Create particle publisher
+    particle_pub = nh.advertise<bb_msgs::PoseArray>("filter/particles", 4);
 
     // Create ROS image listener
     image_transport::ImageTransport it(nh);
@@ -193,8 +264,11 @@ int main(int argc, char** argv) {
     if (!nh_private.hasParam("image_transport"))
         nh_private.setParam("image_transport", "compressed");
     nh_private.param<string>("image", image_topic, "gscam/image_raw");
-    it.subscribe("gscam/image_raw", 1, &ParticleFilter::imageCallback, &pf);
+    image_sub = it.subscribe(image_topic, 1, imageCallback);
 
-    // Spin
-    ros::spin();
+    // Spin loop
+    while (ros::ok()) {
+        waitKey(10);
+        ros::spinOnce();
+    }
 }
