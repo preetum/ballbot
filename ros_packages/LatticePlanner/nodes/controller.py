@@ -164,13 +164,13 @@ def controller_Stanley():
 
                 heading = (math.atan2(path[targetindex_inPath].pose.y-Ballbot_Y, path[targetindex_inPath].pose.x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading
-                """                                                                                                                                          
-                correct roll-over problems with error:                                                                                                       
-                if abs(error) is greater than 180, then we'd rather turn the other way!                                                                      
                 """
+                correct roll-over problems with error:
+                if abs(error) is greater than 180, then we'd rather turn the other way!
+                """
+
                 if abs(error) > math.pi:
                     error = (2*math.pi - abs(error))*(-1*cmp(error,0))
-
                 if error < 0:
                     x_t = -1*x_t
                 
@@ -181,6 +181,7 @@ def controller_Stanley():
                 correct roll-over problems with error:
                 if abs(error) is greater than 180, then we'd rather turn the other way!
                 """
+
                 if abs(psi_t) > math.pi:
                     psi_t = (2*math.pi - abs(psi_t))*(-1*cmp(psi_t,0))
                     
@@ -195,6 +196,7 @@ def controller_Stanley():
                 # Speed control
                 cur_dir = path_element.direction
                 lookahead_dir = path[targetindex_inPath].direction
+
                 print cur_dir,lookahead_dir
                 if(cur_dir != lookahead_dir):
                     Ballbot_speed = 0.5
