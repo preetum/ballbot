@@ -59,7 +59,7 @@ def startPlanner(d_goal,th_goal):
     Goal_x = x2
     Goal_y = y2
 
-    return # remove for MTA*    
+    #return # remove for MTA*    
     while not rospy.is_shutdown():
         print "Hit enter to update goal"
         raw_input()

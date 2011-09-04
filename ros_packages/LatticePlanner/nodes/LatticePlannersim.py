@@ -75,8 +75,9 @@ def startPlanner(data):
     path[0] = (x1/100.0,y1/100.0,th1,path[1][3],path[1][4])
 
     print "plan of length",len(plan)
-    # for (Node,action) in plan:
-    #     print Node.get_stateparams(),action
+    for (Node,action) in plan:
+        if action == "B":
+            print Node.get_stateparams(),action,Node.get_g()
 
     path_to_send = Path()    
     for point in path:        
