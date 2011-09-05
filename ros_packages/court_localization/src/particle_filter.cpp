@@ -19,6 +19,7 @@
 #include <bb_msgs/PoseArray.h>
 
 #include <stdio.h>
+#include <sys/timeb.h>
 
 #include "backproject.h"
 #include "particle_filter.h"
@@ -33,6 +34,22 @@ ParticleFilter pf;
 ros::Publisher particle_pub;
 
 // Utility functions
+/*
+void printTime(const char *label) {
+    static struct timeb prev = {0,0};
+    struct timeb cur;
+    double diff = 0;
+    ftime(&cur);
+    if (prev.time) {
+        diff  =  cur.time    - prev.time;
+        diff += (cur.millitm - prev.millitm)/1000.0;
+    }
+    fprintf(stderr,"%30s  start = %d.%-3hu (+%5.3f)\n",
+              label, (int)cur.time, cur.millitm, diff);
+    prev = cur;
+}
+*/
+
 double weightSum(vector<PoseParticle> *particles) {
     double weightSum = 0.0;
     for (unsigned int i = 0; i < particles->size(); i += 1)
@@ -79,61 +96,69 @@ void ParticleFilter::initializeUniformly(unsigned int n, Bounds xRange,
     normalize();
 }
 
-double backprojectionWeight(cv::Mat &observation,
-                            const PoseParticle &particle) {
-    camera particle_camera;
-    particle_camera.position.x = particle.pose.x;
-    particle_camera.position.y = particle.pose.y;
-    particle_camera.position.z = 33;  // fixed camera height = 33cm
-    particle_camera.theta = particle.pose.theta;
-    particle_camera.tilt = -CV_PI/8;
-
-    // Find lines that should be visible
-    vector<line_segment_all_frames> modelLines = 
-        get_view_lines(particle_camera, Size(640,480), observation);
-
+void ParticleFilter::observe(cv::Mat &observation) {
     // Detect lines in the image
     vector<Vec4i> seenLines;
     findLines(observation, seenLines);
     // Draw detected lines for debugging
     drawLines(observation, seenLines);
-    imshow("image", observation);
 
-
-    // Calculate the weight for each line
-    // Let's weight each line equally
-    double weight = 0.0;
-    for (vector<Vec4i>::const_iterator it2 =
-             seenLines.begin(); it2 < seenLines.end(); it2 += 1) {
-        const Vec4i &viewLine = *it2;
-        Vec2i pt1(viewLine[0], viewLine[1]),
-            pt2(viewLine[2], viewLine[3]);
-        double viewLineAngle = lineAngle(viewLine);
-
-        // Calculate the weight contribution of each model line
-        for (vector<line_segment_all_frames>::const_iterator it =
-                 modelLines.begin(); it < modelLines.end(); it += 1) {
-            const line_segment_all_frames &modelLine = *it;
-            Vec4i line = pointsToLine(modelLine.imgPlane.pt1,
-                                      modelLine.imgPlane.pt2);
-            double modelLineAngle = lineAngle(line);
-            double headingError = 
-                abs(normalizeRadians(modelLineAngle - viewLineAngle));
-            double metric = pointLineSegmentDistance(pt1, line) +
-                pointLineSegmentDistance(pt2, line);
-            metric = metric * exp(3 * headingError);
-
-            weight += exp(-0.005*metric - 7*headingError);
-        }
-    }
-
-    return weight;
-}
-
-void ParticleFilter::observe(cv::Mat &observation) {
+    // Reweight each particle
     for (unsigned int i = 0; i < particles->size(); i += 1) {
         PoseParticle &particle = particles->at(i);
-        particle.weight *= backprojectionWeight(observation, particle);
+
+        camera cam;
+        cam.position.x = particle.pose.x;
+        cam.position.y = particle.pose.y;
+        cam.position.z = 33;  // fixed camera height = 33cm
+        cam.theta = particle.pose.theta;
+        cam.tilt = -CV_PI/8;
+
+        // Find lines that should be visible
+        vector<line_segment_all_frames> modelLines = 
+            get_view_lines(cam, Size(640,480), observation);
+
+        /*
+        // Transform visible lines to robot frame
+        vector<Vec4d> lines;
+        for (vector<Vec4i>::const_iterator it2 =
+                 seenLines.begin(); it2 < seenLines.end(); it2 += 1) {
+            const Vec4i &line = *it2;
+
+            Point2d pt1 = cameraPointToRobot(Point2d(line[0], line[1]), cam),
+                pt2 = cameraPointToRobot(Point2d(line[2], line[3]), cam);
+            lines.push_back(Vec4d(pt1.x, pt1.y, pt2.x, pt2.y));
+        }
+        */
+        // Calculate the weight for each line
+        // Let's weight each line equally
+        double weight = 0.0;
+        for (vector<Vec4i>::const_iterator it2 =
+                 seenLines.begin(); it2 < seenLines.end(); it2 += 1) {
+            const Vec4i &viewLine = *it2;
+            Vec2i pt1(viewLine[0], viewLine[1]),
+                pt2(viewLine[2], viewLine[3]);
+            double viewLineAngle = lineAngle(viewLine);
+
+            // Calculate the weight contribution of each model line
+            for (vector<line_segment_all_frames>::const_iterator it =
+                     modelLines.begin(); it < modelLines.end(); it += 1) {
+                const line_segment_all_frames &modelLine = *it;
+                Vec4i line = pointsToLine(modelLine.imgPlane.pt1,
+                                          modelLine.imgPlane.pt2);
+                double modelLineAngle = lineAngle(line);
+                double headingError = 
+                    abs(normalizeRadians(modelLineAngle - viewLineAngle));
+                double metric = pointLineSegmentDistance(pt1, line) +
+                    pointLineSegmentDistance(pt2, line);
+                metric = metric * exp(3 * headingError);
+
+                weight += exp(-0.003*metric - 7*headingError);
+            }
+        }
+
+        // Reweight the particle
+        particle.weight *= weight;
     }
 }
 
@@ -197,7 +222,7 @@ void ParticleFilter::print(int limit) const {
 
     for (unsigned int i = 0; i < N; i += 1) {
         PoseParticle &p = particles->at(i);
-        printf("%.2f\t%.2f\t%.2f\t%.2f\n", p.pose.x, p.pose.y,
+        printf("%.2f\t%.2f\t%.2f\t%f\n", p.pose.x, p.pose.y,
                p.pose.theta, p.weight);
     }
 }
@@ -210,13 +235,15 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
         // Update particle filter
         pf.observe(cv_ptr->image);
-        pf.print();
-        printf("-----------\n");
+        //pf.print();
+        //printf("-----------\n");
         pf.resample();
         pf.transition();
 
         // Publish particles
         bb_msgs::PoseArray msg;
+        PoseParticle empty(0,0,0,0);
+        PoseParticle &argmax = empty;
         for (size_t i = 0; i < pf.particles->size(); i += 1) {
             const PoseParticle &p = pf.particles->at(i);
             bb_msgs::Pose poseMsg;
@@ -224,9 +251,24 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
             poseMsg.y = p.pose.y;
             poseMsg.theta = p.pose.theta;
             msg.data.push_back(poseMsg);
+
+            // find max
+            if (p.weight > argmax.weight)
+                argmax = p;
         }
         particle_pub.publish(msg);
 
+        /*
+        // Draw view lines
+        camera particle_camera;
+        particle_camera.position.x = argmax.pose.x;
+        particle_camera.position.y = argmax.pose.y;
+        particle_camera.position.z = 33;  // fixed camera height = 33cm
+        particle_camera.theta = argmax.pose.theta;
+        particle_camera.tilt = -CV_PI/8;
+        get_view_lines(particle_camera, Size(640,480), 
+                       cv_ptr->image, 0.2, true);
+        */
         imshow("image", cv_ptr->image);
     }
     catch (cv_bridge::Exception& e) {
@@ -247,7 +289,8 @@ int main(int argc, char** argv) {
     pf.particles = init;
     pf.numParticles = 1;
     */
-    pf.initializeUniformly(100, Bounds(0,1189), Bounds(0, 1097),
+    //pf.initializeUniformly(500, Bounds(-200,0), Bounds(-200,0),
+    pf.initializeUniformly(500, Bounds(-200,1389), Bounds(-200, 1297),
                                Bounds(0,2*CV_PI));
     //pf.transition(Pose(), 50, 0.1);
 

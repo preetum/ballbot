@@ -3,8 +3,10 @@
 #define _geometry_h
 
 #include <cv.h>
+#include "backproject.h"
 
 // Conversion functions
+cv::Point2d cameraPointToRobot(cv::Point2d pt, camera cam);
 cv::Vec4i pointsToLine(const cv::Point2d &pt1, const cv::Point2d &pt2);
 
 // Misc geometry functions

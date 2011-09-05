@@ -4,6 +4,21 @@
 
 using namespace cv;
 
+// TODO store parameters
+const double radians_per_px = 0.0016,
+    frame_height = 480,
+    frame_width = 640;
+
+/* Converts a camera point to a point on the ground in the robot frame*/
+Point2d cameraPointToRobot(Point2d pt, camera cam) {
+    double theta = (pt.y - frame_height/2) * radians_per_px - cam.tilt,
+        y = cam.position.z / tan(theta),
+        phi = (pt.x - frame_width/2) * radians_per_px + cam.pan,
+        x = y * tan(phi);
+
+    return Point2d(x, y);
+}
+
 Vec4i pointsToLine(const Point2d &pt1, const Point2d &pt2) {
     return Vec4i(cvRound(pt1.x), cvRound(pt1.y),
                  cvRound(pt2.x), cvRound(pt2.y));

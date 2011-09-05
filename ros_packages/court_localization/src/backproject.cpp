@@ -260,9 +260,10 @@ double find_depth(Point2d pt1, Point2d pt2, Point2d q, double z1, double z2)
 }
 
 vector <line_segment_all_frames> get_view_lines(camera particle_camera,
-	                                         Size frame_size,
-						 Mat &view_frame,
-						 float near_dist)
+                                                Size frame_size,
+                                                Mat &view_frame,
+                                                float near_dist,
+                                                bool draw)
 {
 	/* Retruns a vector of type line_segment_all_frames
 	 * which contains the line segments that are VISIBLE
@@ -441,11 +442,9 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 		view_lines.push_back(line_seg);
 
 		// draw the line, if not empty
-        /*
-		if(line_in)
+		if(draw && line_in)
 			line(view_frame, image_pt1_round, image_pt2_round,
                  Scalar(100,200,50), 1, 8);
-        */
 	}// for loop
 
 	//cout<<"# lines drawn: "<<view_lines.size()<<endl;
