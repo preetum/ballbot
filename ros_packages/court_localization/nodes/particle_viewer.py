@@ -13,20 +13,20 @@ class Simulator:
     # Field boundaries
     ((0, 0), (1189, 0)),
     ((0, 1097), (1189, 1097)),
-    ((1189, 0), (1189, 1097)),
+    ((0, 0), (0, 1097)),
     # Singles lines
     ((0, 137), (1189, 137)),
     ((0, 960), (1189, 960)),
     # Center lines
-    ((0, 1097/2.0), (640, 1097/2.0)),
-    ((640, 137), (640, 960)),
+    ((549, 1097/2.0), (1189, 1097/2.0)),
+    ((549, 137), (549, 960)),
     ]
 
   def __init__(self):
     self.width = 800
     self.height = 600
-    self.scale = 0.5
-    self.border = 20
+    self.scale = 0.4
+    self.border = 100
   
     self.root = Tk()
     self.root.title('Ballbot Simulator')
@@ -100,15 +100,21 @@ class Simulator:
     self.draw_line(640, 137, 640, 960, width=5, fill='white')
     '''
     # Net
-    self.draw_line(((0, 0), (0, 1097)), width=4, fill='black')
+    self.draw_line(((1189, 0), (1189, 1097)), width=4, fill='black')
     
     # Center tick
-    self.draw_line(((1150, 1097/2.0), (1189, 1097/2.0)), width=5, fill='white')
+    self.draw_line(((0, 1097/2.0), (50, 1097/2.0)), width=5, fill='white')
 
 
 def msg_callback(msg, sim):
   beliefs = np.array([[p.x, p.y, p.theta] for p in msg.data])
   sim.refresh(beliefs)
+
+def spin_thread(sim):
+  # While ROS is alive, wait for messages
+  rospy.spin()
+  # On exit, kill the mainloop and exit
+  sim.root.destroy()
 
 def main():
   # Get config
@@ -119,10 +125,11 @@ def main():
 
   # Initialize ROS listener
   rospy.init_node('particle_viewer', anonymous=True)
-  rospy.Subscriber(topic_name, PoseArray, lambda msg: msg_callback(msg, sim))
+  rospy.Subscriber(topic_name, PoseArray, lambda msg: msg_callback(msg, sim),
+                   queue_size=1)
 
   # Start rospy spin thread
-  thread.start_new_thread(rospy.spin, ())
+  thread.start_new_thread(spin_thread, (sim,))
 
   # Start main Tk loop
   sim.root.mainloop()
