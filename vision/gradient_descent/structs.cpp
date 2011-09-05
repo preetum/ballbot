@@ -10,11 +10,11 @@ struct variances
 	double x, y, len, angle, z_front;
 	variances()
 	{
-		x = 15*15; // pixels-squared
-		y = 15*15; // pixels-squared
-		len = 30*30; // pixels-squared
-		angle = ((pi*pi)/(8.0*8.0)); // radians-squared
-		z_front = 100;
+		x = 5*5; // pixels-squared
+		y = 5*5; // pixels-squared
+		len = 20*10; // pixels-squared
+		angle = ((pi*pi)/(15*15)); // radians-squared
+		z_front = 1000000;
 	}
 };
 
@@ -46,7 +46,7 @@ struct camera
 	{
 
 		position.x = 0;
-		position.y = 50;
+		position.y = 0;
 		position.z = 133; // Camera is 33cm above the ground
 		theta = 0;
 		pan = 0;

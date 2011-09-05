@@ -51,10 +51,6 @@ struct _court
 		line_seg.pt2.x = 548; line_seg.pt2.y = 960; line_seg.pt2.z = 0;
 		court_lines.push_back(line_seg);
 
-		line_seg.pt1.x = 548; line_seg.pt1.y = 137; line_seg.pt1.z = 0;
-		line_seg.pt2.x = 548; line_seg.pt2.y = 960; line_seg.pt2.z = 0;
-		court_lines.push_back(line_seg);
-
 		line_seg.pt1.x = 1188.5; line_seg.pt1.y = 0; line_seg.pt1.z = 99;
 		line_seg.pt2.x = 1188.5; line_seg.pt2.y = 1097; line_seg.pt2.z = 99;
 		court_lines.push_back(line_seg);
@@ -458,7 +454,6 @@ int match_lines(int line_number, vector<line_segment_all_frames> actual_view)
 	return -1;
 }
 
-
 void hill_climb(vector <line_segment_all_frames> actual_view,
 		camera &particle_camera, Mat &particle_frame, Mat &actual_frame,
 		unsigned int iterations, double epsilon)
@@ -482,16 +477,18 @@ void hill_climb(vector <line_segment_all_frames> actual_view,
 	vector <line_segment_all_frames> particle_view;
 	variances vars;
 
-	double alpha = 1;
-	double camera_pose_error = 1000;
+	double alpha = 0.000005, beta = 0.001;
+	double camera_pose_error = 10;
 
-	while(num_iters<41000)
+	double norm_slopes_current = 1;
+
+	while(num_iters < 1000 && (norm_slopes_current >= 0.001) )
 	{
-
 		particle_view = get_visible_view_lines(particle_camera, particle_frame.size(),
 															  particle_frame);
-		imshow("Particle", particle_frame);
-		waitKey(10);
+		//imshow("Particle", particle_frame);
+		particle_frame = Mat::zeros(480, 640, CV_8UC3);
+		//waitKey(10);
 		vector <double> slopes(5,0);
 
 		for(int i = 1; i<=5; i++)
@@ -501,7 +498,7 @@ void hill_climb(vector <line_segment_all_frames> actual_view,
 
 				if(matchedLine_index != -1)
 				{
-					double s = differentiate_costFunction_by_cameraParameter(
+					double s = differentiate_costFunction_by_cameraParameter0(
 											particle_view[k].imgPlane,
 											particle_view[k].realWorld,
 											particle_view[k].camWorld,
@@ -513,15 +510,28 @@ void hill_climb(vector <line_segment_all_frames> actual_view,
 				}
 			}
 
-		//for(unsigned int k = 0; k < slopes.size();k++)
-			//cout<<slopes[k]<<" ";
-		//cout<<endl;
+			//for(unsigned int k = 0; k < slopes.size();k++)
+				//cout<<slopes[k]<<" ";
+			//cout<<endl;
 
-		particle_camera.position.y += alpha*1*slopes[1];
-		particle_camera.position.x += alpha*1*slopes[0];
-		particle_camera.tilt += alpha*0.0001*slopes[4];
-		particle_camera.pan += alpha*0.0001*slopes[3];
+			/*
+			norm_slopes_current = 0;
+			for(unsigned int k = 0; k < slopes.size(); k++)
+			{
+				if(k == 2)
+					continue;
+				else if (k < 2)
+					norm_slopes_current += pow(alpha*slopes[k],2);
+				else if (k > 2)
+					norm_slopes_current += pow(alpha*beta*slopes[k],2);
+			}
+			norm_slopes_current = pow(norm_slopes_current, 0.5);
+			*/
 
+			particle_camera.position.y -= alpha*slopes[1];
+			particle_camera.position.x -= alpha*slopes[0];
+			particle_camera.tilt -= alpha*beta*slopes[4];
+			particle_camera.pan -= alpha*beta*slopes[3];
 		//cout<<num_iters<<endl;
 		num_iters += 1;
 	}
@@ -539,8 +549,6 @@ void hill_climb(vector <line_segment_all_frames> actual_view,
 		line(actual_frame, actual_view[matchedLine_index].imgPlane.pt1,actual_view[matchedLine_index].imgPlane.pt2, color, 2, 8);
 		line(particle_frame, particle_view[j].imgPlane.pt1, particle_view[j].imgPlane.pt2, color, 2, 8);
 	}
-
-
 
 }
 
@@ -588,31 +596,34 @@ void update_view_on_trackbar_change(int, void* )
 	 * and updates the view accordingly.
 	 */
 
-	// Blank out the frame
-	frame  = Mat::zeros(480, 640, CV_8UC3);
-	particle_frame  = Mat::zeros(480, 640, CV_8UC3);
+	// Clear the frame
+	frame = Mat::zeros(480, 640, CV_8UC3);
+	particle_frame = Mat::zeros(480, 640, CV_8UC3);
 
 	// Update camera pose
-	bb_camera.position.x = x_pos+800;//-100;
-	bb_camera.position.y = y_pos;//-100;
+	bb_camera.position.x = x_pos+100;
+	bb_camera.position.y = y_pos+500;
 	bb_camera.position.z = z_pos-100;
 	bb_camera.tilt = ((double) tilt-180)*pi/180.0;
-	bb_camera.pan = ((double) pan)*pi/180.0;
+	bb_camera.pan = ((double) pan)*pi/180.0+(0*pi/180.0);
 
 	// Create a fake particle camera
 	camera particle_cam;
-	particle_cam.position.x = bb_camera.position.x;//+200;
-	particle_cam.position.y = bb_camera.position.y+200;
+	particle_cam.position.x = bb_camera.position.x+200;
+	particle_cam.position.y = bb_camera.position.y+150;
 	particle_cam.position.z = bb_camera.position.z;
 	particle_cam.theta = bb_camera.theta;
-	particle_cam.pan = bb_camera.pan+(20*pi/180.0);
-	particle_cam.tilt = bb_camera.tilt+(10*pi/180.0);
+	particle_cam.pan = bb_camera.pan+(30*pi/180.0);
+	particle_cam.tilt = bb_camera.tilt-(5*pi/180.0);//-(20*pi/180.0);
 
 	vector <line_segment_all_frames> actual_view = get_visible_view_lines(bb_camera, frame.size(), frame);
 	imshow("Court", frame);
+
 	waitKey(10);
 
 	vector <line_segment_all_frames> particle_view = get_visible_view_lines(particle_cam, particle_frame.size(), particle_frame);
+	imshow("Initial_view", particle_frame);
+
 
 	vector <line_segment_2d> actual_segments;
 	for(unsigned int k = 0; k < actual_view.size(); k++)

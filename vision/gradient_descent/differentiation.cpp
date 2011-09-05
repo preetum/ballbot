@@ -176,6 +176,95 @@ double differentiate_image_coor(camera particle_cam, cv::Point3f cam_world_posit
 	}
 }
 
+
+
+
+
+
+
+double differentiate_costFunction_by_cameraParameter0(line_segment_2d lineSegment_imagePlane,
+									  line_segment_3d lineSegment_realWorld,
+									  line_segment_3d lineSegment_camWorld,
+									  line_segment_2d matching_line, int parameter,
+									  camera particle_cam, variances vars)
+{
+	/* Differentiates the QUADRATIC cost function:
+	 *		(x0-x)^2 + (y0-y)^2 + (l0-l)^2 + (theta0-theta)^2
+	 * with respect to one parameter of the camera pose as specified by the value of parameter.
+	 * Where parameter = {1,2,3,4,5} <=> {x_cam, y_cam, z_cam, phi, theta}
+	 *
+	 * Arguments:
+	 * lineSegment_imagePlane: 2d line segment coordinates in the particle's
+	 * 						   image plane
+	 * lineSegment_realWorld : 3d coordinates of the same line in real-world
+	 *                         frame
+	 * lineSegment_camWorld  : 3d coordinates of the same line in camera
+	 * 						   world frame
+	 * matching_line		 : 2d coordinates of the line in the actual view
+	 * 						   which matches the line in particles image plane
+	 * particle_cam			 : particle's camera
+	 * vars					 : variances struct type, holds the variances for
+	 * 						   x_center, y_center, angle, length
+	 */
+
+	double  Zavg = lineSegment_camWorld.pt1.z + lineSegment_camWorld.pt2.z;
+
+	double x0 = (matching_line.pt1.x + matching_line.pt2.x)/2.0,
+		   y0 = (matching_line.pt1.y + matching_line.pt2.y)/2.0,
+		   len0 = norm(matching_line.pt1 - matching_line.pt2),
+		   theta0 = atan((matching_line.pt2.y- matching_line.pt1.y)/
+						 (matching_line.pt2.x- matching_line.pt1.x));
+
+	double x_center = (lineSegment_imagePlane.pt1.x +
+					   lineSegment_imagePlane.pt2.x)/2.0,
+		   y_center = (lineSegment_imagePlane.pt1.y +
+				       lineSegment_imagePlane.pt2.y)/2.0,
+		   len = norm(lineSegment_imagePlane.pt1-lineSegment_imagePlane.pt2),
+		   theta = atan((lineSegment_imagePlane.pt2.y-lineSegment_imagePlane.pt1.y)/
+						 (lineSegment_imagePlane.pt2.x-lineSegment_imagePlane.pt1.x));
+
+	double return_val = 0;
+
+	/*
+		dpt[1 or 2][x or y]_by_dP : represents the value of
+	                              d(pt[1 or 2].[x or y])/dParameter
+	 */
+
+	double dpt1X_by_dP = differentiate_image_coor(particle_cam, lineSegment_camWorld.pt1,
+												  lineSegment_realWorld.pt1, 1, parameter);
+	double dpt2X_by_dP = differentiate_image_coor(particle_cam, lineSegment_camWorld.pt2,
+				                                  lineSegment_realWorld.pt2, 1, parameter);
+	double dpt1Y_by_dP = differentiate_image_coor(particle_cam, lineSegment_camWorld.pt1,
+				                                  lineSegment_realWorld.pt1, 2, parameter);
+	double dpt2Y_by_dP = differentiate_image_coor(particle_cam, lineSegment_camWorld.pt2,
+				                                  lineSegment_realWorld.pt2, 2, parameter);
+
+	// Center X
+	return_val += (x_center - x0)*(dpt1X_by_dP + dpt2X_by_dP)/vars.x;
+
+	// Center Y
+	return_val += (y_center - y0)*(dpt1Y_by_dP + dpt2Y_by_dP)/vars.y;
+
+	// Angle
+	double delta_y = (lineSegment_imagePlane.pt2.y-lineSegment_imagePlane.pt1.y),
+		   delta_x = (lineSegment_imagePlane.pt2.x-lineSegment_imagePlane.pt1.x);
+	if(delta_x !=0)
+		return_val += (theta - theta0)*(1.0/(1.0 + pow((delta_y/delta_x),2)))*
+						(((delta_x*(dpt2Y_by_dP - dpt1Y_by_dP))-
+								(delta_y*(dpt2X_by_dP-dpt1X_by_dP)))/(delta_x*delta_x))/vars.angle;
+	// Length
+	//if(delta_y !=0  )
+	return_val += ((len - len0)/len)*2.0*((delta_x*(dpt2X_by_dP-dpt1X_by_dP))
+					+ delta_y*(dpt2Y_by_dP - dpt1Y_by_dP))/vars.len;
+
+	 /*Scale by depth of the line:
+	  * 	Father the line,greater the contribution
+	  */
+	return_val *= 0.05*pow(abs(Zavg), 0.7);
+
+	return return_val;
+}
+
 double differentiate_costFunction_by_cameraParameter(line_segment_2d lineSegment_imagePlane,
 									  line_segment_3d lineSegment_realWorld,
 									  line_segment_3d lineSegment_camWorld,
@@ -262,10 +351,101 @@ double differentiate_costFunction_by_cameraParameter(line_segment_2d lineSegment
 }
 
 
+
+double differentiate_costFunction_by_cameraParameter2(line_segment_2d lineSegment_imagePlane,
+									  line_segment_3d lineSegment_realWorld,
+									  line_segment_3d lineSegment_camWorld,
+									  line_segment_2d matching_line, int parameter,
+									  camera particle_cam, variances vars)
+{
+	/* Differentiates the cost function:
+	 *		e^-(x0-x)^2 * e^-(y0-y)^2 * e^-(l0-l)^2 * e^-(theta0-theta)^2
+	 * with respect to one parameter of the camera pose as specified by the value of parameter.
+	 * Where parameter = {1,2,3,4,5} <=> {x_cam, y_cam, z_cam, phi, theta}
+	 *
+	 * Arguments:
+	 * lineSegment_imagePlane: 2d line segment coordinates in the particle's
+	 * 						   image plane
+	 * lineSegment_realWorld : 3d coordinates of the same line in real-world
+	 *                         frame
+	 * lineSegment_camWorld  : 3d coordinates of the same line in camera
+	 * 						   world frame
+	 * matching_line		 : 2d coordinates of the line in the actual view
+	 * 						   which matches the line in particles image plane
+	 * particle_cam			 : particle's camera
+	 * vars					 : variances struct type, holds the variances for
+	 * 						   x_center, y_center, angle, length
+	 */
+
+	double x0 = (matching_line.pt1.x + matching_line.pt2.x)/2.0,
+		   y0 = (matching_line.pt1.y + matching_line.pt2.y)/2.0,
+		   len0 = norm(matching_line.pt1 - matching_line.pt2),
+		   theta0 = atan((matching_line.pt2.y- matching_line.pt1.y)/
+						 (matching_line.pt2.x- matching_line.pt1.x));
+
+	double x_center = (lineSegment_imagePlane.pt1.x +
+					   lineSegment_imagePlane.pt2.x)/2.0,
+		   y_center = (lineSegment_imagePlane.pt1.y +
+				       lineSegment_imagePlane.pt2.y)/2.0,
+		   len = norm(lineSegment_imagePlane.pt1-lineSegment_imagePlane.pt2),
+		   theta = atan((lineSegment_imagePlane.pt2.y-lineSegment_imagePlane.pt1.y)/
+						 (lineSegment_imagePlane.pt2.x-lineSegment_imagePlane.pt1.x));
+
+	double return_val = 0;
+
+	/*
+		dpt[1 or 2][x or y]_by_dP : represents the value of
+	                              d(pt[1 or 2].[x or y])/dParameter
+	 */
+
+	double dpt1X_by_dP = differentiate_image_coor(particle_cam, lineSegment_camWorld.pt1,
+												  lineSegment_realWorld.pt1, 1, parameter);
+	double dpt2X_by_dP = differentiate_image_coor(particle_cam, lineSegment_camWorld.pt2,
+				                                  lineSegment_realWorld.pt2, 1, parameter);
+	double dpt1Y_by_dP = differentiate_image_coor(particle_cam, lineSegment_camWorld.pt1,
+				                                  lineSegment_realWorld.pt1, 2, parameter);
+	double dpt2Y_by_dP = differentiate_image_coor(particle_cam, lineSegment_camWorld.pt2,
+				                                  lineSegment_realWorld.pt2, 2, parameter);
+
+	double delta_y = (lineSegment_imagePlane.pt2.y-lineSegment_imagePlane.pt1.y),
+		   delta_x = (lineSegment_imagePlane.pt2.x-lineSegment_imagePlane.pt1.x);
+
+
+	//std::cout<<"differentiating"<<std::endl;
+
+	// Center X
+	if(delta_x != 0)
+	{
+
+		double e_power = exp(-1.0*(x_center-x0)*(x_center-x0)/(2*vars.x)
+				 -1.0*(y_center-y0)*(y_center-y0)/(2*vars.y)
+				 -1.0*(theta-theta0)*(theta-theta0)/(2*vars.angle)/(2.0*vars.angle)
+				 -1.0*(len0-len)*(len0-len)/(2*vars.len));
+
+		//std::cout<<"Exponential: "<<e_power<<std::endl;
+
+		return_val = (1.0/(pow(2*pi*vars.x*2*pi*vars.angle*2*pi*vars.y*2*pi*vars.len,0.5)))
+					*e_power
+					* (
+						(x0 - x_center)*(dpt1X_by_dP + dpt2X_by_dP)*(1/(2.0*vars.x))+
+						(y0 - y_center)*(dpt1Y_by_dP + dpt2Y_by_dP)*(1/(2.0*vars.y))+
+						(2.0*(theta0 -theta))*(1.0/(1.0 + (delta_y/delta_x)*(delta_y/delta_x)))*
+											  (((delta_x*(dpt2Y_by_dP - dpt1Y_by_dP))-(delta_y*(dpt2X_by_dP-dpt1X_by_dP)))/(delta_x*delta_x))+
+						((len0-len)/len)*2.0*((delta_x*(dpt2X_by_dP-dpt1X_by_dP)) + delta_y*(dpt2Y_by_dP - dpt1Y_by_dP))*(1.0/(2.0*vars.len))
+
+					  );
+	}
+	else
+		std::cout<<"delta_x =0"<<std::endl;
+
+	return return_val;
+}
+
+
 double differentiate_zPull( line_segment_3d lineSegment_realWorld,
 							line_segment_3d lineSegment_camWorld,
 							int parameter, camera particle_cam,
-							variances vars, double z_pullDist = 1.0)
+							variances vars, double z_pullDist = 10.0)
 {
 	/* Differentiates the cost function:
 	 *		e^-((z0-z_average)^2/2*sigma^2)
@@ -298,9 +478,12 @@ double differentiate_zPull( line_segment_3d lineSegment_realWorld,
 
 	// Z pulling into the visible area
 	double slope = 1.0/(pow(2*pi*vars.z_front,0.5))
-			*exp(-1.0*pow((z_pullDist-lineSegment_z_avg), 2)/(2*vars.z_front))
+			*exp(-1.0*(z_pullDist-lineSegment_z_avg)*(z_pullDist-lineSegment_z_avg)/(2*vars.z_front))
 			*(1/(2.0*vars.z_front))*(z_pullDist-lineSegment_z_avg)
 			*(D_z_pt2CamWorld_by_D_parameter + D_z_pt1CamWorld_by_D_parameter);
 
+	std::cout<<"z_parameter: "<<parameter<<std::endl;
+	std::cout<<"z slopes: "<<D_z_pt2CamWorld_by_D_parameter + D_z_pt1CamWorld_by_D_parameter<<std::endl;
+	std::cout<<"Zpull delta z: "<<z_pullDist-lineSegment_z_avg<<"  slope: "<<slope<<std::endl;
 	return slope;
 }
