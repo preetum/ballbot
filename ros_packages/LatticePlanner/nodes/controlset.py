@@ -11,6 +11,10 @@ class ControlSet:
     ROBOT_SPEED_MAX  = util.ROBOT_SPEED_MAX    
     v = ROBOT_SPEED_MAX          
 
+    self.allowed_headings = [0,math.pi/2,math.pi,3*math.pi/2,
+                             math.pi/4,3*math.pi/4,5*math.pi/4,7*math.pi/4]
+                             #5.177,3.606,2.035,0.464,1.107,5.819,2.677,4.248]
+
     self.actions_90s = ["R_f","R_b","L_f","L_b","F",
                         #"F3",
                         "B",

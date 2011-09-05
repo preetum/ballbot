@@ -8,7 +8,7 @@ import debugpaths
 import roslib; roslib.load_manifest('LatticePlanner')
 import rospy
 from std_msgs.msg import String
-from bb_msgs.msg import Pose,Path,Goal
+from bb_msgs.msg import Pose,Path,PathElement,Goal
 
 startNode = None
 goalNode = None
@@ -70,23 +70,31 @@ def startPlanner(data):
         MTAdaptiveAstarsearch(startNode,goalNode,data.goaltype.data)            
 
     path = []
-    path.append((x1/100.0,y1/100.0,th1))
+    path.append((x1/100.0,y1/100.0,th1,'s','f'))
     path = path + util.plan_to_path(plan)        
+    path[0] = (x1/100.0,y1/100.0,th1,path[1][3],path[1][4])
 
     print "plan of length",len(plan)
-    for (Node,action) in plan:
-        print Node.get_stateparams(),action
+   # for (Node,action) in plan:
+   #     if action == "B":
+   #         print Node.get_stateparams(),action,Node.get_g()
 
     path_to_send = Path()    
-    for point in path:
+    for point in path:        
         pose = Pose()
         # plan uses center of car, so transform such that path has points to be traversed by rear axle center,
         # which is 17.41 cm away from the center        
         pose.x = point[0] - 17.41*math.cos(point[2])/100.0
         pose.y = point[1] - 17.41*math.sin(point[2])/100.0
         pose.theta = point[2]
-        path_to_send.poses.append(pose)
-
+        
+        path_element = PathElement()
+        path_element.pose = pose
+        path_element.type = point[3]
+        path_element.direction = point[4]
+        path_to_send.poses.append(path_element)
+    
+    #path[0] = (x1/100.0,y1/100.0,th1,path[1][3],path[1][4])
     pub_path.publish(path_to_send)
     print "path published"
 

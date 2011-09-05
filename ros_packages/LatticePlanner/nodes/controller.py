@@ -37,11 +37,11 @@ def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
     index_min = 0
 
     index = currentindex_inPath
-    for point in path[currentindex_inPath:currentindex_inPath+10]:
+    for path_element in path[currentindex_inPath:currentindex_inPath+10]:
         """
         Search only from the currentindex to currentindex+10
         """
-        d = util.distance_Euclidean(point.x,point.y,x,y)
+        d = util.distance_Euclidean(path_element.pose.x,path_element.pose.y,x,y)
         if(d < d_min):
             d_min = d
             index_min = index
@@ -94,7 +94,7 @@ def controller_PD():
 
                 # P - Proportional term                
 
-                heading = (math.atan2(path[targetindex_inPath].y-Ballbot_Y, path[targetindex_inPath].x-Ballbot_X)%(2*math.pi))
+                heading = (math.atan2(path[targetindex_inPath].pose.y-Ballbot_Y, path[targetindex_inPath].pose.x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading    
                 """
                 correct roll-over problems with error:
@@ -136,6 +136,7 @@ def controller_Stanley():
     Steering control is similar to that used by Stanford's Stanley (DARPA Grand Challenge winner)
     """
     global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
+    k = 2.0
     Ballbot_speed = 0.0
     Ballbot_steering = 0.0
   
@@ -146,35 +147,73 @@ def controller_Stanley():
         if newPath == False:
             continue
         while(currentindex_inPath < len(path)-1) and not (rospy.is_shutdown()):
-            Ballbot_speed = 1.0 # set speed                   
+            Ballbot_speed = 2.0 # set speed                   
             if(newPath == True):
                 # if there is a new path, restart driving along this path
                 newPath = False
                 currentindex_inPath = 0                               
+                targetindex_inPath = 0
                 continue
             else:
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
-                point = path[currentindex_inPath]
+                targetindex_inPath = min(len(path)-1,currentindex_inPath + int(targetlookahead/5.0))
+                path_element = path[currentindex_inPath]
 
                 # calculate cross-track error, x_t
-                x_t = util.distance_Euclidean(Ballbot_X,Ballbot_Y,point.x,point.y)
+                x_t = util.distance_Euclidean(Ballbot_X,Ballbot_Y,path_element.pose.x,path_element.pose.y)
+
+                heading = (math.atan2(path[targetindex_inPath].pose.y-Ballbot_Y, path[targetindex_inPath].pose.x-Ballbot_X)%(2*math.pi))
+                error = Ballbot_TH - heading
+                """
+                correct roll-over problems with error:
+                if abs(error) is greater than 180, then we'd rather turn the other way!
+                """
+
+                if abs(error) > math.pi:
+                    error = (2*math.pi - abs(error))*(-1*cmp(error,0))
+                if error < 0:
+                    x_t = -1*x_t
                 
                 # calculate heading error, psi_t
-                psi_t = Ballbot_TH - point.theta
+                psi_t = Ballbot_TH - path_element.pose.theta
                
                 """
                 correct roll-over problems with error:
                 if abs(error) is greater than 180, then we'd rather turn the other way!
                 """
+
                 if abs(psi_t) > math.pi:
                     psi_t = (2*math.pi - abs(psi_t))*(-1*cmp(psi_t,0))
                     
                 # Set output
-                Ballbot_steering = psi_t + math.atan(1*x_t/Ballbot_speed)
+                Ballbot_steering = psi_t + math.atan(k*x_t/Ballbot_speed)
                 if(Ballbot_steering > math.radians(30)):
                     Ballbot_steering = math.radians(30)
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
+
+
+                # Speed control
+                cur_dir = path_element.direction
+                lookahead_dir = path[targetindex_inPath].direction
+                cur_type = path_element.type
+                lookahead_type = path[targetindex_inPath].type
+                #print cur_dir,lookahead_dir
+                
+                Ballbot_speed = 2.0
+
+                if(cur_type=='t') or (lookahead_type=='t'):
+                    Ballbot_speed = 1.0
+
+                if(cur_dir != lookahead_dir):
+                    Ballbot_speed = 0.5                
+
+                if(cur_dir == 'b'):
+                    Ballbot_speed = -1*abs(Ballbot_speed)
+                elif(cur_dir == 'f'):
+                    Ballbot_speed = abs(Ballbot_speed)
+                else:
+                    Ballbot_speed = 0.0
                 
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
@@ -196,7 +235,7 @@ def newPath_arrived(data):
     print "newpathseen! length",len(path)
     print "Hit any key to begin driving"
     raw_input()
-    
+    rospy.sleep(5)
     newPath = True
 
 def received_odometry(data):

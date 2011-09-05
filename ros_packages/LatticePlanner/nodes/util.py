@@ -11,7 +11,7 @@ startNode = None # startNode
 goalNode = None  # goalNode
 agentNode = None # node occupied by agent
 
-SEARCHALGORITHM = "straightline"
+SEARCHALGORITHM ="MT-AdaptiveA*"
 count_expandednodes = 0
 S = [] # list of all nodes seen so far by LPA* search, represents the graph S
 U = []
@@ -231,18 +231,19 @@ class LatticeNode:
           stateparams_from_origin = controlset.action_to_stateparams(self,action)         
           # translate to get the new state
           stateparams_from_current = (stateparams_from_origin[0] + x, stateparams_from_origin[1] + y,stateparams_from_origin[2],v)  
-          if stateparams_from_current[0:3] not in alreadySeen:
-              node = isGenerated_MTAdaptiveAstar(stateparams_from_current) # search for this node in generated list
-              if(node!= None): # search has already seen this node                                  
-                  node.addParent(self)
-                  node.setAction(action)
-                  successors.append(node)                                
+          if stateparams_from_current[0:3] not in alreadySeen: 
+              
+              #if(stateparams_from_current[0:3] == (1470.0,1645.0,0.0)):
+              #    print (1470.0,1645.0,0.0),"generated, parent:",self.get_stateparams(),"action",action
+
+              if(Generated.has_key(stateparams_from_current[0:3])):
+                  node = Generated[stateparams_from_current[0:3]]                                                      
+                  successors.append((node,action))
                   
               else:           # node being expanded for the first time, so create a new node and add it to S
-                  newsuccessor = LatticeNode(stateparams_from_current,self,action)                       
-                  Generated.append(newsuccessor)
-                  successors.append(newsuccessor)
-              
+                  newsuccessor = LatticeNode(stateparams_from_current)
+                  Generated[stateparams_from_current[0:3]] = newsuccessor
+                  successors.append((newsuccessor,action))              
       return successors
   
 def point_to_lattice(x,y,th=0,v=ROBOT_SPEED_MAX):
@@ -266,7 +267,8 @@ def point_to_lattice(x,y,th=0,v=ROBOT_SPEED_MAX):
         closest_y = int(closest_y)* CELL_SIZE
     
     # resolve th
-    allowed_headings = [0,math.pi/2,math.pi,3*math.pi/2,math.pi/4,3*math.pi/4,5*math.pi/4,7*math.pi/4,5.177,3.606,2.035,0.464,1.107,5.819,2.677,4.248]
+    allowed_headings = controlset.allowed_headings
+    #allowed_headings = [0,math.pi/2,math.pi,3*math.pi/2,math.pi/4,3*math.pi/4,5*math.pi/4,7*math.pi/4,5.177,3.606,2.035,0.464,1.107,5.819,2.677,4.248]
     differences = [abs(allowed_heading - th) for allowed_heading in allowed_headings]
     closest_th = allowed_headings[differences.index(min(differences))]
     
@@ -636,8 +638,7 @@ def compute_edges_affected(obstacle_topleft,obstacle_bottomright):
                     if(obstacle_topleft[0] <= x_coord <= obstacle_bottomright[0]):                        
                         #print state_x,state_y
                         for y_index in range(strip[1],strip[2]+1):        # iterate through points in strip
-                            y_coord = state_y + y_index*CELL_SIZE 
-                            #print "y_index",y_index,"cell",(x_coord,y_coord),"obstacle",obstacle_topleft,obstacle_bottomright
+                            y_coord = state_y + y_index*CELL_SIZE                 
                             if(obstacle_bottomright[1] <= y_coord <= obstacle_topleft[1]):
                                 #print "y_coord in range"
                                 # this edge runs throught the new obstacle
@@ -759,24 +760,13 @@ deltah = [] # stores the correction values ???
 Generated = None # stores all generated nodes
 plan_MTAdaptiveAstar = []
 
-def isGenerated_MTAdaptiveAstar((x,y,th,v)):
-   """
-   Finds the the node in S with stateparams = (x,y,th,v).
-   If the search fails, return None
-   """
-   for Node in Generated:
-       (x1,y1,th1,v1) = Node.get_stateparams()
-       if(x1,y1,th1) == (x,y,th):
-           return Node
-   return None
-
 def InitializeState_MTAdaptiveAstar(node):
     node_search = node.get_search()
     node_h = node.get_h()
     if (node_search != counter) and (node_search != 0): # node has been generated during a previous search
         if(node.get_g() + node.get_h() < pathcost[node_search]): # node has been expanded during the same search
             node_h = pathcost[node_search] - node.get_g()
-            node.set_h(node_h)        
+            node.set_h(node_h)
         #print "counter",counter
         node_h = node_h - (deltah[counter] - deltah[node_search])
         node_h = max(node_h,heuristic_aroundNet(node,goalNode))
@@ -799,33 +789,40 @@ def ComputePath_MTAdaptiveAstar():
   current_Node = None
   searchTree = PriorityQueue()
   alreadySeen = set()
-  searchTree.push((startNode,0),startNode.get_h())
+  searchTree.push((startNode,0,None,None),startNode.get_h())
   goalFound = False
   while(not(searchTree.isEmpty())):
       current_item = searchTree.pop()
       current_Node = current_item[0]
-      cost_soFar = current_item[1]
+
+      cost_soFar = current_item[1]      
+      #if(current_Node.get_stateparams()[0:3] == (1470.0,1645.0,0.0)):
+      #    print (1470.0,1645.0,0.0),"expanded, parent:",current_item[2].get_stateparams(),"action",current_item[3]
+      
       if goalTest(current_Node):
+          current_Node.set_g(cost_soFar)
+          current_Node.addParent(current_item[2])
+          current_Node.setAction(current_item[3])
           print "goal cost",cost_soFar, "goalNode",current_Node.get_stateparams()
           goalFound = True
           break
       else:      
           (x,y,theta,v) = current_Node.get_stateparams()
-          if (x,y,theta) not in alreadySeen:
-              #graphics.draw_point(x,y,theta,'blue')
-              #graphics.canvas.update_idletasks()
+          if (x,y,theta) not in alreadySeen:     
+              current_Node.set_g(cost_soFar)
+              current_Node.addParent(current_item[2])
+              current_Node.setAction(current_item[3])         
               count_expandednodes += 1
               #print count_expandednodes
               alreadySeen.add((x,y,theta))      
               children = current_Node.getSuccessors_MTAdaptiveAstar(alreadySeen)
-              for child in children:                  
+              for child,action in children:                  
                   InitializeState_MTAdaptiveAstar(child)
-                  stepcost = cost(current_Node,child.getAction(),child,goalNode)                  
+                  stepcost = cost(current_Node,action,child,goalNode)                  
                   if stepcost != float('inf'):                      
-                      g = cost_soFar + stepcost 
-                      child.set_g(g)                      
+                      g = cost_soFar + stepcost                                           
                       h = child.get_h()
-                      searchTree.push((child,g),g + h)
+                      searchTree.push((child,g,current_Node,action),g + h)
 
   print "expanded nodes",count_expandednodes
   if goalFound == True:
@@ -837,22 +834,21 @@ def MTAdaptiveAstarsearch_update(start,goal):
     """
     update plan using Lazy MT-AdaptiveA*
     """
-    global startNode,goalNode,counter,deltah,Generated
+    global startNode,goalNode,counter,deltah,Generated,pathcost
     startNode = start    
     
     # check if startNode has already been generated, so we don't generate a duplicate
-    startNodecheck = isGenerated_MTAdaptiveAstar(startNode.get_stateparams())
-    if(startNodecheck != None):
-        startNode = startNodecheck
+    if(Generated.has_key(startNode.get_stateparams()[0:3])):
+        startNode = Generated[startNode.get_stateparams()[0:3]]
     else:    
-        Generated.append(startNode)
+        Generated[startNode.get_stateparams()[0:3]] = startNode
 
     # check if goal has already been generated, so we don't generate a duplicate
-    goalNodecheck = isGenerated_MTAdaptiveAstar(goal.get_stateparams())
-    if(goalNodecheck != None):
-        goal = goalNodecheck
-    else:
-        Generated.append(goal)
+    goalNode = goal
+    if(Generated.has_key(goalNode.get_stateparams()[0:3])):
+        goalNode = Generated[goalNode.get_stateparams()[0:3]]
+    else:    
+        Generated[goalNode.get_stateparams()[0:3]] = goalNode
 
     if(not goalTest(startNode)):
         InitializeState_MTAdaptiveAstar(goalNode)
@@ -866,7 +862,7 @@ def MTAdaptiveAstarsearch_update(start,goal):
         InitializeState_MTAdaptiveAstar(startNode)
         InitializeState_MTAdaptiveAstar(goalNode)
         startNode.set_g(0)        
-        finalnode = ComputePath_MTAdaptiveAstar()                  
+        finalnode = ComputePath_MTAdaptiveAstar()               
         pathcost.append(finalnode.get_g())
         if finalnode == None: # goal unreachable
             return None 
@@ -875,7 +871,7 @@ def MTAdaptiveAstarsearch_update(start,goal):
         path = []        
         while(node.getParent()!= None):
             parent = node.getParent()
-            print parent.get_stateparams(),node.getAction(),node.get_stateparams()
+            #print parent.get_stateparams(),node.getAction(),node.get_stateparams()
             path.append((parent,node.getAction()))                       
             node = parent         
         #print "path of length",len(path)
@@ -886,13 +882,16 @@ def MTAdaptiveAstarsearch_start(start,goal):
     """
     start new MTAdaptiveAstar search
     """
-    global startNode,goalNode,counter,deltah,Generated
+    global startNode,goalNode,counter,deltah,Generated,pathcost
     startNode = start
     goalNode = goal
-    Generated = []
-    Generated.append(startNode)
+    Generated = {}
+    Generated[startNode.get_stateparams()[0:3]] = startNode
+    Generated[goalNode.get_stateparams()[0:3]] = goalNode
+    deltah = []
     deltah.append("head of deltah")
     deltah.append(0)
+    pathcost = []
     pathcost.append("head of pathcost")
     counter = 0
     #if(startNode.get_stateparams() != goalNode.get_stateparams()):
@@ -976,16 +975,16 @@ def go_Straight(state,direction,d = CELL_SIZE):
 
 ####################################################################################################
 # -------- utilities for converting plan to path ------------------------------------#
-def points_turnLeft(x,y,theta,v,direction,distance,radius):
+def points_turnLeft(x,y,theta,v,direction,distance,radius):    
     points = []
     d = 5
     while(d <= distance):
         (x2,y2,theta2,v2) = turn_Left((x,y,theta,v),direction,d,radius)
-        points.append((x2/100.0,y2/100.0,theta2))
+        points.append((x2/100.0,y2/100.0,theta2,"t",direction))
         d+=5
     (x_temp,y_temp,theta_temp,v_temp) = turn_Left((x,y,theta,v),direction,distance,radius)
     
-    points.append((x_temp/100.0,y_temp/100.0,theta_temp))
+    points.append((x_temp/100.0,y_temp/100.0,theta_temp,"t",direction))
     return points
 
 def points_turnRight(x,y,theta,v,direction,distance,radius):
@@ -993,10 +992,10 @@ def points_turnRight(x,y,theta,v,direction,distance,radius):
     d = 5
     while(d <= distance):
         (x2,y2,theta2,v2) = turn_Right((x,y,theta,v),direction,d,radius)
-        points.append((x2/100.0,y2/100.0,theta2))
+        points.append((x2/100.0,y2/100.0,theta2,"t",direction))
         d+=5
     (x_temp,y_temp,theta_temp,v_temp) = turn_Right((x,y,theta,v),direction,distance,radius)
-    points.append((x_temp/100.0,y_temp/100.0,theta_temp))
+    points.append((x_temp/100.0,y_temp/100.0,theta_temp,"t",direction))
     return points
 
 def points_goStraight(x,y,theta,v,direction,distance):
@@ -1004,10 +1003,10 @@ def points_goStraight(x,y,theta,v,direction,distance):
     d = 5
     while(d <= distance):
         (x2,y2,theta2,v2) = go_Straight((x,y,theta,v),direction,d)
-        points.append((x2/100.0,y2/100.0,theta2))
+        points.append((x2/100.0,y2/100.0,theta2,"s",direction))
         d+=5
     (x_temp,y_temp,theta_temp,v_temp) = go_Straight((x,y,theta,v),direction,distance)
-    points.append((x_temp/100.0,y_temp/100.0,theta_temp))
+    points.append((x_temp/100.0,y_temp/100.0,theta_temp,"s",direction))
     return points
 
 def plan_to_path(plan):
@@ -1016,18 +1015,18 @@ def plan_to_path(plan):
         (x,y,theta,v) = Node.get_stateparams()
 
         if action in ("B","L_b","R_b","B_diag","B1_26.6","B1_63.4"):
-            direction = "b"
+            direction = "b"    
         else:
-            direction = "f"
+            direction = "f"            
     
         if action in ("R_f","R_b"): # turning right            
-            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)        
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)            
 
         elif action in ("L_f","L_b"): # turning left
             path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)
-    
-        elif action in ("F","B"):
-            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE)
+
+        elif action in ("F","B"):                          
+            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE)            
 
         elif action in ("F3"):
             path = path + points_goStraight(x,y,theta,v,direction,3*CELL_SIZE)
@@ -1042,12 +1041,12 @@ def plan_to_path(plan):
     
         elif action == "LS_f":
             path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,20.5)
 
         elif action == "RS_f":
             path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,20.5)       
 
         elif action == "F_diag":            
@@ -1061,26 +1060,26 @@ def plan_to_path(plan):
 
         elif action == "RS_f_short":
             path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957)        
                 
         elif action == "LS_f_short":            
             path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957)            
 
         elif action == "sidestep_R_f":
             path = path + points_turnRight(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,49.5)
-            (x_temp,y_temp,theta_temp) = path[-1]                        
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]                    
             path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)       
 
         elif action == "sidestep_L_f":
             path = path + points_turnLeft(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,49.5)
-            (x_temp,y_temp,theta_temp) = path[-1]                        
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]                   
             path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)
 
         elif action == "L2_f":
@@ -1091,26 +1090,26 @@ def plan_to_path(plan):
             
         elif action == "SR_f_2":
             path = path + points_goStraight(x,y,theta,v,direction,13.369)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,(63.4/360.0)*2*math.pi*ROBOT_RADIUS_5,ROBOT_RADIUS_5)      
 
         elif action == "SL_f_2":
             path = path + points_goStraight(x,y,theta,v,direction,13.369)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,(63.4/360.0)*2*math.pi*ROBOT_RADIUS_5,ROBOT_RADIUS_5)
 
         elif action == "RSR_f":
             path = path + points_turnRight(x,y,theta,v,direction,13.3968,ROBOT_RADIUS_5)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,53.9857)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,22.2,ROBOT_RADIUS_5)       
         
         elif action == "LSL_f":
             path = path + points_turnLeft(x,y,theta,v,direction,13.3968,ROBOT_RADIUS_5)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,53.9857)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,22.2,ROBOT_RADIUS_5)       
             
         elif action in ("F1_26.6","B1_26.6","F1_63.4","B1_63.4"):
@@ -1118,58 +1117,58 @@ def plan_to_path(plan):
 
         elif action == "LSL1_f_26.6":
             path = path + points_turnLeft(x,y,theta,v,direction,41.95,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path +  points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,28.496)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,35.508,ROBOT_RADIUS_MIN)        
 
         elif action == "LSL2_f_26.6":
             path = path + points_turnLeft(x,y,theta,v,direction,12.99,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp) = path[-1]
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,65.6)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,9.487,ROBOT_RADIUS_MIN)       
 
         elif action == "RSR1_f_26.6":
             path = path + points_turnRight(x,y,theta,v,direction,14.625,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,39.952)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,17.873,ROBOT_RADIUS_MIN)
 
         elif action == "RSR2_f_26.6":
             path = path + points_turnRight(x,y,theta,v,direction,84.055,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,32.613)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,3.42,ROBOT_RADIUS_MIN)
         
         elif action == "LSL1_f_63.4":
             path = path + points_turnLeft(x,y,theta,v,direction,14.625,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,39.952)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,17.783,ROBOT_RADIUS_MIN)        
 
         elif action == "LSL2_f_63.4":
             path = path + points_turnLeft(x,y,theta,v,direction,84.055,ROBOT_RADIUS_MIN)            
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,32.613)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,3.42,ROBOT_RADIUS_MIN)            
 
         elif action == "RSR1_f_63.4":
             path = path + points_turnRight(x,y,theta,v,direction,41.95,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,28.496)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,35.508,ROBOT_RADIUS_MIN)
 
         elif action == "RSR2_f_63.4":
             path = path + points_turnRight(x,y,theta,v,direction,12.99,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,65.6)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1]
+            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
             path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v_temp,direction,9.487,ROBOT_RADIUS_MIN)
 
     return path

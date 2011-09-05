@@ -59,7 +59,7 @@ def startPlanner(d_goal,th_goal):
     Goal_x = x2
     Goal_y = y2
 
-    return # remove for MTA*    
+    #return # remove for MTA*    
     while not rospy.is_shutdown():
         print "Hit enter to update goal"
         raw_input()
@@ -101,11 +101,12 @@ def received_path(data):
     graphics.draw_court()    
     graphics.draw_point(Goal_x,Goal_y,0,color='red')
         
-    for pose in data.poses:        
+    for element in data.poses:
+        pose = element.pose
         graphics.draw_point(pose.x*100.0,pose.y*100.0,pose.theta,color='green')    
         #print "drew",pose.x*100.0,pose.y*100.0,pose.theta
-    graphics.draw_point_directed(data.poses[0].x*100.0,data.poses[0].y*100.0,data.poses[0].theta)
-    graphics.draw_point_directed(data.poses[-1].x*100.0,data.poses[-1].y*100.0,data.poses[-1].theta)
+    graphics.draw_point_directed(data.poses[0].pose.x*100.0,data.poses[0].pose.y*100.0,data.poses[0].pose.theta)
+    graphics.draw_point_directed(data.poses[-1].pose.x*100.0,data.poses[-1].pose.y*100.0,data.poses[-1].pose.theta)
         
     graphics.canvas.update_idletasks()
     print "drew path"
