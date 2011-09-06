@@ -207,7 +207,7 @@ double differentiate_costFunction_by_cameraParameter0(line_segment_2d lineSegmen
 	 * 						   x_center, y_center, angle, length
 	 */
 
-	double  Zavg = lineSegment_camWorld.pt1.z + lineSegment_camWorld.pt2.z;
+	//double  Zavg = (double)lineSegment_camWorld.pt1.z + (double)lineSegment_camWorld.pt2.z;
 
 	double x0 = (matching_line.pt1.x + matching_line.pt2.x)/2.0,
 		   y0 = (matching_line.pt1.y + matching_line.pt2.y)/2.0,
@@ -256,11 +256,6 @@ double differentiate_costFunction_by_cameraParameter0(line_segment_2d lineSegmen
 	//if(delta_y !=0  )
 	return_val += ((len - len0)/len)*2.0*((delta_x*(dpt2X_by_dP-dpt1X_by_dP))
 					+ delta_y*(dpt2Y_by_dP - dpt1Y_by_dP))/vars.len;
-
-	 /*Scale by depth of the line:
-	  * 	Father the line,greater the contribution
-	  */
-	return_val *= 0.05*pow(abs(Zavg), 0.7);
 
 	return return_val;
 }
