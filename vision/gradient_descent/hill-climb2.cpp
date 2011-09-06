@@ -441,14 +441,14 @@ vector <line_segment_all_frames> get_visible_view_lines(camera particle_camera,
 	return view_lines;
 }
 
-int match_lines(int line_number, vector<line_segment_all_frames> actual_view)
+int match_lines(int line_number, vector<line_segment_all_frames> view)
 {
 	/* Returns the index of the line in the array (actual_view)
 	 * which matches with the line_number.
 	 */
 
-	for(unsigned int k= 0; k< actual_view.size(); k++)
-		if (actual_view[k].line_number == line_number)
+	for(unsigned int k= 0; k< view.size(); k++)
+		if (view[k].line_number == line_number)
 			return k;
 
 	return -1;
@@ -477,32 +477,32 @@ void hill_climb(vector <line_segment_all_frames> actual_view,
 	vector <line_segment_all_frames> particle_view;
 	variances vars;
 
-	double alpha = 0.000005, beta = 0.001;
+	double alpha = 0.00075, beta = 0.001;
 	double camera_pose_error = 10;
 
 	double norm_slopes_current = 1;
 
-	while(num_iters < 1000 && (norm_slopes_current >= 0.001) )
+	while(num_iters < 2000 && (norm_slopes_current >= 0.001) )
 	{
 		particle_view = get_visible_view_lines(particle_camera, particle_frame.size(),
 															  particle_frame);
 		//imshow("Particle", particle_frame);
-		particle_frame = Mat::zeros(480, 640, CV_8UC3);
+		//particle_frame = Mat::zeros(480, 640, CV_8UC3);
 		//waitKey(10);
 		vector <double> slopes(5,0);
 
 		for(int i = 1; i<=5; i++)
-			for(unsigned int k= 0; k < particle_view.size(); k++)
+			for(unsigned int k= 0; k < actual_view.size(); k++)
 			{
-				int matchedLine_index = match_lines(particle_view[k].line_number, actual_view);
+				int matchedLine_index = match_lines(actual_view[k].line_number, particle_view);
 
 				if(matchedLine_index != -1)
 				{
 					double s = differentiate_costFunction_by_cameraParameter0(
-											particle_view[k].imgPlane,
-											particle_view[k].realWorld,
-											particle_view[k].camWorld,
-											actual_view[matchedLine_index].imgPlane, i,
+											particle_view[matchedLine_index].imgPlane,
+											particle_view[matchedLine_index].realWorld,
+											particle_view[matchedLine_index].camWorld,
+											actual_view[k].imgPlane, i,
 											particle_camera, vars);
 
 					if(s == s) //check for a valid double value
@@ -514,24 +514,10 @@ void hill_climb(vector <line_segment_all_frames> actual_view,
 				//cout<<slopes[k]<<" ";
 			//cout<<endl;
 
-			/*
-			norm_slopes_current = 0;
-			for(unsigned int k = 0; k < slopes.size(); k++)
-			{
-				if(k == 2)
-					continue;
-				else if (k < 2)
-					norm_slopes_current += pow(alpha*slopes[k],2);
-				else if (k > 2)
-					norm_slopes_current += pow(alpha*beta*slopes[k],2);
-			}
-			norm_slopes_current = pow(norm_slopes_current, 0.5);
-			*/
-
 			particle_camera.position.y -= alpha*slopes[1];
 			particle_camera.position.x -= alpha*slopes[0];
-			particle_camera.tilt -= alpha*beta*slopes[4];
-			particle_camera.pan -= alpha*beta*slopes[3];
+			//particle_camera.tilt -= alpha*beta*slopes[4];
+			//particle_camera.pan -= alpha*beta*slopes[3];
 		//cout<<num_iters<<endl;
 		num_iters += 1;
 	}
@@ -601,20 +587,20 @@ void update_view_on_trackbar_change(int, void* )
 	particle_frame = Mat::zeros(480, 640, CV_8UC3);
 
 	// Update camera pose
-	bb_camera.position.x = x_pos+100;
-	bb_camera.position.y = y_pos+500;
+	bb_camera.position.x = x_pos+500;
+	bb_camera.position.y = y_pos-50;
 	bb_camera.position.z = z_pos-100;
-	bb_camera.tilt = ((double) tilt-180)*pi/180.0;
-	bb_camera.pan = ((double) pan)*pi/180.0+(0*pi/180.0);
+	bb_camera.tilt = ((double) tilt-180)*pi/180.0+(2*pi/180.0);
+	bb_camera.pan = ((double) pan)*pi/180.0+(90*pi/180.0);
 
 	// Create a fake particle camera
 	camera particle_cam;
-	particle_cam.position.x = bb_camera.position.x+200;
-	particle_cam.position.y = bb_camera.position.y+150;
+	particle_cam.position.x = bb_camera.position.x+60;
+	particle_cam.position.y = bb_camera.position.y+50;
 	particle_cam.position.z = bb_camera.position.z;
 	particle_cam.theta = bb_camera.theta;
-	particle_cam.pan = bb_camera.pan+(30*pi/180.0);
-	particle_cam.tilt = bb_camera.tilt-(5*pi/180.0);//-(20*pi/180.0);
+	particle_cam.pan = bb_camera.pan+(15*pi/180.0);
+	particle_cam.tilt = bb_camera.tilt-(0*pi/180.0);//-(20*pi/180.0);
 
 	vector <line_segment_all_frames> actual_view = get_visible_view_lines(bb_camera, frame.size(), frame);
 	imshow("Court", frame);
