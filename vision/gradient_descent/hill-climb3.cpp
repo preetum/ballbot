@@ -253,7 +253,7 @@ line_segment_all_frames get_visible_view_line(line_segment_3d world_line,
 											   camera particle_camera,
 	                                           Size frame_size,
 											   Mat &view_frame,
-											   float near_dist = 0.2)
+											   float near_dist = 1.0)
 {
 	/* Retruns a line segment of the structure line_segment_all_frames
 	 * which contains the coordinates of the VISIBLE section of the provided
@@ -378,7 +378,7 @@ line_segment_all_frames get_visible_view_line(line_segment_3d world_line,
 		{
 			double image_pt1_depth = find_depth(image_pt1, image_pt2,
 												image_pt1_round,draw_pt1.z,
-												draw_pt1.z);
+												draw_pt2.z);
 			Point3d camWorld_pt = image_plane_to_camera_world_position(
 									  image_pt1_round, image_pt1_depth,
 									  particle_camera);
@@ -417,7 +417,7 @@ line_segment_all_frames get_visible_view_line(line_segment_3d world_line,
 		{
 			double image_pt2_depth = find_depth(image_pt1, image_pt2,
    							    image_pt2_round,draw_pt1.z,
-							    draw_pt1.z);
+							    draw_pt2.z);
 			Point3d camWorld_pt = image_plane_to_camera_world_position(
 									  image_pt2_round, image_pt2_depth,
 									  particle_camera);
@@ -442,7 +442,7 @@ line_segment_all_frames get_visible_view_line(line_segment_3d world_line,
 vector <line_segment_all_frames> get_visible_court_lines(camera particle_camera,
 														 Size frame_size,
 														 Mat &view_frame,
-														 float near_dist = 0.2)
+														 float near_dist = 1.0)
 {
 	/* Finds the court-lines which fall in the visible region (camera's frame)
 	 * given the camera.
@@ -475,25 +475,11 @@ vector <line_segment_all_frames> get_visible_court_lines(camera particle_camera,
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 line_segment_all_frames get_extended_view_line(line_segment_3d world_line,
 												camera particle_camera,
 												Size frame_size,
 												Mat &view_frame,
-												float near_dist = 0.2)
+												float near_dist = 1.0)
 {
 	/* Returns a line segment of structure line_segment_all_frames
 	 * which contains the line segments that are present in the ENTIRE IMAGE PLANE
@@ -526,6 +512,8 @@ line_segment_all_frames get_extended_view_line(line_segment_3d world_line,
 
 	if(cam_world_pt1.z < near_dist && cam_world_pt2.z < near_dist)
 	{
+		line_seg.camWorld.pt1 = cam_world_pt1;
+		line_seg.camWorld.pt2 = cam_world_pt2;
 		line_seg.behind_camera = true;
 		return line_seg;
 	}
@@ -537,7 +525,7 @@ line_segment_all_frames get_extended_view_line(line_segment_3d world_line,
 	Point3d draw_pt1, draw_pt2;
 
 	// Flags for indicating which point has been
-		// replaced by the intersection_point, if any
+	// replaced by the intersection_point, if any
 	bool pt1_out = false, pt2_out =  false;
 
 	if(cam_world_pt1.z >= near_dist)
@@ -578,66 +566,69 @@ line_segment_all_frames get_extended_view_line(line_segment_3d world_line,
 	// changed by the function clipLine to points that fit
 	// in the frame
 	bool line_in = clipLine(frame_size, image_pt1_round, image_pt2_round);
-	bool image_pt1_out = false, image_pt2_out = false;
+	bool image_pt1_diff = false, image_pt2_diff = false;
 
 	if(line_in)
 		{
-		if(image_pt1_round_copy != image_pt1_round)
-			image_pt1_out = true;
-		if(image_pt2_round_copy != image_pt2_round)
-			image_pt2_out = true;
+			if(image_pt1_round_copy != image_pt1_round)
+				image_pt1_diff = true;
+			if(image_pt2_round_copy != image_pt2_round)
+				image_pt2_diff = true;
 		}
 
-
-	if(image_pt1_out && image_pt2_out)
+	if(!line_in)
 	{
 		if(pt1_out)
 		{
-			Point3d realWorld_pt = get_world_coordinates(
+			Point3d realWorld_point = get_world_coordinates(
 							image_plane_point, particle_camera.position,
 							particle_camera.theta, particle_camera.pan,
 							particle_camera.tilt);
 
-			line_seg.realWorld.pt1 = realWorld_pt;
-			line_seg.camWorld.pt1 = image_plane_point;
+			line_seg.realWorld.pt1 = realWorld_point;
+			line_seg.camWorld.pt1 = draw_pt1;
 			line_seg.imgPlane.pt1 = image_pt1;
+			cout<<"line pt1 out"<<endl;
 		}
 		else
 		{
 			line_seg.realWorld.pt1 = world_line.pt1;
-			line_seg.camWorld.pt1 = cam_world_pt1;
+			line_seg.camWorld.pt1 = draw_pt1;
 			line_seg.imgPlane.pt1 = image_pt1;
+			cout<<"line pt1 in"<<endl;
 		}
-
 
 		if(pt2_out)
 		{
-			Point3d realWorld_pt = get_world_coordinates(
+			Point3d realWorld_point = get_world_coordinates(
 							image_plane_point, particle_camera.position,
 							particle_camera.theta, particle_camera.pan,
 							particle_camera.tilt);
 
-			line_seg.realWorld.pt2 = realWorld_pt;
-			line_seg.camWorld.pt2 = image_plane_point;
+			line_seg.realWorld.pt2 = realWorld_point;
+			line_seg.camWorld.pt2 = draw_pt2;
 			line_seg.imgPlane.pt2 = image_pt2;
+			cout<<"line pt2 out"<<endl<<endl;
 		}
 		else
 		{
 			line_seg.realWorld.pt2 = world_line.pt2;
-			line_seg.camWorld.pt2 = cam_world_pt2;
+			line_seg.camWorld.pt2 = draw_pt2;
 			line_seg.imgPlane.pt2 = image_pt2;
+			cout<<"line pt2 in"<<endl<<endl;
 		}
 
 	}
+
 	else
 	{
-		if(!pt1_out && !image_pt1_out)
+		if(!pt1_out && !image_pt1_diff)
 		{
 			line_seg.realWorld.pt1 = world_line.pt1;
 			line_seg.camWorld.pt1 = cam_world_pt1;
 			line_seg.imgPlane.pt1 = image_pt1;
 		}
-		else if (pt1_out && !image_pt1_out)
+		else if (pt1_out && !image_pt1_diff)
 		{
 			Point3d realWorld_pt = get_world_coordinates(
 				                                     image_plane_point,
@@ -654,7 +645,7 @@ line_segment_all_frames get_extended_view_line(line_segment_3d world_line,
 		{
 			double image_pt1_depth = find_depth(image_pt1, image_pt2,
 												image_pt1_round,draw_pt1.z,
-												draw_pt1.z);
+												draw_pt2.z);
 			Point3d camWorld_pt = image_plane_to_camera_world_position(
 									  image_pt1_round, image_pt1_depth,
 									  particle_camera);
@@ -670,13 +661,13 @@ line_segment_all_frames get_extended_view_line(line_segment_3d world_line,
 			line_seg.imgPlane.pt1  = image_pt1_round;
 		}
 
-		if(!pt2_out && !image_pt2_out)
+		if(!pt2_out && !image_pt2_diff)
 		{
 			line_seg.realWorld.pt2 = world_line.pt2;
 			line_seg.camWorld.pt2 = cam_world_pt2;
 			line_seg.imgPlane.pt2 = image_pt2;
 		}
-		else if(pt2_out && !image_pt2_out)
+		else if(pt2_out && !image_pt2_diff)
 		{
 			Point3d realWorld_pt = get_world_coordinates(
 								     image_plane_point,
@@ -693,7 +684,7 @@ line_segment_all_frames get_extended_view_line(line_segment_3d world_line,
 		{
 			double image_pt2_depth = find_depth(image_pt1, image_pt2,
    							    image_pt2_round,draw_pt1.z,
-							    draw_pt1.z);
+							    draw_pt2.z);
 			Point3d camWorld_pt = image_plane_to_camera_world_position(
 									  image_pt2_round, image_pt2_depth,
 									  particle_camera);
@@ -709,75 +700,13 @@ line_segment_all_frames get_extended_view_line(line_segment_3d world_line,
 		}
 	}
 
-
-
-
-
-
-
-
-
-
-	/*/######################################################################################
-
-	if(!pt1_out)
-	{
-		line_seg.realWorld.pt1 = world_line.pt1;
-		line_seg.camWorld.pt1 = cam_world_pt1;
-		line_seg.imgPlane.pt1 = image_pt1;
-	}
-	else
-	{
-		Point3d realWorld_pt = get_world_coordinates(
-	                                    image_plane_point,
-	                                    particle_camera.position,
-	                                    particle_camera.theta,
-	                                    particle_camera.pan,
-	                                    particle_camera.tilt);
-		line_seg.realWorld.pt1 = realWorld_pt;
-		line_seg.camWorld.pt1 = image_plane_point;
-		line_seg.imgPlane.pt1 = image_pt1;
-	}
-
-	if(!pt2_out)
-	{
-		line_seg.realWorld.pt2 = world_line.pt2;
-		line_seg.camWorld.pt2 = cam_world_pt2;
-		line_seg.imgPlane.pt2 = image_pt2;
-	}
-	else
-	{
-		Point3d realWorld_pt = get_world_coordinates(
-										image_plane_point,
-										particle_camera.position,
-										particle_camera.theta,
-										particle_camera.pan,
-										particle_camera.tilt);
-		line_seg.realWorld.pt2 = realWorld_pt;
-		line_seg.camWorld.pt2 = image_plane_point;
-		line_seg.imgPlane.pt2 = image_pt2;
-	}*/
-
-		// draw the line
-	//line(view_frame, image_pt1_round, image_pt2_round, Scalar(100,200,50), 1, 8);
+	// draw the line
+	line(view_frame, image_pt1_round, image_pt2_round, Scalar(100,200,50), 1, 8);
 	return line_seg;
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-vector <line_segment_all_frames> get_extended_court_line(camera particle_camera,
+vector <line_segment_all_frames> get_extended_court_lines(camera particle_camera,
 														 Size frame_size,
 														 Mat &view_frame,
 														 float near_dist = 0.2)
@@ -879,13 +808,18 @@ void hill_climb(vector <line_segment_all_frames> actual_view,
 
 		imshow("Particle", particle_frame);
 		imshow("Court", actual_frame);
-		waitKey(1000);
+		waitKey(500);
 
 //-------------------------------------------------------------------------------
 
-	while(num_iters<40000)
+	while(num_iters<100000)
 	{
 		//particle_frame  = Mat::zeros(480, 640, CV_8UC3);
+		imshow("Particle", particle_frame);
+		particle_frame  = Mat::zeros(480, 640, CV_8UC3);
+		waitKey(10);
+
+
 		vector <double> slopes(5,0);
 
 		for(int i = 1; i<=5; i++)
@@ -925,8 +859,8 @@ void hill_climb(vector <line_segment_all_frames> actual_view,
 			//cout<<slopes[k]<<" ";
 		//cout<<endl;
 
-		particle_camera.position.y += alpha*1*slopes[1];
-		particle_camera.position.x += alpha*1*slopes[0];
+		particle_camera.position.y += alpha*slopes[1];
+		particle_camera.position.x += alpha*slopes[0];
 		particle_camera.tilt += alpha*0.0001*slopes[4];
 		particle_camera.pan += alpha*0.0001*slopes[3];
 
@@ -982,7 +916,7 @@ bool draw_line2(Mat & frame, Point3f & pt1, Point3f & pt2)
 	 * 	   so, anything with z < 0.2cm is not visible/ drawn
 	 */
 
-	float near_dist = 0.2;
+	float near_dist = 1.0;
 	if(pt1.z < near_dist && pt2.z < near_dist)
 		return false;
 
@@ -1020,20 +954,20 @@ void update_view_on_trackbar_change(int, void* )
 	particle_frame  = Mat::zeros(480, 640, CV_8UC3);
 
 	// Update camera pose
-	bb_camera.position.x = x_pos-100;
-	bb_camera.position.y = y_pos-100;
+	bb_camera.position.x = x_pos+500;
+	bb_camera.position.y = y_pos+500;
 	bb_camera.position.z = z_pos-100;
 	bb_camera.tilt = ((double) tilt-180)*pi/180.0;
-	bb_camera.pan = ((double) pan)*pi/180.0;
+	bb_camera.pan = ((double) pan)*pi/180.0+(30*pi/180.0);
 
 	// Create a fake particle camera
 	camera particle_cam;
-	particle_cam.position.x = bb_camera.position.x+200;//+200;
-	particle_cam.position.y = bb_camera.position.y+150;
+	particle_cam.position.x = bb_camera.position.x-200;//+200;
+	particle_cam.position.y = bb_camera.position.y+300;
 	particle_cam.position.z = bb_camera.position.z;
 	particle_cam.theta = bb_camera.theta;
-	particle_cam.pan = bb_camera.pan+(10*pi/180.0);
-	particle_cam.tilt = bb_camera.tilt+(15*pi/180.0);
+	particle_cam.pan = bb_camera.pan+(15*pi/180.0);
+	particle_cam.tilt = bb_camera.tilt-(20*pi/180.0);
 
 	vector <line_segment_all_frames> actual_view = get_visible_court_lines(bb_camera, frame.size(), frame);
 	imshow("Court", frame);
