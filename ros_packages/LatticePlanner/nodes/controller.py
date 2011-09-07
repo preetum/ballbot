@@ -232,10 +232,7 @@ def newPath_arrived(data):
     global path,newPath
     path = data.poses
 
-    print "newpathseen! length",len(path)
-    print "Hit any key to begin driving"
-    raw_input()
-    rospy.sleep(5)
+    print "newpathseen! length",len(path)        
     newPath = True
 
 def received_odometry(data):
