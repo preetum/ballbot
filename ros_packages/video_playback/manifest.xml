@@ -1,0 +1,18 @@
+<package>
+  <description brief="video_playback">
+
+     video_playback
+
+  </description>
+  <author>John Wang</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/video_playback</url>
+  <depend package="roscpp"/>
+  <depend package="image_transport"/>
+  <depend package="cv_bridge"/>
+  <depend package="sensor_msgs"/>
+
+</package>
+
+
