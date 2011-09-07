@@ -1,4 +1,4 @@
-// -*- indent-tabs-mode: nil; c-basic-offset: 4 -*-
+// -*- indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*-
 /*
  * particle_filter.cpp
  *
@@ -81,7 +81,7 @@ ParticleFilter::ParticleFilter(vector<PoseParticle> *initialParticles) {
 /* Clears the particle filter and (re)initializes it with N particles
  * using a uniform distribution over the given bounds.
  */
-void ParticleFilter::initializeUniformly(unsigned int n, Bounds xRange, 
+void ParticleFilter::initializeUniformly(unsigned int n, Bounds xRange,
                                          Bounds yRange, Bounds thetaRange) {
     cv::RNG rng;
     particles->clear();
@@ -101,8 +101,6 @@ void ParticleFilter::observe(cv::Mat &observation) {
     // Detect lines in the image
     vector<Vec4i> seenLines;
     findLines(observation, seenLines);
-    // Draw detected lines for debugging
-    drawLines(observation, seenLines);
 
     // If no lines visible, count it as a non-observation
     if (seenLines.size() == 0)
@@ -113,13 +111,37 @@ void ParticleFilter::observe(cv::Mat &observation) {
     cam.position.z = 33;  // fixed camera height = 33cm
     cam.pan = 0;
     cam.tilt = -CV_PI/8;
-    /*
+
     vector<Vec4d> lines;
+    Mat observed = Mat::zeros(480, 640, CV_8U);
     for (vector<Vec4i>::const_iterator it =
              seenLines.begin(); it < seenLines.end(); it += 1) {
-        lines.push_back(cameraLineToRobot(*it, cam));
+        const Vec4i &line = *it;
+
+        Point2d pt1 = cameraPointToRobot(Point2d(line[0], line[1]), cam),
+            pt2 = cameraPointToRobot(Point2d(line[2], line[3]), cam);
+        lines.push_back(Vec4d(pt1.x, pt1.y, pt2.x, pt2.y));
+
+        // Draw points
+        pt1.x += 320;
+        pt1.y = 480 - pt1.y;
+        pt2.x += 320;
+        pt2.y = 480 - pt2.y;
+        cv::line(observed, pt1, pt2, Scalar(255), 2);
     }
-    */
+    imshow("blah", observed);
+
+    for (int i = lines.size()-1; i >= 0; i -= 1) {
+        // If either y value exceeds what is reasonable on a tennis court,
+        //  discard it
+        if (lines[i][1] > 2000 || lines[i][3] > 2000) {
+            lines.erase(lines.begin() + i);
+            seenLines.erase(seenLines.begin() + i);
+        }
+    }
+
+    // Draw detected lines for debugging
+    drawLines(observation, seenLines);
 
     // Reweight each particle
     for (unsigned int i = 0; i < particles->size(); i += 1) {
@@ -276,17 +298,15 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
         // Update particle filter
         pf.observe(cv_ptr->image);
-        //pf.print();
-        //printf("-----------\n");
         // If weight sum falls below some threshold, reinitialize the filter
         if (weightSum(pf.particles) <= 0.01) {
             fprintf(stderr, "Reinitializing particle filter\n");
             pf.particles->clear();
             pf.initializeUniformly(500, Bounds(-200,1389), Bounds(-200, 1297),
                                    Bounds(0,2*CV_PI));
+        } else {
+            pf.resample();
         }
-
-        pf.resample();
 
         // Add gaussian noise
         RNG rng;
@@ -296,12 +316,9 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
             p.pose.y += rng.gaussian(5);
             p.pose.theta += rng.gaussian(0.01);
         }
-        //pf.transition();
 
         // Publish particles
         pf.publish(particlePub);
-
-        // Add random particles
 
         /*
         // Draw view lines
