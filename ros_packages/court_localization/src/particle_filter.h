@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <cv.h>
+#include <ros/ros.h>
 
 class Bounds {
 public:
@@ -47,13 +48,15 @@ public:
     /* Observe an emission and reweight the particles accordingly */
     void observe(cv::Mat &observation);
     /* Transition the particles using movement and Gaussian noise */
-    void transition(Pose movement=Pose(),
+    void transition(double dist=0, double dtheta=0,
                     double sigma_xy=5, double sigma_theta=0.01);
     void resample();
     void normalize();
+
+    /* Output functions */
     const std::vector<PoseParticle> & getBeliefs() const;
     void print(int limit=-1) const;
-    void imageCallback(const sensor_msgs::ImageConstPtr& msg);
+    void publish(ros::Publisher &pub) const;
 };
 
 #endif

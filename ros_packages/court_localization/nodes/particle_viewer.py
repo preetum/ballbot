@@ -86,22 +86,8 @@ class Simulator:
     # Field boundaries (dimensions in cm)
     for line in Simulator.lines:
       self.draw_line(line, width=5, fill='white')
-    '''
-    self.draw_line(0, 0, 1189, 0, width=5, fill='white')
-    self.draw_line(0, 1097, 1189, 1097, width=5, fill='white')
-    self.draw_line(1189, 0, 1189, 1097, width=5, fill='white')
-    
-    # Singles lines
-    self.draw_line(0, 137, 1189, 137, width=5, fill='white')
-    self.draw_line(0, 960, 1189, 960, width=5, fill='white')
-    
-    # Center lines
-    self.draw_line(0, 1097/2.0, 640, 1097/2.0, width=5, fill='white')
-    self.draw_line(640, 137, 640, 960, width=5, fill='white')
-    '''
     # Net
-    self.draw_line(((1189, 0), (1189, 1097)), width=4, fill='black')
-    
+    self.draw_line(((1189, 0), (1189, 1097)), width=4, fill='black')    
     # Center tick
     self.draw_line(((0, 1097/2.0), (50, 1097/2.0)), width=5, fill='white')
 
@@ -121,7 +107,6 @@ def main():
   topic_name = rospy.get_param('~topic', 'filter/particles')
 
   sim = Simulator()
-  #sim.refresh(((500, 500, 0), (600, 500, np.pi/4), (500, 600, -3*np.pi/4)))
 
   # Initialize ROS listener
   rospy.init_node('particle_viewer', anonymous=True)
