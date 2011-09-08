@@ -129,6 +129,8 @@ def controller_PD():
         print "goalreached"
         Ballbot_speed = 0
         Ballbot_steering = 0
+        currentindex_inPath = 0
+        targetindex_inPath = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering)                    
 	
 def controller_Stanley():
@@ -208,6 +210,9 @@ def controller_Stanley():
                 if(cur_dir != lookahead_dir):
                     Ballbot_speed = 0.5                
 
+                if(currentindex_inPath >= (len(path) - 20)): # if within 1 m of goal, slow down
+                    Ballbot_speed = 0.5
+
                 if(cur_dir == 'b'):
                     Ballbot_speed = -1*abs(Ballbot_speed)
                 elif(cur_dir == 'f'):
@@ -223,6 +228,8 @@ def controller_Stanley():
         print "goalreached"
         Ballbot_speed = 0
         Ballbot_steering = 0
+        currentindex_inPath = 0
+        targetindex_inPath = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering) 
 
 def newPath_arrived(data):
