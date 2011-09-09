@@ -16,6 +16,7 @@ plan = [] # stores the computed plan, as [(node1,action1),(node2,action2)....]
 path = [] # stores the computed path, as a sequence of (x,y,theta) values
 
 pub_path = rospy.Publisher('path',Path)
+
 Ballbot_x = 1000
 Ballbot_y = 1000
 Ballbot_theta = math.pi/2
@@ -58,8 +59,6 @@ def startPlanner(data):
         return
     ###########################################################################################################
         
-
-
     elif (util.SEARCHALGORITHM == "A*"):
         Astarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "LPA*"):
@@ -67,7 +66,8 @@ def startPlanner(data):
         LPAstarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "MT-AdaptiveA*"):
         print "running MT-AdaptiveA*"
-        MTAdaptiveAstarsearch(startNode,goalNode,data.goaltype.data)            
+        util.goaltype = data.goaltype.data
+        MTAdaptiveAstarsearch(startNode,goalNode)
 
     path = []
     path.append((x1/100.0,y1/100.0,th1,'s','f'))
@@ -108,9 +108,7 @@ def Astarsearch(startNode,goalNode):
         print "found goal! in",time.time() - time_exec,"s"            
         node = goalNode
         while(node.getParent()!= None):
-            parent = node.getParent()
-            #print parent.get_stateparams(),node.getAction(),node.get_stateparams()
-            #print node.getAction(),util.controlset.len_action(node.getAction())
+            parent = node.getParent()            
             plan.append((parent,node.getAction()))                   
             node = parent  
         print ""            
@@ -126,15 +124,14 @@ def LPAstarsearch(startNode,goalNode):
     for (node,action) in util.plan_LPAstar:
         graphics.draw_segment(node,action)   
 
-def MTAdaptiveAstarsearch(startNode,goalNode,goaltype):
-    global plan    
-    if(goaltype == "newball"):
+def MTAdaptiveAstarsearch(startNode,goalNode):
+    global plan   
+    if(util.goaltype == "newball" or util.goaltype == "gotopose"):
         plan = util.MTAdaptiveAstarsearch_start(startNode,goalNode)    
-    elif(goaltype == "updategoal"):
+    elif(util.goaltype == "updategoal"):
         plan = util.MTAdaptiveAstarsearch_update(startNode,goalNode)
     else:
-        print "unknown goal type",goaltype
-
+        print "unknown goal type",util.goaltype
 
 def obstacle_added(event):        
     util.costmap.new_obstacle(event)

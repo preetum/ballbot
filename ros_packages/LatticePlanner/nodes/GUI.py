@@ -27,7 +27,7 @@ Goal_y = 0.0
 
 root = None
 
-def startPlanner(d_goal,th_goal):
+def startPlanner(d_goal=0.0,th_goal=0.0,x_goal=0.0,y_goal=0.0,th_goal_abs=0.0,goaltype = "None"):
     """
     Send a goal message to topic 'goal'
     """
@@ -41,40 +41,57 @@ def startPlanner(d_goal,th_goal):
     #util.costmap.draw_costmap()
     graphics.draw_court()    
     #th1 = math.radians(th1)    
-    
-    th_goal = Ballbot_theta - math.radians(th_goal)     # angle to goal in global coord
+
+    if(goaltype == "newball"):        
+        th_goal = Ballbot_theta - math.radians(th_goal)     # angle to goal in global coord
                                                      # = angle of car in global coord - angle to goal from car (which is in [-90deg,90deg]
-    x2 = Ballbot_x*100.0 + d_goal*math.cos(th_goal)
-    y2 = Ballbot_y*100.0 + d_goal*math.sin(th_goal)
-    th2 = 0                                   # doesn't matter for goal test
+        x2 = Ballbot_x*100.0 + d_goal*math.cos(th_goal)
+        y2 = Ballbot_y*100.0 + d_goal*math.sin(th_goal)
+        th2 = 0                                   # doesn't matter for goal test
 
-    # publish goal
-    goal_msg = Goal()
-    goal_msg.goaltype = String("newball")
-    goal_msg.pose = Pose(x2,y2,th2)
-    graphics.draw_point(x2,y2,th2,color='red')
-    graphics.canvas.update_idletasks()
-    pub_goal.publish(goal_msg)
-    print "sent goal"
-    Goal_x = x2
-    Goal_y = y2
-
-    #return # remove for MTA*    
-    while not rospy.is_shutdown():
-        print "Hit enter to update goal"
-        raw_input()
-        # publish updated goal
+        # publish goal
         goal_msg = Goal()
-        goal_msg.goaltype = String("updategoal")
-        x2+=20
+        goal_msg.goaltype = String("newball")
         goal_msg.pose = Pose(x2,y2,th2)
         graphics.draw_point(x2,y2,th2,color='red')
         graphics.canvas.update_idletasks()
         pub_goal.publish(goal_msg)
         print "sent goal"
-
         Goal_x = x2
         Goal_y = y2
+    
+    elif(goaltype == "gotopose"):        
+        x2 = x_goal
+        y2 = y_goal
+        th2 = math.radians(th_goal_abs)
+
+        # publish goal
+        goal_msg = Goal()
+        goal_msg.goaltype = String("gotopose")
+        goal_msg.pose = Pose(x2,y2,th2)
+        graphics.draw_point(x2,y2,th2,color='red')
+        graphics.canvas.update_idletasks()
+        pub_goal.publish(goal_msg)
+        print "sent goal"
+        Goal_x = x2
+        Goal_y = y2
+
+    #return # remove for MTA*    
+        while not rospy.is_shutdown():
+            raw_input()
+        # publish updated goal
+            goal_msg = Goal()
+            goal_msg.goaltype = String("updategoal")
+            y2+=20
+            goal_msg.pose = Pose(x2,y2,th2)
+            graphics.draw_point(x2,y2,th2,color='red')
+            graphics.canvas.update_idletasks()
+            pub_goal.publish(goal_msg)
+            print "sent goal"
+            
+            Goal_x = x2
+            Goal_y = y2
+    
     
 
 def received_odometry(data):
@@ -128,7 +145,7 @@ def initialize_gui():
 
         # d goal (cm)
         entryLabel_d = Label(root)
-        entryLabel_d["text"] = "    goal: d"
+        entryLabel_d["text"] = "goal: d"
         entryLabel_d.pack(side = LEFT)
         entryWidget_d = Entry(root)
         entryWidget_d["width"] = 5
@@ -142,10 +159,44 @@ def initialize_gui():
         entryWidget_th["width"] = 5
         entryWidget_th.pack(side = LEFT)
     
-        b = Button(root,text = "Go",command = lambda: startPlanner(float(entryWidget_d.get()),float(entryWidget_th.get())))
+        # Buttons
+        
+        b = Button(root,text = "Newball",command = lambda: startPlanner(d_goal = float(entryWidget_d.get()),th_goal = float(entryWidget_th.get()),
+                                                                        goaltype = "newball"))
+        
+        b.pack(side = LEFT)
         g = Button(root,text = "Show lattice",command = lambda:graphics.draw_lattice())
         g.pack(side = RIGHT)
-        b.pack(side = RIGHT)
+
+        # goal_x (cm)
+        entryLabel_x = Label(root)
+        entryLabel_x["text"] = "goal: x"
+        entryLabel_x.pack(side = LEFT)
+        entryWidget_x = Entry(root)
+        entryWidget_x["width"] = 5
+        entryWidget_x.pack(side = LEFT)
+
+        # goal_y (cm)
+        entryLabel_y = Label(root)
+        entryLabel_y["text"] = "goal: y"
+        entryLabel_y.pack(side = LEFT)
+        entryWidget_y = Entry(root)
+        entryWidget_y["width"] = 5
+        entryWidget_y.pack(side = LEFT)
+
+        # goal_theta (cm)
+        entryLabel_th2 = Label(root)
+        entryLabel_th2["text"] = "goal: theta"
+        entryLabel_th2.pack(side = LEFT)
+        entryWidget_th2 = Entry(root)
+        entryWidget_th2["width"] = 5
+        entryWidget_th2.pack(side = LEFT)
+
+        b2 = Button(root,text = "GoToPose",command = lambda: startPlanner(x_goal = float(entryWidget_x.get()),y_goal = float(entryWidget_y.get()),
+                                                                         th_goal_abs = float(entryWidget_th2.get()),
+                                                                        goaltype = "gotopose"))
+        b2.pack(side = RIGHT)
+
         #util.costmap.draw_costmap()
         graphics.draw_court()
 

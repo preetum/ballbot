@@ -200,11 +200,15 @@ def controller_Stanley():
                 lookahead_dir = path[targetindex_inPath].direction
                 cur_type = path_element.type
                 lookahead_type = path[targetindex_inPath].type
+                near_obstacle = path_element.near_obstacle
                 #print cur_dir,lookahead_dir
                 
                 Ballbot_speed = 2.0
 
                 if(cur_type=='t') or (lookahead_type=='t'):
+                    Ballbot_speed = 1.0
+                
+                if(near_obstacle == "t"):
                     Ballbot_speed = 1.0
 
                 if(cur_dir != lookahead_dir):
