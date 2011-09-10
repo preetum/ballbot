@@ -10,6 +10,8 @@ import controlset
 startNode = None # startNode
 goalNode = None  # goalNode
 agentNode = None # node occupied by agent
+goaltype = None  # type of current goal
+
 
 SEARCHALGORITHM ="MT-AdaptiveA*"
 count_expandednodes = 0
@@ -231,11 +233,7 @@ class LatticeNode:
           stateparams_from_origin = controlset.action_to_stateparams(self,action)         
           # translate to get the new state
           stateparams_from_current = (stateparams_from_origin[0] + x, stateparams_from_origin[1] + y,stateparams_from_origin[2],v)  
-          if stateparams_from_current[0:3] not in alreadySeen: 
-              
-              #if(stateparams_from_current[0:3] == (1470.0,1645.0,0.0)):
-              #    print (1470.0,1645.0,0.0),"generated, parent:",self.get_stateparams(),"action",action
-
+          if stateparams_from_current[0:3] not in alreadySeen:
               if(Generated.has_key(stateparams_from_current[0:3])):
                   node = Generated[stateparams_from_current[0:3]]                                                      
                   successors.append((node,action))
@@ -267,8 +265,7 @@ def point_to_lattice(x,y,th=0,v=ROBOT_SPEED_MAX):
         closest_y = int(closest_y)* CELL_SIZE
     
     # resolve th
-    allowed_headings = controlset.allowed_headings
-    #allowed_headings = [0,math.pi/2,math.pi,3*math.pi/2,math.pi/4,3*math.pi/4,5*math.pi/4,7*math.pi/4,5.177,3.606,2.035,0.464,1.107,5.819,2.677,4.248]
+    allowed_headings = controlset.allowed_headings    
     differences = [abs(allowed_heading - th) for allowed_heading in allowed_headings]
     closest_th = allowed_headings[differences.index(min(differences))]
     
@@ -415,7 +412,7 @@ def cost(state,action,newstate,goalNode):
       actionToGoal = False
 
   if not(obstacle_in_radius(state_x,state_y) or nearGoal):   # state is neither near an obstacle nor near goal
-      cost = length_action  
+      cost = length_action
   else:
       swath_indices_origin = controlset.getSwath(state,action)  
       average_cellcost = 0.0 # compute average of all cells in costmap that lie under the car's swath
@@ -426,9 +423,7 @@ def cost(state,action,newstate,goalNode):
               y_coord = state_y + y_coord*CELL_SIZE                                                              
               cost_cell = costmap.cost_cell(x_coord,y_coord)              
               if cost_cell == float('inf'):   # if swath has an obstacle, return cost= infinity
-                  return cost_cell           
-              elif cost_cell == 2:
-                  return length_action*cost_cell*cost_mult
+                  return cost_cell                         
               # if swath passes through goal, but this action does not terminate the path, return cost = infinity
               elif (nearGoal and (goal_x == x_coord) and (goal_y == y_coord) and not actionToGoal):
                   return float('inf')
@@ -484,6 +479,7 @@ def goalTest(node):
   """
   Check if current node is a goal node, 
   i.e. if (x,y) == (goal_x,goal_y). 
+  Note: this is for ball pickup, so we don't fix an approach angle
   """  
   (x,y,theta,v) = node.get_stateparams()
   (x_goal,y_goal,theta_goal,v_goal) = goalNode.get_stateparams()
@@ -498,6 +494,26 @@ def goalTest(node):
           return True
       else:
           return False
+
+def goalTest_gotopose(node):
+    """
+    Check if current node is a goal node,
+    i.e. if (x,y,theta) == (goal_x,goal_y,goal_theta)
+    """
+    (x,y,theta,v) = node.get_stateparams()
+    (x_goal,y_goal,theta_goal,v_goal) = goalNode.get_stateparams()
+  
+    if not goal_in_radius(x,y,goalNode):
+        return False
+    else:
+        x_top = x + ROBOT_LENGTH/2 * math.cos(theta)
+        y_top = y + ROBOT_LENGTH/2 * math.sin(theta) 
+        (x_top,y_top,theta,v) = point_to_lattice(x_top,y_top,theta,v)
+        if((x_goal==x_top) and (y_goal == y_top) and (theta_goal == theta)):
+            return True
+        else:
+            return False
+
 
 def heuristic_Euclidean(node,goalNode):
   """
@@ -791,15 +807,23 @@ def ComputePath_MTAdaptiveAstar():
   alreadySeen = set()
   searchTree.push((startNode,0,None,None),startNode.get_h())
   goalFound = False
+
+  if (goaltype == "gotopose"):
+      goal_test_fn = goalTest_gotopose
+  else:
+      goal_test_fn = goalTest
+
   while(not(searchTree.isEmpty())):
       current_item = searchTree.pop()
       current_Node = current_item[0]
 
       cost_soFar = current_item[1]      
+
+
       #if(current_Node.get_stateparams()[0:3] == (1470.0,1645.0,0.0)):
       #    print (1470.0,1645.0,0.0),"expanded, parent:",current_item[2].get_stateparams(),"action",current_item[3]
       
-      if goalTest(current_Node):
+      if goal_test_fn(current_Node):
           current_Node.set_g(cost_soFar)
           current_Node.addParent(current_item[2])
           current_Node.setAction(current_item[3])
@@ -975,7 +999,7 @@ def go_Straight(state,direction,d = CELL_SIZE):
 
 ####################################################################################################
 # -------- utilities for converting plan to path ------------------------------------#
-def points_turnLeft(x,y,theta,v,direction,distance,radius):    
+def points_turnLeft(x,y,theta,v,direction,distance,radius,near_obstacle):    
     points = []
     d = 5
     while(d <= distance):
@@ -987,7 +1011,7 @@ def points_turnLeft(x,y,theta,v,direction,distance,radius):
     points.append((x_temp/100.0,y_temp/100.0,theta_temp,"t",direction))
     return points
 
-def points_turnRight(x,y,theta,v,direction,distance,radius):
+def points_turnRight(x,y,theta,v,direction,distance,radius,near_obstacle):
     points = []
     d = 5
     while(d <= distance):
@@ -998,7 +1022,7 @@ def points_turnRight(x,y,theta,v,direction,distance,radius):
     points.append((x_temp/100.0,y_temp/100.0,theta_temp,"t",direction))
     return points
 
-def points_goStraight(x,y,theta,v,direction,distance):
+def points_goStraight(x,y,theta,v,direction,distance,near_obstacle):
     points = []
     d = 5
     while(d <= distance):
@@ -1014,161 +1038,167 @@ def plan_to_path(plan):
     for (Node,action) in plan:
         (x,y,theta,v) = Node.get_stateparams()
 
+        # check if node is near obstacle
+        if(obstacle_in_radius(x,y)):            
+            near_obstacle = "t"
+        else:
+            near_obstacle = "f"
+
         if action in ("B","L_b","R_b","B_diag","B1_26.6","B1_63.4"):
             direction = "b"    
         else:
             direction = "f"            
     
         if action in ("R_f","R_b"): # turning right            
-            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)            
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN,near_obstacle)            
 
         elif action in ("L_f","L_b"): # turning left
-            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN)
+            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_MIN*math.pi/2,ROBOT_RADIUS_MIN,near_obstacle)
 
         elif action in ("F","B"):                          
-            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE)            
+            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE,near_obstacle)
 
         elif action in ("F3"):
-            path = path + points_goStraight(x,y,theta,v,direction,3*CELL_SIZE)
+            path = path + points_goStraight(x,y,theta,v,direction,3*CELL_SIZE,near_obstacle)
 
         elif action == "SL_f":
-            path = path + points_goStraight(x,y,theta,v,direction,20.5)
-            path = path + points_turnLeft(path[-1][0]*100.0,path[-1][1]*100.0,path[-1][2],v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)
+            path = path + points_goStraight(x,y,theta,v,direction,20.5,near_obstacle)
+            path = path + points_turnLeft(path[-1][0]*100.0,path[-1][1]*100.0,path[-1][2],v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2,near_obstacle)
 
         elif action == "SR_f":
             path = path + points_goStraight(x,y,theta,v,direction,20.5)            
-            path = path + points_turnRight(path[-1][0]*100.0,path[-1][1]*100.0,path[-1][2],v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)   
+            path = path + points_turnRight(path[-1][0]*100.0,path[-1][1]*100.0,path[-1][2],v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2,near_obstacle)   
     
         elif action == "LS_f":
-            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)
+            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,20.5)
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,20.5,near_obstacle)
 
         elif action == "RS_f":
-            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2)
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_2*math.pi/4,ROBOT_RADIUS_2,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,20.5)       
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,20.5,near_obstacle)
 
         elif action == "F_diag":            
-            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE*math.sqrt(2))  
+            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE*math.sqrt(2),near_obstacle)  
     
         elif action == "F_diag3":
-            path = path + points_goStraight(x,y,theta,v,direction,3*CELL_SIZE*math.sqrt(2))  
+            path = path + points_goStraight(x,y,theta,v,direction,3*CELL_SIZE*math.sqrt(2),near_obstacle)  
 
         elif action == "B_diag":
-            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE*math.sqrt(2))
+            path = path + points_goStraight(x,y,theta,v,direction,CELL_SIZE*math.sqrt(2),near_obstacle)
 
         elif action == "RS_f_short":
-            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3)
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957)        
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957,near_obstacle)
                 
         elif action == "LS_f_short":            
-            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3)
+            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_3*math.pi/4,ROBOT_RADIUS_3,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957)            
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,14.4957,near_obstacle)
 
         elif action == "sidestep_R_f":
-            path = path + points_turnRight(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)
+            path = path + points_turnRight(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,49.5)
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,49.5,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]                    
-            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)       
+            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN,near_obstacle) 
 
         elif action == "sidestep_L_f":
-            path = path + points_turnLeft(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN)
+            path = path + points_turnLeft(x,y,theta,v,direction,31.189,ROBOT_RADIUS_MIN,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,49.5)
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,49.5,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]                   
-            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN)
+            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,31.189,ROBOT_RADIUS_MIN,near_obstacle)
 
         elif action == "L2_f":
-            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_4*math.pi/2,ROBOT_RADIUS_4)    
+            path = path + points_turnLeft(x,y,theta,v,direction,ROBOT_RADIUS_4*math.pi/2,ROBOT_RADIUS_4,near_obstacle)    
     
         elif action == "R2_f":
-            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_4*math.pi/2,ROBOT_RADIUS_4)        
+            path = path + points_turnRight(x,y,theta,v,direction,ROBOT_RADIUS_4*math.pi/2,ROBOT_RADIUS_4,near_obstacle) 
             
         elif action == "SR_f_2":
-            path = path + points_goStraight(x,y,theta,v,direction,13.369)
+            path = path + points_goStraight(x,y,theta,v,direction,13.369,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,(63.4/360.0)*2*math.pi*ROBOT_RADIUS_5,ROBOT_RADIUS_5)      
+            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,(63.4/360.0)*2*math.pi*ROBOT_RADIUS_5,ROBOT_RADIUS_5,near_obstacle)   
 
         elif action == "SL_f_2":
-            path = path + points_goStraight(x,y,theta,v,direction,13.369)
+            path = path + points_goStraight(x,y,theta,v,direction,13.369,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,(63.4/360.0)*2*math.pi*ROBOT_RADIUS_5,ROBOT_RADIUS_5)
+            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,(63.4/360.0)*2*math.pi*ROBOT_RADIUS_5,ROBOT_RADIUS_5,near_obstacle)
 
         elif action == "RSR_f":
-            path = path + points_turnRight(x,y,theta,v,direction,13.3968,ROBOT_RADIUS_5)
+            path = path + points_turnRight(x,y,theta,v,direction,13.3968,ROBOT_RADIUS_5,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,53.9857)
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,53.9857,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,22.2,ROBOT_RADIUS_5)       
+            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,22.2,ROBOT_RADIUS_5,near_obstacle)       
         
         elif action == "LSL_f":
-            path = path + points_turnLeft(x,y,theta,v,direction,13.3968,ROBOT_RADIUS_5)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,53.9857)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,22.2,ROBOT_RADIUS_5)       
+            path = path + points_turnLeft(x,y,theta,v,direction,13.3968,ROBOT_RADIUS_5,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,53.9857,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,22.2,ROBOT_RADIUS_5,near_obstacle)       
             
         elif action in ("F1_26.6","B1_26.6","F1_63.4","B1_63.4"):
-            path = path + points_goStraight(x,y,theta,v,direction,39.131)
+            path = path + points_goStraight(x,y,theta,v,direction,39.131,near_obstacle)
 
         elif action == "LSL1_f_26.6":
-            path = path + points_turnLeft(x,y,theta,v,direction,41.95,ROBOT_RADIUS_MIN)
+            path = path + points_turnLeft(x,y,theta,v,direction,41.95,ROBOT_RADIUS_MIN,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path +  points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,28.496)
+            path = path +  points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,28.496,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,35.508,ROBOT_RADIUS_MIN)        
+            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,35.508,ROBOT_RADIUS_MIN,near_obstacle)        
 
         elif action == "LSL2_f_26.6":
-            path = path + points_turnLeft(x,y,theta,v,direction,12.99,ROBOT_RADIUS_MIN)
+            path = path + points_turnLeft(x,y,theta,v,direction,12.99,ROBOT_RADIUS_MIN,near_obstacle)
             (x_temp,y_temp,theta_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,65.6)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,9.487,ROBOT_RADIUS_MIN)       
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,65.6,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,9.487,ROBOT_RADIUS_MIN,near_obstacle)       
 
         elif action == "RSR1_f_26.6":
-            path = path + points_turnRight(x,y,theta,v,direction,14.625,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,39.952)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,17.873,ROBOT_RADIUS_MIN)
+            path = path + points_turnRight(x,y,theta,v,direction,14.625,ROBOT_RADIUS_MIN,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,39.952,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,17.873,ROBOT_RADIUS_MIN,near_obstacle)
 
         elif action == "RSR2_f_26.6":
-            path = path + points_turnRight(x,y,theta,v,direction,84.055,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,32.613)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,3.42,ROBOT_RADIUS_MIN)
+            path = path + points_turnRight(x,y,theta,v,direction,84.055,ROBOT_RADIUS_MIN,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,32.613,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,3.42,ROBOT_RADIUS_MIN,near_obstacle)
         
         elif action == "LSL1_f_63.4":
-            path = path + points_turnLeft(x,y,theta,v,direction,14.625,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,39.952)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,17.783,ROBOT_RADIUS_MIN)        
+            path = path + points_turnLeft(x,y,theta,v,direction,14.625,ROBOT_RADIUS_MIN,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,39.952,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,17.783,ROBOT_RADIUS_MIN,near_obstacle)        
 
         elif action == "LSL2_f_63.4":
-            path = path + points_turnLeft(x,y,theta,v,direction,84.055,ROBOT_RADIUS_MIN)            
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,32.613)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,3.42,ROBOT_RADIUS_MIN)            
+            path = path + points_turnLeft(x,y,theta,v,direction,84.055,ROBOT_RADIUS_MIN,near_obstacle) 
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,32.613,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_turnLeft(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,3.42,ROBOT_RADIUS_MIN,near_obstacle)            
 
         elif action == "RSR1_f_63.4":
-            path = path + points_turnRight(x,y,theta,v,direction,41.95,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,28.496)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,35.508,ROBOT_RADIUS_MIN)
+            path = path + points_turnRight(x,y,theta,v,direction,41.95,ROBOT_RADIUS_MIN,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,28.496,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,35.508,ROBOT_RADIUS_MIN,near_obstacle)
 
         elif action == "RSR2_f_63.4":
-            path = path + points_turnRight(x,y,theta,v,direction,12.99,ROBOT_RADIUS_MIN)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,65.6)
-            (x_temp,y_temp,theta_temp,v_temp) = path[-1][0:3]
-            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v_temp,direction,9.487,ROBOT_RADIUS_MIN)
+            path = path + points_turnRight(x,y,theta,v,direction,12.99,ROBOT_RADIUS_MIN,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_goStraight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,65.6,near_obstacle)
+            (x_temp,y_temp,theta_temp) = path[-1][0:3]
+            path = path + points_turnRight(x_temp*100.0,y_temp*100.0,theta_temp,v,direction,9.487,ROBOT_RADIUS_MIN,near_obstacle)
 
     return path

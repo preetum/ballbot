@@ -9,8 +9,14 @@ const double radians_per_px = 0.0016,
     frame_height = 480,
     frame_width = 640;
 
+Vec4d cameraLineToRobot(const Vec4i &line, const camera &cam) {
+    Point2d pt1 = cameraPointToRobot(Point2d(line[0], line[1]), cam),
+        pt2 = cameraPointToRobot(Point2d(line[2], line[3]), cam);
+    return Vec4d(pt1.x, pt1.y, pt2.x, pt2.y);
+}
+
 /* Converts a camera point to a point on the ground in the robot frame*/
-Point2d cameraPointToRobot(Point2d pt, camera cam) {
+Point2d cameraPointToRobot(const Point2d &pt, const camera &cam) {
     double theta = (pt.y - frame_height/2) * radians_per_px - cam.tilt,
         y = cam.position.z / tan(theta),
         phi = (pt.x - frame_width/2) * radians_per_px + cam.pan,

@@ -19,7 +19,7 @@ using namespace cv;
  * in pixel coordinates (x1, y1, x2, y2).
  */
 void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
-    Mat frame_gray, frame_thresh, frame_edges;
+    Mat frame_gray, frame_thresh;
 
     // Resize input image
     if (frame.cols != 640)
@@ -38,19 +38,7 @@ void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
     //  TODO tune thresholds
     threshold(frame_gray, frame_thresh, 190, 255, THRESH_BINARY);
 
-    // Use Canny edge detection to find edges
-    //Canny(frame_thresh, frame_edges, 50, 200);
-    /*
-      if (display) {
-      imshow("gray", frame_gray);
-      imshow("thresh", frame_thresh);
-      //imshow("edges", frame_edges);
-      }
-    */
-
-    //frame_save = frame.clone();
-
-    // Hough transform
+    // Probabilistic Hough transform
     vector<Vec4i> lines;
     HoughLinesP(frame_thresh, lines, 2, CV_PI/180, 80, 40, 10 );
 

@@ -129,6 +129,8 @@ def controller_PD():
         print "goalreached"
         Ballbot_speed = 0
         Ballbot_steering = 0
+        currentindex_inPath = 0
+        targetindex_inPath = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering)                    
 	
 def controller_Stanley():
@@ -198,15 +200,22 @@ def controller_Stanley():
                 lookahead_dir = path[targetindex_inPath].direction
                 cur_type = path_element.type
                 lookahead_type = path[targetindex_inPath].type
+                near_obstacle = path_element.near_obstacle
                 #print cur_dir,lookahead_dir
                 
                 Ballbot_speed = 2.0
 
                 if(cur_type=='t') or (lookahead_type=='t'):
                     Ballbot_speed = 1.0
+                
+                if(near_obstacle == "t"):
+                    Ballbot_speed = 1.0
 
                 if(cur_dir != lookahead_dir):
                     Ballbot_speed = 0.5                
+
+                if(currentindex_inPath >= (len(path) - 20)): # if within 1 m of goal, slow down
+                    Ballbot_speed = 0.5
 
                 if(cur_dir == 'b'):
                     Ballbot_speed = -1*abs(Ballbot_speed)
@@ -223,6 +232,8 @@ def controller_Stanley():
         print "goalreached"
         Ballbot_speed = 0
         Ballbot_steering = 0
+        currentindex_inPath = 0
+        targetindex_inPath = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering) 
 
 def newPath_arrived(data):
@@ -232,10 +243,7 @@ def newPath_arrived(data):
     global path,newPath
     path = data.poses
 
-    print "newpathseen! length",len(path)
-    print "Hit any key to begin driving"
-    raw_input()
-    rospy.sleep(5)
+    print "newpathseen! length",len(path)        
     newPath = True
 
 def received_odometry(data):
