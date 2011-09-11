@@ -69,6 +69,9 @@ def startPlanner(data):
         util.goaltype = data.goaltype.data
         MTAdaptiveAstarsearch(startNode,goalNode)
 
+    if plan == None:
+        print "Plan of length 0"
+        return
     path = []
     path.append((x1/100.0,y1/100.0,th1,'s','f'))
     path = path + util.plan_to_path(plan)        
