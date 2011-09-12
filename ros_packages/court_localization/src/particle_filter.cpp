@@ -110,7 +110,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
     camera cam;
     cam.position.z = 33;  // fixed camera height = 33cm
     cam.pan = 0;
-    cam.tilt = -CV_PI/8;
+    cam.tilt = -15.6/180.0*CV_PI;
 
     vector<Vec4d> lines;
     Mat observed = Mat::zeros(480, 640, CV_8U);
@@ -195,14 +195,13 @@ void ParticleFilter::transition(double dist, double dtheta, double sigma_dist,
         PoseParticle &p = particles->at(i);
 
         // Add noise using the motion model
-        double newTheta = p.pose.theta + dtheta +
-            rng.gaussian(2*abs(dtheta));
-        dist += rng.gaussian(abs(0.1*dist));
+        double newTheta = normalizeRadians(p.pose.theta + dtheta +
+                                           rng.gaussian(0.05*abs(dtheta)));
+        dist += rng.gaussian(abs(0.01*dist));
 
         p.pose.x += dist*cos(newTheta);
         p.pose.y += dist*sin(newTheta);
-        p.pose.theta = normalizeRadians(newTheta +
-                                        rng.gaussian(2*abs(dtheta)));
+        p.pose.theta = newTheta;
     }
 }
 
@@ -312,9 +311,9 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
         RNG rng;
         for (unsigned int i = 0; i < pf.particles->size(); i += 1) {
             PoseParticle &p = pf.particles->at(i);
-            p.pose.x += rng.gaussian(5);
-            p.pose.y += rng.gaussian(5);
-            p.pose.theta += rng.gaussian(0.01);
+            p.pose.x += rng.gaussian(2);
+            p.pose.y += rng.gaussian(2);
+            p.pose.theta += rng.gaussian(0.02);
         }
 
         // Publish particles
@@ -371,16 +370,17 @@ int main(int argc, char** argv) {
         init->push_back(PoseParticle(500, -100, 3*CV_PI/8, 1));
     pf.particles = init;
     pf.numParticles = init->size();
-    pf.transition(500, 1);
+    pf.transition(10, 0);
     //*/
-    pf.initializeUniformly(500, Bounds(-200,1389), Bounds(-200, 1297),
+    //*
+    pf.initializeUniformly(800, Bounds(-200,1389), Bounds(-200, 1297),
                                Bounds(0,2*CV_PI));
     //*/
     pf.publish(particlePub);
 
     // Spin loop
     while (ros::ok()) {
-        waitKey(10);
+        waitKey(5);
         ros::spinOnce();
     }
 }
