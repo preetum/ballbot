@@ -399,7 +399,7 @@ def cost(state,action,newstate,goalNode):
   if action in ("F","F_diag","F_26.6","F_63.4"):
       cost_mult = 1
   else:
-      cost_mult = 1.05 
+      cost_mult = 1.2 
 
   if goal_in_radius(state_x,state_y,goalNode):
       nearGoal = True      
@@ -939,6 +939,8 @@ def MTAdaptiveAstarsearch_start(start,goal):
         #print "path of length",len(path)
         path.reverse()
         return path
+    else:
+        return None
 ##################################################################################################
 def turn_Left(state,direction,d,radius):
   """
