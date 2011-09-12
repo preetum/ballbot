@@ -102,16 +102,13 @@ void ParticleFilter::observe(cv::Mat &observation) {
     vector<Vec4i> seenLines;
     findLines(observation, seenLines);
 
-    // If no lines visible, count it as a non-observation
-    if (seenLines.size() == 0)
-        return;
-    
     // Transform visible lines to robot frame
     camera cam;
     cam.position.z = 33;  // fixed camera height = 33cm
     cam.pan = 0;
     cam.tilt = -15.6/180.0*CV_PI;
 
+    // Draw lines in ground coordinates (robot frame)
     vector<Vec4d> lines;
     Mat observed = Mat::zeros(480, 640, CV_8U);
     for (vector<Vec4i>::const_iterator it =
@@ -122,23 +119,27 @@ void ParticleFilter::observe(cv::Mat &observation) {
             pt2 = cameraPointToRobot(Point2d(line[2], line[3]), cam);
         lines.push_back(Vec4d(pt1.x, pt1.y, pt2.x, pt2.y));
 
-        // Draw points
         pt1.x += 320;
         pt1.y = 480 - pt1.y;
         pt2.x += 320;
         pt2.y = 480 - pt2.y;
         cv::line(observed, pt1, pt2, Scalar(255), 2);
     }
-    imshow("blah", observed);
+    imshow("ground view", observed);
 
+    // Filter detected lines by distance
     for (int i = lines.size()-1; i >= 0; i -= 1) {
         // If either y value exceeds what is reasonable on a tennis court,
         //  discard it
-        if (lines[i][1] > 2000 || lines[i][3] > 2000) {
+        if (lines[i][1] > 500 && lines[i][3] > 500) {
             lines.erase(lines.begin() + i);
             seenLines.erase(seenLines.begin() + i);
         }
     }
+
+    // If no lines visible, count it as a non-observation
+    if (seenLines.size() == 0)
+        return;
 
     // Draw detected lines for debugging
     drawLines(observation, seenLines);
@@ -154,6 +155,12 @@ void ParticleFilter::observe(cv::Mat &observation) {
         // Find lines that should be visible
         vector<line_segment_all_frames> modelLines = 
             get_view_lines(cam, Size(640,480), observation);
+
+        // If there are no visible lines (usually because robot is outside
+        //  the court facing out), don't do anything. This prevents a
+        //  noisy line from weighting all particles down to 0
+        if (modelLines.size() == 0)
+            continue;
 
         // Calculate the weight for each line segment seen
         // Let's weight each line equally
@@ -298,7 +305,9 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
         // Update particle filter
         pf.observe(cv_ptr->image);
         // If weight sum falls below some threshold, reinitialize the filter
-        if (weightSum(pf.particles) <= 0.01) {
+        double ws = weightSum(pf.particles);
+        fprintf(stderr, "Weight sum: %f\n", ws);
+        if (ws <= 0.01) {
             fprintf(stderr, "Reinitializing particle filter\n");
             pf.particles->clear();
             pf.initializeUniformly(500, Bounds(-200,1389), Bounds(-200, 1297),
