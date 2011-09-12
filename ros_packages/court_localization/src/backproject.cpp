@@ -55,13 +55,11 @@ struct _court
 		line_seg.pt2.x = 548; line_seg.pt2.y = 960; line_seg.pt2.z = 0;
 		court_lines.push_back(line_seg);
 
-		line_seg.pt1.x = 548; line_seg.pt1.y = 137; line_seg.pt1.z = 0;
-		line_seg.pt2.x = 548; line_seg.pt2.y = 960; line_seg.pt2.z = 0;
-		court_lines.push_back(line_seg);
-
+        /* the net
 		line_seg.pt1.x = 1188.5; line_seg.pt1.y = 0; line_seg.pt1.z = 99;
 		line_seg.pt2.x = 1188.5; line_seg.pt2.y = 1097; line_seg.pt2.z = 99;
 		court_lines.push_back(line_seg);
+        //*/
 
 		line_seg.pt1.x = 1829; line_seg.pt1.y = 137; line_seg.pt1.z = 0;
 		line_seg.pt2.x = 1829; line_seg.pt2.y = 960; line_seg.pt2.z = 0;
@@ -362,10 +360,12 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 			continue; // skip the line if both the projection
 			          // points lie outside the frame
 
+        line_seg.camWorld.pt1 = cam_world_pt1;
+        line_seg.camWorld.pt2 = cam_world_pt2;
+
 		if(!pt1_out && !image_pt1_out)
 		{
 			line_seg.realWorld.pt1 = court.court_lines[k].pt1;
-			line_seg.camWorld.pt1 = cam_world_pt1;
 			line_seg.imgPlane.pt1 = image_pt1;
 		}
 		else if (pt1_out && !image_pt1_out)
@@ -378,7 +378,6 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 								     particle_camera.tilt);
 
 			line_seg.realWorld.pt1 = realWorld_pt;
-			line_seg.camWorld.pt1 = image_plane_point;
 			line_seg.imgPlane.pt1 = image_pt1;
 		}
 		else
@@ -397,14 +396,12 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 								     particle_camera.tilt);
 
 			line_seg.realWorld.pt1 = realWorld_pt;
-			line_seg.camWorld.pt1  = camWorld_pt;
 			line_seg.imgPlane.pt1  = image_pt1_round;
 		}
 
 		if(!pt2_out && !image_pt2_out)
 		{
 			line_seg.realWorld.pt2 = court.court_lines[k].pt2;
-			line_seg.camWorld.pt2 = cam_world_pt2;
 			line_seg.imgPlane.pt2 = image_pt2;
 		}
 		else if(pt2_out && !image_pt2_out)
@@ -417,7 +414,6 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 								     particle_camera.tilt);
 
 			line_seg.realWorld.pt2 = realWorld_pt;
-			line_seg.camWorld.pt2 = image_plane_point;
 			line_seg.imgPlane.pt2 = image_pt2;
 		}
 		else
@@ -435,7 +431,6 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 								     particle_camera.pan,
 								     particle_camera.tilt);
 			line_seg.realWorld.pt2 = realWorld_pt;
-			line_seg.camWorld.pt2  = camWorld_pt;
 			line_seg.imgPlane.pt2  = image_pt2_round;
 		}
 

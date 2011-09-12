@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <sys/timeb.h>
+#include <time.h>
 
 #include "backproject.h"
 #include "particle_filter.h"
@@ -33,6 +34,7 @@ using namespace std;
 // Globals
 ParticleFilter pf;
 ros::Publisher particlePub;
+cv::RNG myRng(time(NULL));
 
 // Utility functions
 /*
@@ -63,19 +65,36 @@ void weighUniformly(vector<PoseParticle> *particles, double weight) {
         particles->at(i).weight = weight;
 }
 
+void drawUniformly(vector<PoseParticle> *particles, unsigned int n,
+                   Bounds xRange, Bounds yRange, Bounds thetaRange) {
+    particles->reserve(particles->size() + n);
+    while (n > 0) {
+        double x = myRng.uniform(xRange.min, xRange.max),
+            y = myRng.uniform(yRange.min, yRange.max);
+            //theta = myRng.uniform(thetaRange.min, thetaRange.max);
+        for (int i = 0; i < 16; i += 1)
+            particles->push_back(PoseParticle(x, y, i*CV_PI/8, 1));
+        n -= 1;
+    }
+}
+
 /* Initializes an empty particle filter */
 ParticleFilter::ParticleFilter() {
-    numParticles = 0;
-    particles = new vector<PoseParticle>();
+    initialize(new vector<PoseParticle>());
 }
 
 /* Initializes a particle filter with the given initial particles.
  * Note that this does _not_ make a deep copy of the vector.
  */
 ParticleFilter::ParticleFilter(vector<PoseParticle> *initialParticles) {
+    initialize(initialParticles);
+}
+
+void ParticleFilter::initialize(vector<PoseParticle> *initialParticles) {
     // numParticles is the *initial* particle count
     numParticles = initialParticles->size();
     particles = initialParticles;
+    normalize();
 }
 
 /* Clears the particle filter and (re)initializes it with N particles
@@ -83,15 +102,17 @@ ParticleFilter::ParticleFilter(vector<PoseParticle> *initialParticles) {
  */
 void ParticleFilter::initializeUniformly(unsigned int n, Bounds xRange,
                                          Bounds yRange, Bounds thetaRange) {
-    cv::RNG rng;
     particles->clear();
     particles->reserve(n);
-    numParticles = n;
+    numParticles = n * 16;
     while (n > 0) {
-        double x = rng.uniform(xRange.min, xRange.max),
-            y = rng.uniform(yRange.min, yRange.max),
-            theta = rng.uniform(thetaRange.min, thetaRange.max);
-        particles->push_back(PoseParticle(x, y, theta, 1));
+        double x = myRng.uniform(xRange.min, xRange.max),
+            y = myRng.uniform(yRange.min, yRange.max);
+        // Seed each position with 32 particles
+        //theta = myRng.uniform(thetaRange.min, thetaRange.max);
+        for (int i = 0; i < 16; i += 1) {
+            particles->push_back(PoseParticle(x, y, i*CV_PI/8, 1));
+        }
         n -= 1;
     }
     normalize();
@@ -131,7 +152,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
     for (int i = lines.size()-1; i >= 0; i -= 1) {
         // If either y value exceeds what is reasonable on a tennis court,
         //  discard it
-        if (lines[i][1] > 500 && lines[i][3] > 500) {
+        if (lines[i][1] > 400 && lines[i][3] > 400) {
             lines.erase(lines.begin() + i);
             seenLines.erase(seenLines.begin() + i);
         }
@@ -159,12 +180,78 @@ void ParticleFilter::observe(cv::Mat &observation) {
         // If there are no visible lines (usually because robot is outside
         //  the court facing out), don't do anything. This prevents a
         //  noisy line from weighting all particles down to 0
-        if (modelLines.size() == 0)
-            continue;
+        // NO this is a BAD IDEA
+        //if (modelLines.size() == 0) {
+        //    particle.weight *= 0.1;
+        //    continue;
+        //}
+
+        /*
+        Mat tmp = Mat::zeros(480, 640, CV_8U);
+        for (vector<line_segment_all_frames>::const_iterator it =
+                 modelLines.begin(); it < modelLines.end(); it += 1) {
+            const line_segment_all_frames &modelLine = *it;
+            cv::line(tmp, modelLine.imgPlane.pt1, modelLine.imgPlane.pt2,
+                     Scalar(255), 2);
+        }
+        imshow("test2", tmp);
+
+        tmp = Mat::zeros(480, 640, CV_8U);
+        for (vector<line_segment_all_frames>::const_iterator it =
+                 modelLines.begin(); it < modelLines.end(); it += 1) {
+            const line_segment_all_frames &modelLine = *it;
+            fprintf(stderr, "Line: %.2f,%.2f to %.2f,%.2f\n",
+                    modelLine.camWorld.pt1.x,
+                    modelLine.camWorld.pt1.z,
+                    modelLine.camWorld.pt2.x,
+                    modelLine.camWorld.pt2.z);
+            cv::Point pt1(cvRound(modelLine.camWorld.pt1.x),
+                      cvRound(modelLine.camWorld.pt1.z)),
+                pt2(cvRound(modelLine.camWorld.pt2.x),
+                    cvRound(modelLine.camWorld.pt2.z));
+
+            pt1.x += 320;
+            pt1.y = 480 - pt1.y;
+            pt2.x += 320;
+            pt2.y = 480 - pt2.y;
+            cv::line(tmp, pt1, pt2, Scalar(255), 2);
+        }
+        imshow("test", tmp);
+        */
 
         // Calculate the weight for each line segment seen
         // Let's weight each line equally
         double weight = 0.0;
+        /* This one uses lines in ground coordinates
+        // but is prone to camera shake
+        for (vector<Vec4d>::const_iterator it2 =
+                 lines.begin(); it2 < lines.end(); it2 += 1) {
+            const Vec4d &viewLine = *it2;
+            Vec2d pt1(viewLine[0], viewLine[1]),
+                pt2(viewLine[2], viewLine[3]);
+            double viewLineAngle = lineAngle(viewLine);
+
+            // Calculate the weight contribution of each model line
+            for (vector<line_segment_all_frames>::const_iterator it =
+                     modelLines.begin(); it < modelLines.end(); it += 1) {
+                const line_segment_all_frames &modelLine = *it;
+
+                Vec4d line(modelLine.camWorld.pt1.x,
+                           modelLine.camWorld.pt1.z,
+                           modelLine.camWorld.pt2.x,
+                           modelLine.camWorld.pt2.z);
+                double modelLineAngle = lineAngle(line);
+                double headingError = 
+                    abs(normalizeRadians(modelLineAngle - viewLineAngle));
+                double metric = pointLineSegmentDistance(pt1, line) +
+                    pointLineSegmentDistance(pt2, line);
+                metric = metric * exp(3 * headingError);
+
+                weight += exp(-0.005*metric - 7*headingError);
+            }
+        }
+        //*/
+        //* This one uses the backprojection model
         for (vector<Vec4i>::const_iterator it2 =
                  seenLines.begin(); it2 < seenLines.end(); it2 += 1) {
             const Vec4i &viewLine = *it2;
@@ -188,6 +275,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
                 weight += exp(-0.003*metric - 7*headingError);
             }
         }
+        //*/
 
         // Reweight the particle
         particle.weight *= weight;
@@ -197,14 +285,13 @@ void ParticleFilter::observe(cv::Mat &observation) {
 /* Move each particle by the specified amount, with Gaussian noise */
 void ParticleFilter::transition(double dist, double dtheta, double sigma_dist,
                                 double sigma_theta) {
-    cv::RNG rng;
     for (unsigned int i = 0; i < particles->size(); i += 1) {
         PoseParticle &p = particles->at(i);
 
         // Add noise using the motion model
         double newTheta = normalizeRadians(p.pose.theta + dtheta +
-                                           rng.gaussian(0.05*abs(dtheta)));
-        dist += rng.gaussian(abs(0.01*dist));
+                                           myRng.gaussian(0.01*abs(dtheta)));
+        dist += myRng.gaussian(abs(0.005*dist));
 
         p.pose.x += dist*cos(newTheta);
         p.pose.y += dist*sin(newTheta);
@@ -219,9 +306,8 @@ void ParticleFilter::resample() {
     vector<PoseParticle> *X = new vector<PoseParticle>();
     X->reserve(numParticles);
     
-    cv::RNG rng;
     //r is a random number between 0 and (1/number_of_particles)
-    double r = rng.uniform(0.0, 1.0/numParticles);
+    double r = myRng.uniform(0.0, 1.0/numParticles);
     //initialize sum of weights to the weight of the first particle
     double c = particles->front().weight;
 
@@ -252,7 +338,8 @@ void ParticleFilter::normalize() {
 void ParticleFilter::publish(ros::Publisher &pub) const {
     bb_msgs::PoseArray msg;
 
-    for (size_t i = 0; i < particles->size(); i += 1) {
+    // TODO Undo hack! Publish every N particles to save time
+    for (size_t i = 0; i < particles->size(); i += 20) {
         const PoseParticle &p = particles->at(i);
         bb_msgs::Pose poseMsg;
         poseMsg.x = p.pose.x;
@@ -261,6 +348,22 @@ void ParticleFilter::publish(ros::Publisher &pub) const {
         msg.data.push_back(poseMsg);
     }
     pub.publish(msg);
+
+    /* Publish average
+    for (size_t i = 0; i < len; i += 20) {
+        const PoseParticle &p = particles->at(i);
+        x += p.pose.x;
+        y += p.pose.y;
+        theta_x += cos(p.pose.theta);
+        theta_y += sin(p.pose.theta);
+    }
+    bb_msgs::Pose poseMsg;
+    poseMsg.x = x / len;
+    poseMsg.y = y / len;
+    poseMsg.theta = atan2(theta_y, theta_x);
+    msg.data.push_back(poseMsg);
+    pub.publish(msg);
+    //*/
 }
 
 const vector<PoseParticle> & ParticleFilter::getBeliefs() const {
@@ -304,10 +407,11 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
         // Update particle filter
         pf.observe(cv_ptr->image);
+
         // If weight sum falls below some threshold, reinitialize the filter
         double ws = weightSum(pf.particles);
         fprintf(stderr, "Weight sum: %f\n", ws);
-        if (ws <= 0.01) {
+        if (ws == 0.0) {
             fprintf(stderr, "Reinitializing particle filter\n");
             pf.particles->clear();
             pf.initializeUniformly(500, Bounds(-200,1389), Bounds(-200, 1297),
@@ -317,28 +421,19 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
         }
 
         // Add gaussian noise
+        /*
         RNG rng;
         for (unsigned int i = 0; i < pf.particles->size(); i += 1) {
             PoseParticle &p = pf.particles->at(i);
-            p.pose.x += rng.gaussian(2);
-            p.pose.y += rng.gaussian(2);
-            p.pose.theta += rng.gaussian(0.02);
+            p.pose.x += myRng.gaussian(0.02);
+            p.pose.y += myRng.gaussian(0.02);
+            p.pose.theta += myRng.gaussian(0.005);
         }
+        */
 
         // Publish particles
         pf.publish(particlePub);
 
-        /*
-        // Draw view lines
-        camera particle_camera;
-        particle_camera.position.x = argmax.pose.x;
-        particle_camera.position.y = argmax.pose.y;
-        particle_camera.position.z = 33;  // fixed camera height = 33cm
-        particle_camera.theta = argmax.pose.theta;
-        particle_camera.tilt = -CV_PI/8;
-        get_view_lines(particle_camera, Size(640,480), 
-                       cv_ptr->image, 0.2, true);
-        */
         imshow("image", cv_ptr->image);
     }
     catch (cv_bridge::Exception& e) {
@@ -375,15 +470,27 @@ int main(int argc, char** argv) {
     // Initialize particle filter
     /* Testing only
     vector<PoseParticle> *init = new vector<PoseParticle>();
-    for (int i = 0; i < 100; i += 1)
+    //for (int i = 0; i < 100; i += 1)
         init->push_back(PoseParticle(500, -100, 3*CV_PI/8, 1));
     pf.particles = init;
     pf.numParticles = init->size();
-    pf.transition(10, 0);
     //*/
     //*
-    pf.initializeUniformly(800, Bounds(-200,1389), Bounds(-200, 1297),
-                               Bounds(0,2*CV_PI));
+    vector<PoseParticle> *init = new vector<PoseParticle>();
+    // Bottom strip
+    drawUniformly(init, 50, Bounds(500, 800), Bounds(-200, 0),
+                  Bounds(0,2*CV_PI));
+    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-200, 0),
+                  Bounds(0,2*CV_PI));
+    // Top strip
+    drawUniformly(init, 50, Bounds(500, 800), Bounds(1097, 1297),
+                  Bounds(0,2*CV_PI));
+    drawUniformly(init, 50, Bounds(-200, 0), Bounds(1097, 1297),
+                  Bounds(0,2*CV_PI));
+
+    pf.initialize(init);
+    //pf.initializeUniformly(600, Bounds(-200,1389), Bounds(-200, 1297),
+    //                           Bounds(0,2*CV_PI));
     //*/
     pf.publish(particlePub);
 
