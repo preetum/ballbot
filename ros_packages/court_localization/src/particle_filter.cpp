@@ -179,7 +179,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
 
         // Calculate the weight for each line segment seen
         // Let's weight each line equally
-        double weight = 0.0;
+        double weight = 0.01;
         //* This one uses the backprojection model
         for (vector<Vec4i>::const_iterator it2 =
                  seenLines.begin(); it2 < seenLines.end(); it2 += 1) {
