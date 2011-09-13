@@ -23,6 +23,13 @@ def recieved_drive_packet(ballBot, drivePacket):
     ballBot.set_velocity(speed, angle)
     rospy.loginfo("Speed %d Angle %d" % (speed, angle))
 
+def recieved_ballpickup_packet(ballBot,ballpickupPacket):
+    '''
+    This function is called when a ballpickup message is seen
+    '''
+    ballBot.set_pickup(ballpickupPacket.direction)
+    rospy.loginfo("Ball Pickup! Direction" % direction)
+
 def send_heading_to_arduino(ballBot, imu, odometryPublisher):
     waiter = rospy.Rate(60)
     while True:
@@ -44,6 +51,8 @@ def initializer():
     #odometryPublisher = rospy.Publisher('odometry', Odometry)
     rospy.Subscriber("vel_cmd", DriveCmd,
                      lambda pkt: recieved_drive_packet(ballBot, pkt))
+    rospy.Subscriber("ball_pickup",BallPickup, lamba pkt: recieved_ballpickup_packet(ballBot,pkt))
+
     #imu = imu_communicator.IMU() # Initialize IMU
     #send_heading_to_arduino(ballBot, imu, odometryPublisher)
     rospy.spin()		
