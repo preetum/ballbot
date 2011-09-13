@@ -25,9 +25,11 @@ Point2d cameraPointToRobot(const Point2d &pt, const camera &cam) {
     return Point2d(x, y);
 }
 
-Vec4i pointsToLine(const Point2d &pt1, const Point2d &pt2) {
-    return Vec4i(cvRound(pt1.x), cvRound(pt1.y),
-                 cvRound(pt2.x), cvRound(pt2.y));
+Vec4d pointsToLine(const Point2d &pt1, const Point2d &pt2) {
+    return Vec4d(pt1.x, pt1.y, pt2.x, pt2.y);
+}
+Vec4d pointsToLine(const Point3d &pt1, const Point3d &pt2) {
+    return Vec4d(pt1.x, pt1.y, pt2.x, pt2.y);
 }
 
 /* Normalize an angle to the range (-pi, pi] */
@@ -40,6 +42,10 @@ double normalizeRadians(double rad) {
 }
 
 /* Returns the center of a line segment */
+Vec2d lineCenter(const Vec4d &line) {
+    return Vec2d((line[0]+line[2]) / 2, (line[1]+line[3]) / 2);
+}
+
 Vec2i lineCenter(const Vec4i &line) {
     return Vec2i((line[0]+line[2]) / 2, (line[1]+line[3]) / 2);
 }
@@ -50,7 +56,7 @@ Vec2i lineCenter(const Vec4i &line) {
  * Angle is given in radians counterclockwise from the x-axis,
  *  in the range (-pi/2, pi/2].
  */
-double lineAngle(const Vec4i &line) {
+double lineAngle(const Vec4d &line) {
     double y = line[3] - line[1],
         x = line[2] - line[0],
         theta = atan2(y, x);
@@ -63,12 +69,16 @@ double lineAngle(const Vec4i &line) {
     return theta;
 }
 
+double lineAngle(const Vec4i &line) {
+    return lineAngle(Vec4d(line));
+}
+
 /* Returns the distance from POINT (x,y) to the LINE
  * which passes through points (x1, y1, x2, y2)
  *
  * Reference: http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
  */
-double pointLineDistance(const Vec2i &point, const Vec4i &line) {
+double pointLineDistance(const Vec2d &point, const Vec4d &line) {
     // Project point onto line
     // n is a unit normal vector of the line
     // v is a vector from point to line
@@ -84,8 +94,7 @@ double pointLineDistance(const Vec2i &point, const Vec4i &line) {
  *
  * Reference: http://stackoverflow.com/questions/627563/702174#702174
  */
-double pointLineSegmentDistance(const Vec2i &point, const Vec4i &segment) {
-    Vec2d p(point);
+double pointLineSegmentDistance(const Vec2d &p, const Vec4d &segment) {
     Vec2d r(segment[0], segment[1]),
         s(segment[2], segment[3]);
 
@@ -115,5 +124,5 @@ double pointLineSegmentDistance(const Vec2i &point, const Vec4i &segment) {
         double a = norm(p-s),
             b = norm(p-r);
         return min(a, b);
-    }
+    }    
 }

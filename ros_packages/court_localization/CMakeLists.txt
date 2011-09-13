@@ -29,3 +29,6 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #include_directories(. ./src)
 rosbuild_add_executable(particle_filter src/particle_filter.cpp src/backproject.cpp src/findlines.cpp src/differentiation.cpp src/geometry.cpp)
 target_link_libraries(particle_filter opencv_core opencv_imgproc opencv_highgui opencv_objdetect)
+
+rosbuild_add_executable(court_localization src/court_localization.cpp)
+target_link_libraries(court_localization opencv_core opencv_imgproc opencv_objdetect)
