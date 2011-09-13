@@ -177,80 +177,9 @@ void ParticleFilter::observe(cv::Mat &observation) {
         vector<line_segment_all_frames> modelLines = 
             get_view_lines(cam, Size(640,480), observation);
 
-        // If there are no visible lines (usually because robot is outside
-        //  the court facing out), don't do anything. This prevents a
-        //  noisy line from weighting all particles down to 0
-        // NO this is a BAD IDEA
-        //if (modelLines.size() == 0) {
-        //    particle.weight *= 0.1;
-        //    continue;
-        //}
-
-        /*
-        Mat tmp = Mat::zeros(480, 640, CV_8U);
-        for (vector<line_segment_all_frames>::const_iterator it =
-                 modelLines.begin(); it < modelLines.end(); it += 1) {
-            const line_segment_all_frames &modelLine = *it;
-            cv::line(tmp, modelLine.imgPlane.pt1, modelLine.imgPlane.pt2,
-                     Scalar(255), 2);
-        }
-        imshow("test2", tmp);
-
-        tmp = Mat::zeros(480, 640, CV_8U);
-        for (vector<line_segment_all_frames>::const_iterator it =
-                 modelLines.begin(); it < modelLines.end(); it += 1) {
-            const line_segment_all_frames &modelLine = *it;
-            fprintf(stderr, "Line: %.2f,%.2f to %.2f,%.2f\n",
-                    modelLine.camWorld.pt1.x,
-                    modelLine.camWorld.pt1.z,
-                    modelLine.camWorld.pt2.x,
-                    modelLine.camWorld.pt2.z);
-            cv::Point pt1(cvRound(modelLine.camWorld.pt1.x),
-                      cvRound(modelLine.camWorld.pt1.z)),
-                pt2(cvRound(modelLine.camWorld.pt2.x),
-                    cvRound(modelLine.camWorld.pt2.z));
-
-            pt1.x += 320;
-            pt1.y = 480 - pt1.y;
-            pt2.x += 320;
-            pt2.y = 480 - pt2.y;
-            cv::line(tmp, pt1, pt2, Scalar(255), 2);
-        }
-        imshow("test", tmp);
-        */
-
         // Calculate the weight for each line segment seen
         // Let's weight each line equally
         double weight = 0.0;
-        /* This one uses lines in ground coordinates
-        // but is prone to camera shake
-        for (vector<Vec4d>::const_iterator it2 =
-                 lines.begin(); it2 < lines.end(); it2 += 1) {
-            const Vec4d &viewLine = *it2;
-            Vec2d pt1(viewLine[0], viewLine[1]),
-                pt2(viewLine[2], viewLine[3]);
-            double viewLineAngle = lineAngle(viewLine);
-
-            // Calculate the weight contribution of each model line
-            for (vector<line_segment_all_frames>::const_iterator it =
-                     modelLines.begin(); it < modelLines.end(); it += 1) {
-                const line_segment_all_frames &modelLine = *it;
-
-                Vec4d line(modelLine.camWorld.pt1.x,
-                           modelLine.camWorld.pt1.z,
-                           modelLine.camWorld.pt2.x,
-                           modelLine.camWorld.pt2.z);
-                double modelLineAngle = lineAngle(line);
-                double headingError = 
-                    abs(normalizeRadians(modelLineAngle - viewLineAngle));
-                double metric = pointLineSegmentDistance(pt1, line) +
-                    pointLineSegmentDistance(pt2, line);
-                metric = metric * exp(3 * headingError);
-
-                weight += exp(-0.005*metric - 7*headingError);
-            }
-        }
-        //*/
         //* This one uses the backprojection model
         for (vector<Vec4i>::const_iterator it2 =
                  seenLines.begin(); it2 < seenLines.end(); it2 += 1) {
@@ -349,20 +278,23 @@ void ParticleFilter::publish(ros::Publisher &pub) const {
     }
     pub.publish(msg);
 
-    /* Publish average
-    for (size_t i = 0; i < len; i += 20) {
+    //* Publish average
+    double x = 0,
+        y = 0,
+        thetaX = 0,
+        thetaY = 0;
+    int len = particles->size();
+    for (int i = 0; i < len; i += 20) {
         const PoseParticle &p = particles->at(i);
         x += p.pose.x;
         y += p.pose.y;
-        theta_x += cos(p.pose.theta);
-        theta_y += sin(p.pose.theta);
+        thetaX += cos(p.pose.theta);
+        thetaY += sin(p.pose.theta);
     }
+    print(10);
     bb_msgs::Pose poseMsg;
-    poseMsg.x = x / len;
-    poseMsg.y = y / len;
-    poseMsg.theta = atan2(theta_y, theta_x);
-    msg.data.push_back(poseMsg);
-    pub.publish(msg);
+    fprintf(stderr, "Avg pose: %.2f, %.2f @ %f deg ", x / len, y / len,
+            atan2(thetaY, thetaX) * 180 / CV_PI);
     //*/
 }
 
@@ -377,7 +309,7 @@ void ParticleFilter::print(int limit) const {
 
     for (unsigned int i = 0; i < N; i += 1) {
         PoseParticle &p = particles->at(i);
-        printf("%.2f\t%.2f\t%.2f\t%f\n", p.pose.x, p.pose.y,
+        fprintf(stderr,"%.2f\t%.2f\t%.2f\t%f\n", p.pose.x, p.pose.y,
                p.pose.theta, p.weight);
     }
 }
@@ -418,19 +350,15 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
                                    Bounds(0,2*CV_PI));
         } else {
             pf.resample();
+            // Add bounded uniform noise
+            RNG rng;
+            for (unsigned int i = 0; i < pf.particles->size(); i += 1) {
+                PoseParticle &p = pf.particles->at(i);
+                p.pose.x += myRng.uniform(-3.0, 3.0);
+                p.pose.y += myRng.uniform(-3.0, 3.0);
+                p.pose.theta += myRng.uniform(-0.005, 0.005);
+            }
         }
-
-        // Add gaussian noise
-        /*
-        RNG rng;
-        for (unsigned int i = 0; i < pf.particles->size(); i += 1) {
-            PoseParticle &p = pf.particles->at(i);
-            p.pose.x += myRng.gaussian(0.02);
-            p.pose.y += myRng.gaussian(0.02);
-            p.pose.theta += myRng.gaussian(0.005);
-        }
-        */
-
         // Publish particles
         pf.publish(particlePub);
 
