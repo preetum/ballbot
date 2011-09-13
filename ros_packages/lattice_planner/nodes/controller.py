@@ -257,7 +257,6 @@ def received_odometry(data):
     Ballbot_Y  = data.y
     Ballbot_TH = data.theta
 
-
 def listener():
     rospy.init_node('Controller',anonymous = True)
     rospy.Subscriber('path', Path, newPath_arrived)    
@@ -272,7 +271,6 @@ def shdn():
     """
     pub_velcmd.publish(0.0,0.0)
     
-
 if __name__ == '__main__':
     try:
 	rospy.on_shutdown(shdn)	

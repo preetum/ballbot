@@ -5,7 +5,7 @@ import time
 import controlset
 import debugpaths
 
-import roslib; roslib.load_manifest('LatticePlanner')
+import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 from std_msgs.msg import String
 from bb_msgs.msg import Pose,Path,PathElement,Goal
@@ -40,10 +40,15 @@ def startPlanner(data):
         return
     if(x2 < 0) or (x2 > util.COURT_WIDTH) or (y2 < 0) or (y2 > util.COURT_LENGTH):
         print "Invalid goal!"
-        return    
+        return   
+ 
+    util.goaltype = data.goaltype.data
 
     startNode = util.LatticeNode(stateparams = (x1,y1,th1,v))
-    goalNode  = util.LatticeNode(stateparams = (x2,y2,th2,v2))    
+    if(util.goaltype == "gotopose"):
+        goalNode  = util.LatticeNode(stateparams = (x2,y2,th2,v2))    
+    else:
+        goalNode  = util.LatticeNode(stateparams = (data.pose.x,data.pose.y,th2,v2))    
     
     print " start ",startNode.get_stateparams()," goal ",goalNode.get_stateparams()
     (x1,y1,th1,v1) = startNode.get_stateparams()
@@ -156,7 +161,7 @@ def obstacle_added(event):
 def init_planner():
     rospy.init_node('LatticePlanner', anonymous=True)
     rospy.Subscriber("goal", Goal, startPlanner)
-    rospy.Subscriber("odometry",Pose,received_odometry)
+    rospy.Subscriber("pose",Pose,received_odometry)
     rospy.spin()
 
 
