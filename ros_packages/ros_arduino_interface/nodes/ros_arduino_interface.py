@@ -25,7 +25,7 @@ def recieved_drive_packet(ballBot, drivePacket):
 
 def send_heading_to_arduino(ballBot, imu, odometryPublisher):
     waiter = rospy.Rate(60)
-    while True:
+    while not rospy.is_shutdown():
         ballBot.sync_odometry(imu.headingBAMS)
         odometry_broadcast(ballBot, odometryPublisher, imu.gyro_z)
         waiter.sleep()
