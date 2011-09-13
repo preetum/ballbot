@@ -397,7 +397,9 @@ def cost(state,action,newstate,goalNode):
 
   length_action = controlset.len_action(action)
   if action in ("F","F_diag","F_26.6","F_63.4"):
-      cost_mult = 1
+      cost_mult = 1  
+  elif action in ("R_b","L_b","B","B_diag","B1_26.6","B1_63.4"):
+      cost_mult = 2.0
   else:
       cost_mult = 1.2 
 

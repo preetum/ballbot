@@ -2,14 +2,15 @@
 """
 simulator.py -  simulates a perfectly moving Ballbot, moving at about 1m/s
 
-Publishes to : /odometry
+Publishes to : /pose
 Subscribes to: /path                
 """
-import roslib; roslib.load_manifest('LatticePlanner')
+import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 import util
 import math
 import time
+from std_msgs.msg import String
 from bb_msgs.msg import Pose,Path
 
 path = None
@@ -22,13 +23,16 @@ Ballbot_theta = math.pi/2
 
 # simulator parameter
 Ballbot_speed = 1.0
+
+pub_status = rospy.Publisher('status', String)
+
 def simulator():
     """
     Implements simulator
     """    
     global path,newPath,Ballbot_speed,Ballbot_x,Ballbot_y,Ballbot_theta
     currentindex_inPath = 0 
-    pub_odom = rospy.Publisher('odometry',Pose)            
+    pub_odom = rospy.Publisher('pose',Pose)            
 
     # each point is about 5 cm apart, therefore sleep for (Ballbot_speed/20) seconds
     r = rospy.Rate(20.0/Ballbot_speed)
@@ -53,7 +57,8 @@ def simulator():
                 Ballbot_theta = path[currentindex_inPath].pose.theta
                 pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
                 currentindex_inPath += 1                            
-            r.sleep()        
+            r.sleep()     
+        pub_status.publish("goalreached")
         pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
         
 

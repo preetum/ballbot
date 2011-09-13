@@ -1,7 +1,7 @@
 # contains hardcoded debug paths
 import math
 import util
-import LatticePlannersim
+import lattice_planner
 
 def straightLine((x1,y1,th1,v1),(x2,y2,th2,v2)):
     path = []
@@ -29,7 +29,7 @@ def straightLine((x1,y1,th1,v1),(x2,y2,th2,v2)):
         pathelement.direction = 'f'
         path_to_send.poses.append(pathelement)
             
-    LatticePlannersim.pub_path.publish(path_to_send)
+    lattice_planner.pub_path.publish(path_to_send)
     print "path published"
 
 def figureofeight((x1,y1,th1,v1)):
@@ -60,13 +60,13 @@ def figureofeight((x1,y1,th1,v1)):
         pose.x = point[0] - 17.41*math.cos(point[2])/100.0
         pose.y = point[1] - 17.41*math.sin(point[2])/100.0
         pose.theta = point[2]
-        pathelement = LatticePlannersim.PathElement()
+        pathelement = lattice_planner.PathElement()
         pathelement.pose = pose
         pathelement.type = 't'
         pathelement.direction = 'f'
         path_to_send.poses.append(pathelement)
             
-    LatticePlannersim.pub_path.publish(path_to_send)
+    lattice_planner.pub_path.publish(path_to_send)
     print "path published"
 
     
