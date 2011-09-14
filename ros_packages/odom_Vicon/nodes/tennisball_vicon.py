@@ -16,13 +16,15 @@ pub = rospy.Publisher('ball', Pose )
 def callback(data):
     """
     receives an array of markers and publishes pose of the rear axle's center
-    """                 
+    """            
+    pub.publish(9.099,8.667,0.0)
+    """
     for marker in data.markers:
         if marker.marker_name == "ball1":
             x = marker.translation.x/10.0
             y = marker.translation.y/10.0
             pub.publish((x + 1000)/100.0,(y+ 1000)/100.0,0.0)
-   
+    """
     #print (x_car/100.0,y_car/100.0,theta_car)    
 
 def listener():    

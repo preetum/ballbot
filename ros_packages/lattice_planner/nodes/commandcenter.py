@@ -13,10 +13,11 @@ This node receives ball location from the tennis ball tracker, odometry informat
 import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 from std_msgs.msg import String
-from bb_msgs.msg import Goal,Pose
+from bb_msgs.msg import Goal,Pose,BallPickup
 import math
 
 pub_goal = rospy.Publisher("goal",Goal)
+pub_ballpickup = rospy.Publisher("ball_pickup",BallPickup)
 
 # Ballbot State variables
 
@@ -114,18 +115,34 @@ def state_BALLPICKUP():
                 goal_msg.goaltype = String("updategoal")                                                            
                 pub_goal.publish(goal_msg)        
                 Goal_current = goal_msg
-                print (Ball_x,Ball_y),goal_msg.goaltype
+                #print (Ball_x,Ball_y),goal_msg.goaltype
 
             elif(dist >= 0.5):
                 goal_msg.goaltype = String("newball")                
                 pub_goal.publish(goal_msg)        
                 Goal_current = goal_msg
 
-                print (Ball_x,Ball_y),goal_msg.goaltype
+                #print (Ball_x,Ball_y),goal_msg.goaltype
             
-        rospy.sleep(1.0) # update goal position every 1 s for now
+        rospy.sleep(1.0) # update goal position every 1 s for now    
 
     Ballbot_status = None   
+
+    #--------------------------------------
+    # activate ball pickup for 10 seconds
+    ballpickup_msg = BallPickup()
+    ballpickup_msg.direction = 1
+    pub_ballpickup.publish(ballpickup_msg)
+    
+    rospy.sleep(10)
+    
+    # deactivate ball pickup
+    ballpick_msg = BallPickup()
+    ballpickup_msg.direction = 0
+    pub_ballpickup.publish(ballpickup_msg)                
+    
+    #----------------------------------------
+
     goal_msg = Goal()
     goal_msg.pose = Pose(10.0 * 100.0,10.0 * 100.0,0.0)
     goal_msg.goaltype = String("gotopose")
@@ -140,6 +157,16 @@ def state_BALLDELIVERY():
     global Ballbot_status
     if(Ballbot_status == "goalreached"):
         Ballbot_status = None
+        # activate ball delivery for 10 seconds
+        ballpickup_msg = BallPickup()
+        ballpickup_msg.direction = -1
+        pub_ballpickup.publish(ballpickup_msg)        
+        rospy.sleep(10)
+    
+        # deactivate ball pickup
+        ballpick_msg = BallPickup()
+        ballpickup_msg.direction = 0
+        pub_ballpickup.publish(ballpickup_msg)   
         return "delivered"
     else:
         return "notdelivered"
