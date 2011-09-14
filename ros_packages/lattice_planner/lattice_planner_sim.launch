@@ -1,0 +1,4 @@
+<launch>  
+  <node pkg="lattice_planner" type="lattice_planner.py" name="lattice_planner" />
+  <node pkg="lattice_planner" type="simulator.py" name="simulator"/>  
+</launch>

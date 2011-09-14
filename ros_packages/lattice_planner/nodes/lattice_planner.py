@@ -159,7 +159,7 @@ def obstacle_added(event):
 
 
 def init_planner():
-    rospy.init_node('LatticePlanner', anonymous=True)
+    rospy.init_node('lattice_planner', anonymous=True)
     rospy.Subscriber("goal", Goal, startPlanner)
     rospy.Subscriber("pose",Pose,received_odometry)
     rospy.spin()
