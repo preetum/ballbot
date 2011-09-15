@@ -21,12 +21,13 @@ using namespace cv;
 void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
     Mat frame_gray, frame_thresh;
 
-    // Resize input image
+    /*/ Resize input image
     if (frame.cols != 640)
         resize(frame, frame, Size(640, 480));
+    */
 
     // Threshold by distance: blank out all top pixels
-    rectangle(frame, Point(0,0), Point(640, 100), Scalar(0,0,0), CV_FILLED);
+    //rectangle(frame, Point(0,0), Point(640, 100), Scalar(0,0,0), CV_FILLED);
 
     // Convert to grayscale
     cvtColor(frame, frame_gray, CV_RGB2GRAY, 1);
