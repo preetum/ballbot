@@ -70,7 +70,7 @@ def startPlanner(data):
         print "running LPA*"
         LPAstarsearch(startNode,goalNode)
     elif (util.SEARCHALGORITHM == "MT-AdaptiveA*"):
-        print "running MT-AdaptiveA*"
+        rospy.loginfo("running MT-AdaptiveA* %s",(startNode.get_stateparams(), goalNode.get_stateparams()))
         util.goaltype = data.goaltype.data
         MTAdaptiveAstarsearch(startNode,goalNode)
 
