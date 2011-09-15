@@ -6,6 +6,7 @@ Contains functions to implement A* search, LPA* search
 import math
 import heapq
 import controlset
+import rospy
 
 startNode = None # startNode
 goalNode = None  # goalNode
@@ -819,10 +820,6 @@ def ComputePath_MTAdaptiveAstar():
 
       cost_soFar = current_item[1]      
 
-
-      #if(current_Node.get_stateparams()[0:3] == (1470.0,1645.0,0.0)):
-      #    print (1470.0,1645.0,0.0),"expanded, parent:",current_item[2].get_stateparams(),"action",current_item[3]
-      
       if goal_test_fn(current_Node):
           current_Node.set_g(cost_soFar)
           current_Node.addParent(current_item[2])
@@ -848,7 +845,7 @@ def ComputePath_MTAdaptiveAstar():
                       h = child.get_h()
                       searchTree.push((child,g,current_Node,action),g + h)
 
-  print "expanded nodes",count_expandednodes
+  rospy.loginfo("expanded nodes %d",count_expandednodes)
   if goalFound == True:
       return current_Node
   else:

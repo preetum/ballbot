@@ -120,7 +120,7 @@ def received_path(data):
         
     for element in data.poses:
         pose = element.pose
-        graphics.draw_point(pose.x*100.0,pose.y*100.0,pose.theta,color='green')    
+        graphics.draw_point(pose.x*100.0,pose.y*100.0,pose.theta,color='blue')    
         #print "drew",pose.x*100.0,pose.y*100.0,pose.theta
     graphics.draw_point_directed(data.poses[0].pose.x*100.0,data.poses[0].pose.y*100.0,data.poses[0].pose.theta)
     graphics.draw_point_directed(data.poses[-1].pose.x*100.0,data.poses[-1].pose.y*100.0,data.poses[-1].pose.theta)
