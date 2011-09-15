@@ -25,12 +25,12 @@ def draw_court():
 
     d = 0
     while(d <= 300/cm_to_pixels):
-        canvas.create_text(d*cm_to_pixels,580,text = str(d),fill = 'red')
+        canvas.create_text(d*cm_to_pixels,580,text = str(d/100),fill = 'red')
         d+=300
 
     d = 0
     while(d <= 600/cm_to_pixels):
-        canvas.create_text(20,600 - d*cm_to_pixels,text = str(d),fill = 'red')
+        canvas.create_text(20,600 - d*cm_to_pixels,text = str(d/100),fill = 'red')
         d+=300
 
 def draw_lattice():
@@ -77,10 +77,11 @@ def draw_car(x,y,th,color = "RED"):
                         bottomleft[0]*cm_to_pixels,600 - bottomleft[1]*cm_to_pixels,
                         bottomright[0]*cm_to_pixels,600 - bottomright[1]*cm_to_pixels,
                         topright[0]*cm_to_pixels,600 - topright[1]*cm_to_pixels,
-                        width = 1, outline = 'blue',fill = '')
+                        width = 2, outline = 'firebrick',fill = 'firebrick')
     x1 = x*cm_to_pixels
     y1 = y*cm_to_pixels
-    car_center = canvas.create_oval(x1-1,600-(y1-1),x1+1,600-(y1+1),outline = color,fill = color)
+    #car_center = canvas.create_oval(x1-1,600-(y1-1),x1+1,600-(y1+1),outline = color,fill = color)
+    car_center = canvas.create_oval(x1,600-(y1),x1,600-(y1),outline = color,fill = color)
     return (car_outline,car_center)
 
 def draw_point(x,y,theta,color = 'blue'):
@@ -90,7 +91,8 @@ def draw_point(x,y,theta,color = 'blue'):
     global canvas,cm_to_pixels
     x = x*cm_to_pixels
     y = 600 - y*cm_to_pixels
-    canvas.create_oval(x-1,y-1,x+1,y+1,width=1,outline = color,fill = color)
+    #canvas.create_oval(x-1,y-1,x+1,y+1,width=1,outline = color,fill = color)
+    canvas.create_oval(x,y,x,y,width=1,outline = color,fill = color)
 
 def draw_point_directed(x,y,theta,color = 'red'):
     """

@@ -1,0 +1,5 @@
+<launch>  
+  <node pkg="lattice_planner" type="lattice_planner.py" name="lattice_planner" />
+  <node pkg="lattice_planner" type="controller.py" name="controller"/>
+  <node pkg="ros_arduino_interface" type="ros_arduino_interface_Vicon.py" name="ros_arduino_interface_Vicon"/>
+</launch>

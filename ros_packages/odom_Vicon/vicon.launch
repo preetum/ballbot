@@ -1,0 +1,4 @@
+<launch>  
+  <node pkg="odom_Vicon" type="odom_Vicon.py" name="Vicon_pose" />
+  <node pkg="odom_Vicon" type="tennisball_vicon.py" name="tennisball_vicon"/>
+</launch>

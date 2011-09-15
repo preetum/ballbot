@@ -5,7 +5,7 @@ GUI display for ballbot
 Publishes to topics:  goal,obstacles
 Subscribes to topics: path,odom
 """
-import roslib; roslib.load_manifest('LatticePlanner')
+import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 import graphics
 import math
@@ -120,7 +120,7 @@ def received_path(data):
         
     for element in data.poses:
         pose = element.pose
-        graphics.draw_point(pose.x*100.0,pose.y*100.0,pose.theta,color='green')    
+        graphics.draw_point(pose.x*100.0,pose.y*100.0,pose.theta,color='blue')    
         #print "drew",pose.x*100.0,pose.y*100.0,pose.theta
     graphics.draw_point_directed(data.poses[0].pose.x*100.0,data.poses[0].pose.y*100.0,data.poses[0].pose.theta)
     graphics.draw_point_directed(data.poses[-1].pose.x*100.0,data.poses[-1].pose.y*100.0,data.poses[-1].pose.theta)
@@ -203,7 +203,7 @@ def initialize_gui():
         graphics.canvas.configure(cursor = "crosshair")
         #graphics.canvas.bind("<Button-1>",obstacle_added)
 
-        rospy.Subscriber("odometry",Pose, received_odometry)
+        rospy.Subscriber("pose",Pose, received_odometry)
         rospy.Subscriber("path",Path,received_path)
         root.mainloop()
 

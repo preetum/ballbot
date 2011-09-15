@@ -34,6 +34,8 @@ Packet packet;
 
 int heading;
 
+unsigned long last_setvelocity = 0;
+
 void setSteering(int angle) {
   angle = -angle + SERVO_CENTER;
   if (angle > SERVO_LEFT)
@@ -90,6 +92,8 @@ void packetReceived (void) {
     feedback_setVelocity(linear);
     setSteering(angular);
     // TODO steering PID
+
+    last_setvelocity = millis(); // time of most recent setvelocity
     break;
   }
 
@@ -147,10 +151,11 @@ void setup() {
   analogReference(EXTERNAL);
 
   pinMode(13, OUTPUT); // enable LED pin
+  last_setvelocity = 0;
 }
 
 void loop()  {
-  static unsigned long nextUpdate = 0L;
+  static unsigned long nextUpdate = 0L;  
 
   // Process serial buffer
   while (Serial.available())
@@ -173,5 +178,12 @@ void loop()  {
     Serial.print((int)velocitySetpoint);
     Serial.println();
     */
+  }
+
+  // TIMEOUT manager
+  // send stop command to motors if no setvelocity command has been recieved in 0.5 seconds
+  if (millis() - last_setvelocity > 500){
+    feedback_setVelocity(0);
+    setSteering(0);
   }
 }

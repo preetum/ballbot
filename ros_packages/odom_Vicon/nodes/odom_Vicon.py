@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 This node publishes pose (x,y,theta) of the rear axle's center as observed by the Vicon system.
-The pose is published to the topic 'Pose' with message type Pose.msg
+The pose is published to the topic 'pose' with message type Pose.msg
 """
 import roslib; roslib.load_manifest('odom_Vicon')
 import rospy
@@ -11,7 +11,7 @@ from std_msgs.msg import String
 from vicon_mocap.msg import Markers
 from vicon_mocap.msg import Marker
 
-pub = rospy.Publisher('odometry', Pose )
+pub = rospy.Publisher('pose', Pose )
 Ballbot_X = None
 Ballbot_Y = None
 Ballbot_TH = None

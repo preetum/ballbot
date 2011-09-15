@@ -6,6 +6,7 @@ Contains functions to implement A* search, LPA* search
 import math
 import heapq
 import controlset
+import rospy
 
 startNode = None # startNode
 goalNode = None  # goalNode
@@ -397,7 +398,9 @@ def cost(state,action,newstate,goalNode):
 
   length_action = controlset.len_action(action)
   if action in ("F","F_diag","F_26.6","F_63.4"):
-      cost_mult = 1
+      cost_mult = 1  
+  elif action in ("R_b","L_b","B","B_diag","B1_26.6","B1_63.4"):
+      cost_mult = 10.0
   else:
       cost_mult = 1.2 
 
@@ -470,15 +473,12 @@ def goal_in_radius(x,y,goalNode):
         return False
  
 
-
-
-
 ###################################################################################################
 # ------------------------------------ Heuristics and goal tests -----------------------------------#
 def goalTest(node):
   """
   Check if current node is a goal node, 
-  i.e. if (x,y) == (goal_x,goal_y). 
+  i.e.
   Note: this is for ball pickup, so we don't fix an approach angle
   """  
   (x,y,theta,v) = node.get_stateparams()
@@ -487,10 +487,11 @@ def goalTest(node):
   if not goal_in_radius(x,y,goalNode):
       return False
   else:
-      x_top = x + ROBOT_LENGTH/2 * math.cos(theta)
-      y_top = y + ROBOT_LENGTH/2 * math.sin(theta) 
-      (x_top,y_top,theta,v) = point_to_lattice(x_top,y_top,theta,v)
-      if((x_goal==x_top) and (y_goal == y_top)) and (node.getAction() not in ("B","B_diag","L_b","R_b")) :
+      x_top = x + (ROBOT_LENGTH/2-5) * math.cos(theta)
+      y_top = y + (ROBOT_LENGTH/2-5) * math.sin(theta) 
+      #(x_top,y_top,theta,v) = point_to_lattice(x_top,y_top,theta,v)
+      #if((x_goal==x_top) and (y_goal == y_top)) and (node.getAction() not in ("B","B_diag","L_b","R_b")) :
+      if(distance_Euclidean(x_top,y_top,x_goal,y_goal) <= 10) and (node.getAction() not in ("B","B_diag","L_b","R_b")):
           return True
       else:
           return False
@@ -819,10 +820,6 @@ def ComputePath_MTAdaptiveAstar():
 
       cost_soFar = current_item[1]      
 
-
-      #if(current_Node.get_stateparams()[0:3] == (1470.0,1645.0,0.0)):
-      #    print (1470.0,1645.0,0.0),"expanded, parent:",current_item[2].get_stateparams(),"action",current_item[3]
-      
       if goal_test_fn(current_Node):
           current_Node.set_g(cost_soFar)
           current_Node.addParent(current_item[2])
@@ -848,7 +845,7 @@ def ComputePath_MTAdaptiveAstar():
                       h = child.get_h()
                       searchTree.push((child,g,current_Node,action),g + h)
 
-  print "expanded nodes",count_expandednodes
+  rospy.loginfo("expanded nodes %d",count_expandednodes)
   if goalFound == True:
       return current_Node
   else:

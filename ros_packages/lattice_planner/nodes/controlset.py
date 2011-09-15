@@ -2,7 +2,7 @@
 import util
 import math
 #import graphics
-import roslib; roslib.load_manifest('LatticePlanner')
+import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 
 from std_msgs.msg import String
@@ -158,7 +158,7 @@ class ControlSet:
                        "LS_f"  : (-ROBOT_RADIUS_MIN/2,-3*ROBOT_RADIUS_MIN/2,3*math.pi/2,v),
                        "RS_f"  : (-3*ROBOT_RADIUS_MIN/2,-1*ROBOT_RADIUS_MIN/2,math.pi,v),
                        "L2_f"  : (0,-3*ROBOT_RADIUS_MIN/2,7*math.pi/4,v),
-                       "R2_f"  : (3*ROBOT_RADIUS_MIN/2,0,3*math.pi/4,v) }  
+                       "R2_f"  : (-3*ROBOT_RADIUS_MIN/2,0,3*math.pi/4,v) }  
 
     # map actions from origin to lattice points, for heading 315
     state_atOrigin = (0,0,7*math.pi/4,v)

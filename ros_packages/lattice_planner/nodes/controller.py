@@ -4,7 +4,7 @@ controller.py - implements a controller to make Ballbot drive along the planned 
                 When the message "ValidPath" is seen on the 'ValidPath' topic, a valid path has been computed/recomputed and must be followed 
                 The most recent path is stored in util.path
 """
-import roslib; roslib.load_manifest('LatticePlanner')
+import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 import util
 import math
@@ -27,6 +27,7 @@ Ballbot_speed = 0    # m/s
 targetlookahead = 25.0 # PD steering control to reach a moving target 15 cm ahead of the car
 
 pub_velcmd = rospy.Publisher('vel_cmd', DriveCmd)
+pub_status = rospy.Publisher('status', String)
 
 def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
     """
@@ -145,6 +146,9 @@ def controller_Stanley():
     currentindex_inPath = 0 # path index that the car is closest to
     targetindex_inPath = 0  # path index that is 50 cm ahead of the car
     r = rospy.Rate(60)
+    
+    average_error_position = 0
+
     while not rospy.is_shutdown():
         if newPath == False:
             continue
@@ -155,6 +159,7 @@ def controller_Stanley():
                 newPath = False
                 currentindex_inPath = 0                               
                 targetindex_inPath = 0
+                average_error_position = 0
                 continue
             else:
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
@@ -163,6 +168,8 @@ def controller_Stanley():
 
                 # calculate cross-track error, x_t
                 x_t = util.distance_Euclidean(Ballbot_X,Ballbot_Y,path_element.pose.x,path_element.pose.y)
+
+                average_error_position += x_t
 
                 heading = (math.atan2(path[targetindex_inPath].pose.y-Ballbot_Y, path[targetindex_inPath].pose.x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading
@@ -203,7 +210,7 @@ def controller_Stanley():
                 near_obstacle = path_element.near_obstacle
                 #print cur_dir,lookahead_dir
                 
-                Ballbot_speed = 2.0
+                Ballbot_speed = 1.0
 
                 if(cur_type=='t') or (lookahead_type=='t'):
                     Ballbot_speed = 1.0
@@ -215,7 +222,7 @@ def controller_Stanley():
                     Ballbot_speed = 0.5                
 
                 if(currentindex_inPath >= (len(path) - 20)): # if within 1 m of goal, slow down
-                    Ballbot_speed = 0.5
+                    Ballbot_speed = 1.0
 
                 if(cur_dir == 'b'):
                     Ballbot_speed = -1*abs(Ballbot_speed)
@@ -230,11 +237,18 @@ def controller_Stanley():
 
         # goal reached!
         print "goalreached"
+        pub_status.publish("goalreached")
+        
         Ballbot_speed = 0
         Ballbot_steering = 0
         currentindex_inPath = 0
         targetindex_inPath = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering) 
+        
+        final_error_position = util.distance_Euclidean(Ballbot_X,Ballbot_Y,path[-1].pose.x,path[-1].pose.y)
+        final_error_angle = abs(Ballbot_TH - path[-1].pose.theta)
+        average_error_position = average_error_position/len(path)
+        rospy.loginfo("final_error_pos % final_error_angle % average_error_pos",(final_error_position,final_error_angle,average_error_position))
 
 def newPath_arrived(data):
     """
@@ -255,11 +269,10 @@ def received_odometry(data):
     Ballbot_Y  = data.y
     Ballbot_TH = data.theta
 
-
 def listener():
-    rospy.init_node('Controller',anonymous = True)
+    rospy.init_node('controller',anonymous = True)
     rospy.Subscriber('path', Path, newPath_arrived)    
-    rospy.Subscriber('odometry', Pose, received_odometry)
+    rospy.Subscriber('pose', Pose, received_odometry)
     #controller_PD() 
     controller_Stanley()
     rospy.spin()
@@ -270,7 +283,6 @@ def shdn():
     """
     pub_velcmd.publish(0.0,0.0)
     
-
 if __name__ == '__main__':
     try:
 	rospy.on_shutdown(shdn)	
