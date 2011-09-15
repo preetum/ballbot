@@ -22,26 +22,27 @@ class Simulator:
     ((549, 137), (549, 960)),
     ]
 
-  def __init__(self):
+  def __init__(self, title='Ballbot Simulator'):
     self.width = 800
     self.height = 600
-    self.scale = 0.4
-    self.border = 100
+    self.scale = 0.35
+    self.border = 150
   
     self.root = Tk()
-    self.root.title('Ballbot Simulator')
+    self.root.title(title)
     self.canvas = Canvas(self.root, width=self.width, height=self.height)
     self.canvas.pack()
     
     self.draw_field()
   
-  def refresh(self, beliefs):
+  def refresh(self, beliefs, trails=False):
     '''
     Refresh the field, given a current list of robots:
     x, y is the position in centimeters
     t is the heading
     '''
-    self.draw_field()
+    if not trails:
+      self.draw_field()
     beliefs = np.array(beliefs)
 
     points = self.transform(beliefs[:,0:2])
@@ -106,7 +107,7 @@ def main():
   # Get config
   topic_name = rospy.get_param('~topic', 'filter/particles')
 
-  sim = Simulator()
+  sim = Simulator(title='Particles')
 
   # Initialize ROS listener
   rospy.init_node('particle_viewer', anonymous=True)
