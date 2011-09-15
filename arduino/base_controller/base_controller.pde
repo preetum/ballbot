@@ -66,7 +66,7 @@ void writeOdometry(void) {
   long time = millis();
   lastEncoderCount = tmpEncoderCount;
 
-  packet.length = 13;
+  packet.length = 17;
   packet.data[0] = CMD_SYNC_ODOMETRY;
 
   long *pDest = (long*)(packet.data+1);
