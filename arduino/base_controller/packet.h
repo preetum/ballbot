@@ -21,7 +21,7 @@
   CHECKSUM(1 byte  = XOR of LENGTH and DATA bits)
  */
 #define START_BYTE 0xFF
-#define MAX_PACKET_LENGTH  16
+#define MAX_PACKET_LENGTH  20
 
 // Serial state machine states
 enum {

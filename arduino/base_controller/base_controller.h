@@ -41,12 +41,13 @@
 // SYNC_ODOMETRY (3 bytes)
 //  uint8    id = 0x61
 //  int16    heading (16-bit binary angle)
-// Response is in packet format (13 bytes):
+// Response is in packet format (17 bytes):
 //  uint8    id = 0x61
 //  int32    counts
 //  int32    counts_delta
 //  int16    angle (16-bit binary angle)
 //  int16    angular velocity (16-bit binary angle / s)
+//  int32    timestamp (milliseconds)
 #define CMD_SYNC_ODOMETRY  0x61
 
 

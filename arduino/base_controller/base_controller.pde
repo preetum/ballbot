@@ -63,6 +63,7 @@ void writeOdometry(void) {
   // Compute change in encoder count (discrete velocity estimate)
   long tmpEncoderCount = encoder_getCount();
   long delta = tmpEncoderCount - lastEncoderCount;
+  long time = millis();
   lastEncoderCount = tmpEncoderCount;
 
   packet.length = 13;
@@ -73,6 +74,7 @@ void writeOdometry(void) {
   reverse_memcpy(packet.data+5, &delta, 4);
   reverse_memcpy(packet.data+9, &heading, 2);
   memset(packet.data+11, 0, 2);
+  reverse_memcpy(packet.data+13, &time, 4);
   packet.send();
 }
 
