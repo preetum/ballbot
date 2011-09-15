@@ -4,7 +4,7 @@ controller.py - implements a controller to make Ballbot drive along the planned 
                 When the message "ValidPath" is seen on the 'ValidPath' topic, a valid path has been computed/recomputed and must be followed 
                 The most recent path is stored in util.path
 """
-import roslib; roslib.load_manifest('LatticePlanner')
+import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 import util
 import math
@@ -27,6 +27,7 @@ Ballbot_speed = 0    # m/s
 targetlookahead = 25.0 # PD steering control to reach a moving target 15 cm ahead of the car
 
 pub_velcmd = rospy.Publisher('vel_cmd', DriveCmd)
+pub_status = rospy.Publisher('status', String)
 
 def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
     """
@@ -203,7 +204,7 @@ def controller_Stanley():
                 near_obstacle = path_element.near_obstacle
                 #print cur_dir,lookahead_dir
                 
-                Ballbot_speed = 2.0
+                Ballbot_speed = 1.0
 
                 if(cur_type=='t') or (lookahead_type=='t'):
                     Ballbot_speed = 1.0
@@ -215,7 +216,7 @@ def controller_Stanley():
                     Ballbot_speed = 0.5                
 
                 if(currentindex_inPath >= (len(path) - 20)): # if within 1 m of goal, slow down
-                    Ballbot_speed = 0.5
+                    Ballbot_speed = 1.0
 
                 if(cur_dir == 'b'):
                     Ballbot_speed = -1*abs(Ballbot_speed)
@@ -230,6 +231,7 @@ def controller_Stanley():
 
         # goal reached!
         print "goalreached"
+        pub_status.publish("goalreached")
         Ballbot_speed = 0
         Ballbot_steering = 0
         currentindex_inPath = 0
@@ -255,11 +257,10 @@ def received_odometry(data):
     Ballbot_Y  = data.y
     Ballbot_TH = data.theta
 
-
 def listener():
     rospy.init_node('Controller',anonymous = True)
     rospy.Subscriber('path', Path, newPath_arrived)    
-    rospy.Subscriber('odometry', Pose, received_odometry)
+    rospy.Subscriber('pose', Pose, received_odometry)
     #controller_PD() 
     controller_Stanley()
     rospy.spin()
@@ -270,7 +271,6 @@ def shdn():
     """
     pub_velcmd.publish(0.0,0.0)
     
-
 if __name__ == '__main__':
     try:
 	rospy.on_shutdown(shdn)	

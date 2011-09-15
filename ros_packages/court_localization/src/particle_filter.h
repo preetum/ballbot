@@ -43,6 +43,7 @@ public:
     ParticleFilter(std::vector<PoseParticle> *initialParticles);
 
     /* Initialize uniformly */
+    void initialize(std::vector<PoseParticle> *particles);
     void initializeUniformly(unsigned int n, Bounds x, Bounds y, Bounds theta);
 
     /* Observe an emission and reweight the particles accordingly */

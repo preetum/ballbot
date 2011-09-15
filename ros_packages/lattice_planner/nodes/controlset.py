@@ -1,5 +1,13 @@
+#!/usr/bin/env python
 import util
 import math
+#import graphics
+import roslib; roslib.load_manifest('lattice_planner')
+import rospy
+
+from std_msgs.msg import String
+from bb_msgs.msg import Pose,Path,PathElement,Goal
+pub = rospy.Publisher('path',Path)
 
 # ------------- Precomputed control set nextStates, costs etc ------------------------------------#
 class ControlSet:
@@ -20,7 +28,7 @@ class ControlSet:
                         "B",
                         #"SR_f","SL_f",
                         "RS_f_short","LS_f_short",
-                        "sidestep_R_f","sidestep_L_f"
+                        "sidestep_R_f","sidestep_L_f",
                         #"SR_f_2","SL_f_2",
                         #"RSR_f","LSL_f"
                         ]
@@ -150,7 +158,7 @@ class ControlSet:
                        "LS_f"  : (-ROBOT_RADIUS_MIN/2,-3*ROBOT_RADIUS_MIN/2,3*math.pi/2,v),
                        "RS_f"  : (-3*ROBOT_RADIUS_MIN/2,-1*ROBOT_RADIUS_MIN/2,math.pi,v),
                        "L2_f"  : (0,-3*ROBOT_RADIUS_MIN/2,7*math.pi/4,v),
-                       "R2_f"  : (3*ROBOT_RADIUS_MIN/2,0,3*math.pi/4,v) }  
+                       "R2_f"  : (-3*ROBOT_RADIUS_MIN/2,0,3*math.pi/4,v) }  
 
     # map actions from origin to lattice points, for heading 315
     state_atOrigin = (0,0,7*math.pi/4,v)
@@ -664,3 +672,45 @@ def getindices_origin_333_4():
                            "RSR1_f_63.4":[(-2,-1,0),(-2,-1,1),(0,-2,0),(1,-4,0),(2,-7,-1),(3,-7,-3)],
                            "RSR2_f_63.4":[(-2,-1,0),(-1,-1,1),(0,-2,0),(1,-3,0),(2,-3,0),(3,-4,-2),(4,-5,-3),(5,-4,-3)]}
    return indices_origin_333_4
+
+
+if __name__ == '__main__':
+  controlset = ControlSet()  
+  rospy.init_node('Controlset',anonymous=True)
+  v = 0
+  paths = []
+  x = 1000.0
+  y = 1000.0
+  
+  for angle in controlset.allowed_headings:
+    start = util.LatticeNode((1000.0,1000.0,angle,v))    
+    for action in controlset.getActions(start):
+      plan = []
+      print "angle",angle,"action",action
+      # get precomputed state on taking this action from origin   
+      stateparams_from_origin = controlset.action_to_stateparams(start,action)         
+      # translate to get the new state
+      stateparams_from_current = (stateparams_from_origin[0] + x, stateparams_from_origin[1] + y,stateparams_from_origin[2],v)
+      newNode = util.LatticeNode(stateparams_from_current,start,action)
+      plan.append((start,action))
+      #print plan
+      path = util.plan_to_path(plan)
+
+      path_to_send = Path()  
+      for point in path:
+        pose = Pose()
+        # plan uses center of car, so transform such that path has points to be traversed by rear axle center,
+        # which is 17.41 cm away from the center        
+        pose.x = point[0] - 17.41*math.cos(point[2])/100.0
+        pose.y = point[1] - 17.41*math.sin(point[2])/100.0
+        pose.theta = point[2]
+        
+        path_element = PathElement()
+        path_element.pose = pose
+        path_element.type = point[3]
+        path_element.direction = point[4]
+        path_to_send.poses.append(path_element)
+      
+      pub.publish(path_to_send)
+      print "path published. Hit enter"
+      raw_input()
