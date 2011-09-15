@@ -236,10 +236,10 @@ int radians2BAMS(float angle)
   return binaryAngle;
 }
 
-void SendInt(unsigned char * Bytes, unsigned char &checksum)
+void SendInt(void *bytes, unsigned char len, unsigned char &checksum)
 {
- unsigned char length = 2; // ints are 16 bit => 2 bytes
- for (unsigned char i = 0; i < length; i += 1)
+  char *Bytes = (char*)bytes;
+  while (len-- > 0)
   {
       Serial.print(Bytes[i], BYTE);
       checksum ^= Bytes[i];
@@ -255,32 +255,36 @@ void loop() //Main Loop
     int yawBAMS = radians2BAMS(yaw), 
     	rollBAMS = radians2BAMS(roll),
 	pitchBAMS = radians2BAMS(pitch);
+    long time = millis();
 
-    // 12 int variables: {rollBAMS, pitchBAMS, yawBAMS}, {gyro, magentom, accel}_{x, y, z}_raw
-    unsigned char  length = 4*12, checksum = length;
+    // 12 int variables: {rollBAMS, pitchBAMS, yawBAMS}, {gyro, magentom, accel}_{x, y, z}_raw + 4-byte time
+    unsigned char  length = 28, checksum = length;
 
     Serial.print(0xFF, BYTE); // START
     Serial.print(length, BYTE); // LENGTH
       
     //Send Roll, Pitch, Yaw
-    SendInt((unsigned char *)(&rollBAMS), checksum);
-    SendInt((unsigned char *)(&pitchBAMS), checksum);
-    SendInt((unsigned char *)(&yawBAMS), checksum);
+    SendInt(&rollBAMS, 2, checksum);
+    SendInt(&pitchBAMS, 2, checksum);
+    SendInt(&yawBAMS, 2, checksum);
 
     //Send Gyro Raw
-    SendInt((unsigned char *)(&sen_data.gyro_x_raw), checksum);
-    SendInt((unsigned char *)(&sen_data.gyro_y_raw), checksum);
-    SendInt((unsigned char *)(&sen_data.gyro_z_raw), checksum);
+    SendInt(&sen_data.gyro_x_raw, 2, checksum);
+    SendInt(&sen_data.gyro_y_raw, 2, checksum);
+    SendInt(&sen_data.gyro_z_raw, 2, checksum);
     
     //Send Acceleromater Raw
-    SendInt((unsigned char *)(&sen_data.accel_x_raw), checksum);
-    SendInt((unsigned char *)(&sen_data.accel_y_raw), checksum);
-    SendInt((unsigned char *)(&sen_data.accel_z_raw), checksum);
+    SendInt(&sen_data.accel_x_raw, 2, checksum);
+    SendInt(&sen_data.accel_y_raw, 2, checksum);
+    SendInt(&sen_data.accel_z_raw, 2, checksum);
 
     //Send Magnetometer Raw
-    SendInt((unsigned char *)(&sen_data.magnetom_x_raw), checksum);
-    SendInt((unsigned char *)(&sen_data.magnetom_y_raw), checksum);
-    SendInt((unsigned char *)(&sen_data.magnetom_z_raw), checksum);
+    SendInt(&sen_data.magnetom_x_raw, 2, checksum);
+    SendInt(&sen_data.magnetom_y_raw, 2, checksum);
+    SendInt(&sen_data.magnetom_z_raw, 2, checksum);
+
+    // Send timestamp
+    SendInt(&time, 4, checksum);
 
     //Send Checksum
     Serial.print(checksum, BYTE);
