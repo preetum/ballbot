@@ -33,8 +33,9 @@ using namespace std;
 
 // Globals
 ParticleFilter pf;
-ros::Publisher particlePub;
+ros::Publisher particlePub, posePub;
 cv::RNG myRng(time(NULL));
+double horizon = 0.0;
 
 // Utility functions
 /*
@@ -132,41 +133,59 @@ void ParticleFilter::observe(cv::Mat &observation) {
     // Draw lines in ground coordinates (robot frame)
     vector<Vec4d> lines;
     Mat observed = Mat::zeros(480, 640, CV_8U);
-    for (vector<Vec4i>::const_iterator it =
-             seenLines.begin(); it < seenLines.end(); it += 1) {
-        const Vec4i &line = *it;
+    for (vector<Vec4i>::iterator it = seenLines.begin();
+         it < seenLines.end(); it += 1) {
+        Vec4i &line = *it;
 
-        Point2d pt1 = cameraPointToRobot(Point2d(line[0], line[1]), cam),
-            pt2 = cameraPointToRobot(Point2d(line[2], line[3]), cam);
+        Point2d pt1 = cameraPointToRobot(Point2d(line[0], line[1]+horizon), 
+                                         cam),
+            pt2 = cameraPointToRobot(Point2d(line[2], line[3]+horizon),
+                                     cam);
         lines.push_back(Vec4d(pt1.x, pt1.y, pt2.x, pt2.y));
 
+        /*
         pt1.x += 320;
         pt1.y = 480 - pt1.y;
         pt2.x += 320;
         pt2.y = 480 - pt2.y;
         cv::line(observed, pt1, pt2, Scalar(255), 2);
+        */
     }
-    imshow("ground view", observed);
+    //imshow("ground view", observed);
+    //*/
 
     // Filter detected lines by distance
     for (int i = lines.size()-1; i >= 0; i -= 1) {
         // If either y value exceeds what is reasonable on a tennis court,
         //  discard it
-        if (lines[i][1] > 400 && lines[i][3] > 400) {
+        //if (lines[i][1] > 400 && lines[i][3] > 400) {
+
+        // If line is more than 4m away, discard it
+        if (pointLineDistance(Vec2d(0,0), lines[i]) > 300) {
             lines.erase(lines.begin() + i);
             seenLines.erase(seenLines.begin() + i);
         }
     }
 
     // If no lines visible, count it as a non-observation
-    if (seenLines.size() == 0)
-        return;
+    // This was perhaps too harsh
+    //if (seenLines.size() == 0)
+    //    return;
 
     // Draw detected lines for debugging
     drawLines(observation, seenLines);
 
+    // Adjust y coordinates (since the ROI is shifted,
+    //  all the y coordinates will be off)
+    for (vector<Vec4i>::iterator it = seenLines.begin();
+         it < seenLines.end(); it += 1) {
+        Vec4i &line = *it;
+        line[1] += horizon;
+        line[3] += horizon;
+    }
+
     // Reweight each particle
-    for (unsigned int i = 0; i < particles->size(); i += 1) {
+    for (size_t i = 0; i < particles->size(); i += 1) {
         PoseParticle &particle = particles->at(i);
 
         cam.position.x = particle.pose.x;
@@ -177,92 +196,29 @@ void ParticleFilter::observe(cv::Mat &observation) {
         vector<line_segment_all_frames> modelLines = 
             get_view_lines(cam, Size(640,480), observation);
 
-        // If there are no visible lines (usually because robot is outside
-        //  the court facing out), don't do anything. This prevents a
-        //  noisy line from weighting all particles down to 0
-        // NO this is a BAD IDEA
-        //if (modelLines.size() == 0) {
-        //    particle.weight *= 0.1;
-        //    continue;
-        //}
-
-        /*
+        // Filter out lines that are far away
         Mat tmp = Mat::zeros(480, 640, CV_8U);
-        for (vector<line_segment_all_frames>::const_iterator it =
-                 modelLines.begin(); it < modelLines.end(); it += 1) {
-            const line_segment_all_frames &modelLine = *it;
-            cv::line(tmp, modelLine.imgPlane.pt1, modelLine.imgPlane.pt2,
-                     Scalar(255), 2);
-        }
-        imshow("test2", tmp);
-
-        tmp = Mat::zeros(480, 640, CV_8U);
-        for (vector<line_segment_all_frames>::const_iterator it =
-                 modelLines.begin(); it < modelLines.end(); it += 1) {
-            const line_segment_all_frames &modelLine = *it;
-            fprintf(stderr, "Line: %.2f,%.2f to %.2f,%.2f\n",
-                    modelLine.camWorld.pt1.x,
-                    modelLine.camWorld.pt1.z,
-                    modelLine.camWorld.pt2.x,
-                    modelLine.camWorld.pt2.z);
-            cv::Point pt1(cvRound(modelLine.camWorld.pt1.x),
-                      cvRound(modelLine.camWorld.pt1.z)),
-                pt2(cvRound(modelLine.camWorld.pt2.x),
-                    cvRound(modelLine.camWorld.pt2.z));
-
-            pt1.x += 320;
-            pt1.y = 480 - pt1.y;
-            pt2.x += 320;
-            pt2.y = 480 - pt2.y;
-            cv::line(tmp, pt1, pt2, Scalar(255), 2);
-        }
-        imshow("test", tmp);
-        */
-
-        // Calculate the weight for each line segment seen
-        // Let's weight each line equally
-        double weight = 0.0;
-        /* This one uses lines in ground coordinates
-        // but is prone to camera shake
-        for (vector<Vec4d>::const_iterator it2 =
-                 lines.begin(); it2 < lines.end(); it2 += 1) {
-            const Vec4d &viewLine = *it2;
-            Vec2d pt1(viewLine[0], viewLine[1]),
-                pt2(viewLine[2], viewLine[3]);
-            double viewLineAngle = lineAngle(viewLine);
-
-            // Calculate the weight contribution of each model line
-            for (vector<line_segment_all_frames>::const_iterator it =
-                     modelLines.begin(); it < modelLines.end(); it += 1) {
-                const line_segment_all_frames &modelLine = *it;
-
-                Vec4d line(modelLine.camWorld.pt1.x,
-                           modelLine.camWorld.pt1.z,
-                           modelLine.camWorld.pt2.x,
-                           modelLine.camWorld.pt2.z);
-                double modelLineAngle = lineAngle(line);
-                double headingError = 
-                    abs(normalizeRadians(modelLineAngle - viewLineAngle));
-                double metric = pointLineSegmentDistance(pt1, line) +
-                    pointLineSegmentDistance(pt2, line);
-                metric = metric * exp(3 * headingError);
-
-                weight += exp(-0.005*metric - 7*headingError);
+        for (int i = modelLines.size()-1; i >= 0; i -= 1) {
+            const line_segment_all_frames &modelLine = modelLines[i];
+            Vec4d line(modelLine.camWorld.pt1.x, modelLine.camWorld.pt1.z,
+                       modelLine.camWorld.pt2.x, modelLine.camWorld.pt2.z);
+            // If line is more than 5m away, discard it
+            if (pointLineDistance(Vec2d(0,0), line) > 500) {
+                modelLines.erase(modelLines.begin() + i);
             }
         }
-        //*/
-        //* This one uses the backprojection model
-        for (vector<Vec4i>::const_iterator it2 =
-                 seenLines.begin(); it2 < seenLines.end(); it2 += 1) {
-            const Vec4i &viewLine = *it2;
+
+        // Precompute the matching score (weight) for each pair of
+        //  (visible line, model line) using the backprojection model
+        double weights[seenLines.size()][modelLines.size()];
+        for (size_t j = 0; j < seenLines.size(); j += 1) {
+            const Vec4i &viewLine = seenLines[j];
             Vec2i pt1(viewLine[0], viewLine[1]),
                 pt2(viewLine[2], viewLine[3]);
             double viewLineAngle = lineAngle(viewLine);
 
-            // Calculate the weight contribution of each model line
-            for (vector<line_segment_all_frames>::const_iterator it =
-                     modelLines.begin(); it < modelLines.end(); it += 1) {
-                const line_segment_all_frames &modelLine = *it;
+            for (size_t k = 0; k < modelLines.size(); k += 1) {
+                const line_segment_all_frames &modelLine = modelLines[k];
                 Vec4i line = pointsToLine(modelLine.imgPlane.pt1,
                                           modelLine.imgPlane.pt2);
                 double modelLineAngle = lineAngle(line);
@@ -271,14 +227,46 @@ void ParticleFilter::observe(cv::Mat &observation) {
                 double metric = pointLineSegmentDistance(pt1, line) +
                     pointLineSegmentDistance(pt2, line);
                 metric = metric * exp(3 * headingError);
-
-                weight += exp(-0.003*metric - 7*headingError);
+                weights[j][k] = exp(-0.003*metric - 3*headingError);
             }
         }
-        //*/
+
+        // Calculate the weight for each line segment seen
+        double w1 = 1.0,
+            w2 = 1.0;
+
+        // for each detected line:
+        //   w1 *= max(weight of model lines)
+        // In the case of extra lines w1 will be low (also, if you weren't
+        //  supposed to see any lines but you do, w1 = 0)
+        for (size_t j = 0; j < seenLines.size(); j += 1) {
+            double max = 0.0;
+            for (size_t k = 0; k < modelLines.size(); k += 1) {
+                if (weights[j][k] > max)
+                    max = weights[j][k];
+            }
+            w1 *= 1 + max;
+        }
+        // for each model line:
+        //   w2 *= max(weight of detected lines)
+        // In the case of missing lines w2 will be low (also, if you didn't
+        //  see any lines but you were supposed to, w2 = 0)
+        if (modelLines.size() == 0) {
+            w2 *= 0.5;
+        }
+        for (size_t j = 0; j < modelLines.size(); j += 1) {
+            double max = 0.0;
+            for (size_t k = 0; k < seenLines.size(); k += 1) {
+                if (weights[k][j] > max)
+                    max = weights[k][j];
+            }
+            w2 *= max;
+        }
 
         // Reweight the particle
-        particle.weight *= weight;
+        // w2 has to be smaller because you don't see a lot of the model lines
+        // especially the faraway ones
+        particle.weight *= w1 + 2*w2;
     }
 }
 
@@ -349,20 +337,26 @@ void ParticleFilter::publish(ros::Publisher &pub) const {
     }
     pub.publish(msg);
 
-    /* Publish average
-    for (size_t i = 0; i < len; i += 20) {
+    //* Publish average
+    double x = 0,
+        y = 0,
+        thetaX = 0,
+        thetaY = 0;
+    int len = particles->size();
+    for (int i = 0; i < len; i += 1) {
         const PoseParticle &p = particles->at(i);
         x += p.pose.x;
         y += p.pose.y;
-        theta_x += cos(p.pose.theta);
-        theta_y += sin(p.pose.theta);
+        thetaX += cos(p.pose.theta);
+        thetaY += sin(p.pose.theta);
     }
     bb_msgs::Pose poseMsg;
     poseMsg.x = x / len;
     poseMsg.y = y / len;
-    poseMsg.theta = atan2(theta_y, theta_x);
-    msg.data.push_back(poseMsg);
-    pub.publish(msg);
+    poseMsg.theta = atan2(thetaY, thetaX);
+    fprintf(stderr, "Avg pose: %.2f, %.2f @ %f deg ", poseMsg.x, poseMsg.y,
+            poseMsg.theta * 180 / CV_PI);
+    posePub.publish(poseMsg);
     //*/
 }
 
@@ -377,7 +371,7 @@ void ParticleFilter::print(int limit) const {
 
     for (unsigned int i = 0; i < N; i += 1) {
         PoseParticle &p = particles->at(i);
-        printf("%.2f\t%.2f\t%.2f\t%f\n", p.pose.x, p.pose.y,
+        fprintf(stderr,"%.2f\t%.2f\t%.2f\t%f\n", p.pose.x, p.pose.y,
                p.pose.theta, p.weight);
     }
 }
@@ -406,6 +400,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
 
         // Update particle filter
+        cv_ptr->image.adjustROI(-horizon, 0, 0, 0);
         pf.observe(cv_ptr->image);
 
         // If weight sum falls below some threshold, reinitialize the filter
@@ -417,20 +412,26 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
             pf.initializeUniformly(500, Bounds(-200,1389), Bounds(-200, 1297),
                                    Bounds(0,2*CV_PI));
         } else {
+            /*/ Add random particles
+            for (int i = 0; i < 200; i += 1) {
+                double x = myRng.uniform(-200.0, 1389.0),
+                    y = myRng.uniform(-200.0, 1297.0),
+                    theta = myRng.uniform(0.0,2*CV_PI);
+                pf.particles->push_back(PoseParticle(x, y, theta,
+                                                     1.0/pf.numParticles));
+            }
+            //*/
+            // Resample
             pf.resample();
+            // Add bounded uniform noise
+            RNG rng;
+            for (unsigned int i = 0; i < pf.particles->size(); i += 1) {
+                PoseParticle &p = pf.particles->at(i);
+                p.pose.x += myRng.uniform(-4.0, 4.0);
+                p.pose.y += myRng.uniform(-4.0, 4.0);
+                p.pose.theta += myRng.uniform(-0.005, 0.005);
+            }
         }
-
-        // Add gaussian noise
-        /*
-        RNG rng;
-        for (unsigned int i = 0; i < pf.particles->size(); i += 1) {
-            PoseParticle &p = pf.particles->at(i);
-            p.pose.x += myRng.gaussian(0.02);
-            p.pose.y += myRng.gaussian(0.02);
-            p.pose.theta += myRng.gaussian(0.005);
-        }
-        */
-
         // Publish particles
         pf.publish(particlePub);
 
@@ -452,6 +453,7 @@ int main(int argc, char** argv) {
 
     // Create particle publisher to topic "filter/particles"
     particlePub = nh.advertise<bb_msgs::PoseArray>("filter/particles", 4);
+    posePub = nh.advertise<bb_msgs::Pose>("pose", 10);
 
     // Create image listener on topic ~image (default "gscam/image_raw")
     image_transport::ImageTransport it(nh);
@@ -478,21 +480,33 @@ int main(int argc, char** argv) {
     //*
     vector<PoseParticle> *init = new vector<PoseParticle>();
     // Bottom strip
-    drawUniformly(init, 50, Bounds(500, 800), Bounds(-200, 0),
+    drawUniformly(init, 50, Bounds(400, 800), Bounds(-300, 100),
                   Bounds(0,2*CV_PI));
-    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-200, 0),
-                  Bounds(0,2*CV_PI));
+    //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-250, 0),
+    //                  Bounds(0,2*CV_PI));
     // Top strip
-    drawUniformly(init, 50, Bounds(500, 800), Bounds(1097, 1297),
+    drawUniformly(init, 50, Bounds(400, 800), Bounds(997, 1397),
                   Bounds(0,2*CV_PI));
-    drawUniformly(init, 50, Bounds(-200, 0), Bounds(1097, 1297),
-                  Bounds(0,2*CV_PI));
+    //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(1097, 1297),
+    //                  Bounds(0,2*CV_PI));
 
     pf.initialize(init);
     //pf.initializeUniformly(600, Bounds(-200,1389), Bounds(-200, 1297),
     //                           Bounds(0,2*CV_PI));
     //*/
     pf.publish(particlePub);
+
+    // Calculate ROI cutoff
+    camera cam;
+    cam.position.z = 33.0;
+    cam.tilt = -15.0 * CV_PI / 180.0;
+    Point3d camWorldPt =
+        get_camera_world_coordinates(Point3d(2500, 0, -cam.position.z),
+                                     cam.position, cam.theta, cam.pan,
+                                     cam.tilt);
+    Point2d horizonPt =
+        cam_world_position_to_imageXY(camWorldPt, cam);
+    horizon = horizonPt.y;
 
     // Spin loop
     while (ros::ok()) {

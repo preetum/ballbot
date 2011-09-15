@@ -1,4 +1,5 @@
 <launch>
   <node name="filter" pkg="court_localization" type="particle_filter" />
-  <node name="gui" pkg="court_localization" type="particle_viewer.py" />
+  <node name="particles" pkg="court_localization" type="particle_viewer.py" />
+  <node name="pose" pkg="court_localization" type="pose_viewer.py" />
 </launch>

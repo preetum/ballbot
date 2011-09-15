@@ -134,12 +134,15 @@ def LPAstarsearch(startNode,goalNode):
 
 def MTAdaptiveAstarsearch(startNode,goalNode):
     global plan   
+    t = time.time()
     if(util.goaltype == "newball" or util.goaltype == "gotopose"):
         plan = util.MTAdaptiveAstarsearch_start(startNode,goalNode)    
     elif(util.goaltype == "updategoal"):
         plan = util.MTAdaptiveAstarsearch_update(startNode,goalNode)
     else:
         print "unknown goal type",util.goaltype
+    t = time.time() - t
+    rospy.loginfo("time to plan %f",t)
 
 def obstacle_added(event):        
     util.costmap.new_obstacle(event)

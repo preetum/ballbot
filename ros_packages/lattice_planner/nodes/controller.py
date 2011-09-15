@@ -146,6 +146,9 @@ def controller_Stanley():
     currentindex_inPath = 0 # path index that the car is closest to
     targetindex_inPath = 0  # path index that is 50 cm ahead of the car
     r = rospy.Rate(60)
+    
+    average_error_position = 0
+
     while not rospy.is_shutdown():
         if newPath == False:
             continue
@@ -156,6 +159,7 @@ def controller_Stanley():
                 newPath = False
                 currentindex_inPath = 0                               
                 targetindex_inPath = 0
+                average_error_position = 0
                 continue
             else:
                 currentindex_inPath = nearestNeighbor_inPath((Ballbot_X,Ballbot_Y,Ballbot_TH),currentindex_inPath)
@@ -164,6 +168,8 @@ def controller_Stanley():
 
                 # calculate cross-track error, x_t
                 x_t = util.distance_Euclidean(Ballbot_X,Ballbot_Y,path_element.pose.x,path_element.pose.y)
+
+                average_error_position += x_t
 
                 heading = (math.atan2(path[targetindex_inPath].pose.y-Ballbot_Y, path[targetindex_inPath].pose.x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading
@@ -232,11 +238,17 @@ def controller_Stanley():
         # goal reached!
         print "goalreached"
         pub_status.publish("goalreached")
+        
         Ballbot_speed = 0
         Ballbot_steering = 0
         currentindex_inPath = 0
         targetindex_inPath = 0
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering) 
+        
+        final_error_position = util.distance_Euclidean(Ballbot_X,Ballbot_Y,path[-1].pose.x,path[-1].pose.y)
+        final_error_angle = abs(Ballbot_TH - path[-1].pose.theta)
+        average_error_position = average_error_position/len(path)
+        rospy.loginfo("final_error_pos % final_error_angle % average_error_pos",(final_error_position,final_error_angle,average_error_position))
 
 def newPath_arrived(data):
     """
@@ -258,7 +270,7 @@ def received_odometry(data):
     Ballbot_TH = data.theta
 
 def listener():
-    rospy.init_node('Controller',anonymous = True)
+    rospy.init_node('controller',anonymous = True)
     rospy.Subscriber('path', Path, newPath_arrived)    
     rospy.Subscriber('pose', Pose, received_odometry)
     #controller_PD() 
