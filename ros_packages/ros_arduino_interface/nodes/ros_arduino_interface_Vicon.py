@@ -21,7 +21,7 @@ def recieved_drive_packet(ballBot, drivePacket):
     speed = int(drivePacket.velocity * 100)
     angle = int(drivePacket.steerAngle * 180 / 3.141592654)
     ballBot.set_velocity(speed, angle)
-    rospy.loginfo("Speed %d Angle %d" % (speed, angle))
+    #rospy.loginfo("Speed %d Angle %d" % (speed, angle))
 
 def recieved_ballpickup_packet(ballBot,ballpickupPacket):
     '''
