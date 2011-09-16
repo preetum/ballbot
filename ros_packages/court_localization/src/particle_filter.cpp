@@ -38,7 +38,7 @@ cv::RNG myRng(time(NULL));
 double horizon = 0.0;
 
 // Utility functions
-/*
+
 void printTime(const char *label) {
     static struct timeb prev = {0,0};
     struct timeb cur;
@@ -52,7 +52,6 @@ void printTime(const char *label) {
               label, (int)cur.time, cur.millitm, diff);
     prev = cur;
 }
-*/
 
 double weightSum(vector<PoseParticle> *particles) {
     double weightSum = 0.0;
@@ -279,7 +278,7 @@ void ParticleFilter::transition(double dist, double dtheta, double sigma_dist,
         // Add noise using the motion model
         double newTheta = normalizeRadians(p.pose.theta + dtheta +
                                            myRng.gaussian(0.01*abs(dtheta)));
-        dist += myRng.gaussian(abs(0.005*dist));
+        dist += myRng.gaussian(abs(0.01*dist));
 
         p.pose.x += dist*cos(newTheta);
         p.pose.y += dist*sin(newTheta);
@@ -302,11 +301,21 @@ void ParticleFilter::resample() {
     unsigned int i = 0;
     for (unsigned int m = 0; m < numParticles; m += 1) {
         double U = r + m*(1.0/numParticles);
+        bool isMultipleCopy = true;
         while (U > c) {
             i += 1;
             c = c + particles->at(i).weight;
+            isMultipleCopy = false;
         }
-        X->push_back(particles->at(i));
+        PoseParticle newParticle = particles->at(i);
+
+        // Add bounded uniform noise to copies if multiple copies
+        //  of a particle are generated
+        newParticle.pose.x += myRng.uniform(-4.0, 4.0);
+        newParticle.pose.y += myRng.uniform(-4.0, 4.0);
+        newParticle.pose.theta += myRng.uniform(-0.005, 0.005);
+        
+        X->push_back(newParticle);
     }
     delete particles; // deallocate former array
     particles = X;
@@ -395,6 +404,8 @@ void odometryCallback(const bb_msgs::OdometryConstPtr& msg) {
 
 /* On receiving an image, update this particle filter with the observation. */
 void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
+
+    printTime("start");
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
@@ -423,19 +434,14 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
             //*/
             // Resample
             pf.resample();
-            // Add bounded uniform noise
-            RNG rng;
-            for (unsigned int i = 0; i < pf.particles->size(); i += 1) {
-                PoseParticle &p = pf.particles->at(i);
-                p.pose.x += myRng.uniform(-4.0, 4.0);
-                p.pose.y += myRng.uniform(-4.0, 4.0);
-                p.pose.theta += myRng.uniform(-0.005, 0.005);
-            }
         }
+        printTime("compute");
         // Publish particles
         pf.publish(particlePub);
 
-        imshow("image", cv_ptr->image);
+        printTime("publish");
+
+        //imshow("image", cv_ptr->image);
     }
     catch (cv_bridge::Exception& e) {
         ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -480,18 +486,18 @@ int main(int argc, char** argv) {
     //*
     vector<PoseParticle> *init = new vector<PoseParticle>();
     // Bottom strip
-    drawUniformly(init, 50, Bounds(400, 800), Bounds(-300, 100),
-                  Bounds(0,2*CV_PI));
+    //drawUniformly(init, 50, Bounds(400, 800), Bounds(-300, 100),
+    //              Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-250, 0),
     //                  Bounds(0,2*CV_PI));
     // Top strip
-    drawUniformly(init, 50, Bounds(400, 800), Bounds(997, 1397),
+    drawUniformly(init, 100, Bounds(400, 800), Bounds(997, 1397),
                   Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(1097, 1297),
     //                  Bounds(0,2*CV_PI));
 
     pf.initialize(init);
-    //pf.initializeUniformly(600, Bounds(-200,1389), Bounds(-200, 1297),
+    //pf.initializeUniformly(200, Bounds(-200,1389), Bounds(-200, 1297),
     //                           Bounds(0,2*CV_PI));
     //*/
     pf.publish(particlePub);

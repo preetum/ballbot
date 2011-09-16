@@ -37,7 +37,7 @@ void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
 
     // Color threshold to find white lines
     //  TODO tune thresholds
-    threshold(frame_gray, frame_thresh, 190, 255, THRESH_BINARY);
+    threshold(frame_gray, frame_thresh, 210, 255, THRESH_BINARY);
 
     // Probabilistic Hough transform
     vector<Vec4i> lines;
