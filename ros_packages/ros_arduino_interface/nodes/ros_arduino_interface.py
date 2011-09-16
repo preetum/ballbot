@@ -31,7 +31,7 @@ def recieved_ballpickup_packet(ballBot,ballpickupPacket):
     #rospy.loginfo("Ball Pickup! Direction %d" % ballpickupPacket.direction)
 
 def send_heading_to_arduino(ballBot, imu, odometryPublisher):
-    waiter = rospy.Rate(60)
+    waiter = rospy.Rate(30)
     while not rospy.is_shutdown():
         ballBot.sync_odometry(imu.headingBAMS)
         odometry_broadcast(ballBot, odometryPublisher, imu.gyro_z)

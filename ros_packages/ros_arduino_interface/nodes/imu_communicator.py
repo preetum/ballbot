@@ -10,7 +10,7 @@ class IMU:
    1. port: port name for the IMU (Default is /dev/ttyUSB0)
    2. ask_rate = rate at which to ask the IMU for data
   '''
-  def __init__(self, port='/dev/ttyUSB0', ask_rate = 60): 
+  def __init__(self, port='/dev/ttyUSB0', ask_rate = 30): 
   
     # Initialize IMU COM port
     try:
