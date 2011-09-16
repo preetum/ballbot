@@ -39,13 +39,13 @@ def spin_thread(sim):
 def main():
   # Get config
   topic_name = rospy.get_param('~topic', 'odometry')
-  init_pos = rospy.get_param('~initial', '600,-200,1.7')
+  init_pose = rospy.get_param('~initial', '500,1150,-1.3')
 
   sim = Simulator('Odometry')
 
   # Initial position
   global x, y, theta
-  a = init_pos.split(',')
+  a = init_pose.split(',')
   x = float(a[0])
   y = float(a[1])
   theta = float(a[2])
@@ -53,8 +53,7 @@ def main():
   # Initialize ROS listener
   rospy.init_node('pose_viewer', anonymous=True)
   rospy.Subscriber(topic_name, Odometry,
-                   lambda msg: msg_callback(msg, sim),
-                   queue_size=1)
+                   lambda msg: msg_callback(msg, sim))
 
   # Start rospy spin thread
   thread.start_new_thread(spin_thread, (sim,))

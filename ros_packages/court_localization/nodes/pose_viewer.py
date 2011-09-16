@@ -9,7 +9,7 @@ import numpy as np
 
 def msg_callback(msg, sim):
   beliefs = np.array([[msg.x, msg.y, msg.theta]])
-  sim.refresh(beliefs)
+  sim.refresh(beliefs, trails=True)
 
 def spin_thread(sim):
   # While ROS is alive, wait for messages
