@@ -11,23 +11,29 @@
 #include <WProgram.h>
 #include "packet.h"
 
+inline void printEscaped(unsigned char c) {
+  if (c == ESCAPE_BYTE || c == START_BYTE)
+    Serial.print((unsigned char)ESCAPE_BYTE);
+  Serial.print(c);
+}
+
 void Packet::send(void) {
   if (length > MAX_PACKET_LENGTH)
     length = MAX_PACKET_LENGTH;
 
   // Print packet header
   Serial.print((unsigned char)START_BYTE);
-  Serial.print(length);
+  printEscaped(length);
 
   // Print data
   checksum = length;  // compute checksum as we go
   for (unsigned char i = 0; i < length; i += 1) {
-    Serial.print(data[i]);
+    printEscaped(data[i]);
     checksum ^= data[i];
   }
 
   // Print checksum
-  Serial.print(checksum);
+  printEscaped(checksum);
 }
 
 /*
@@ -38,11 +44,19 @@ void Packet::send(void) {
 unsigned char Packet::receive (unsigned char byte) {
   unsigned char rv = false;
 
+  // Handle escapes and start bytes
+  if (escaped) {  // last character was an escape char
+    escaped = false;
+  }
+  else if (byte == ESCAPE_BYTE) {
+    escaped = true;
+    return false;
+  } else if (byte == START_BYTE) {
+    state = READ_LENGTH;
+    return false;
+  }
+
   switch (state) {
-  case WAIT:
-    if (byte == START_BYTE)
-      state = READ_LENGTH;
-    break;
 
   case READ_LENGTH:
     length = byte;

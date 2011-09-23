@@ -2,7 +2,8 @@ import serial
 import sys, re, struct, time, thread
 
 class Packet:
-  START_BYTE = 0xFF
+  START_BYTE = 0xAF
+  ESCAPE_BYTE = 0xAE
 
   WAIT = 0
   READ_LENGTH = 1
@@ -11,7 +12,8 @@ class Packet:
 
   def __init__(self, callback):
     self.state = Packet.WAIT
-    self.callback = callback;
+    self.escaped = False
+    self.callback = callback
 
     self.length = 0
     self.data = ''
@@ -21,11 +23,21 @@ class Packet:
     for char in data_string:
       byte = ord(char)
 
-      if self.state == Packet.WAIT:
-        if byte == Packet.START_BYTE:
-          self.state = Packet.READ_LENGTH
+      # Handle escape characters
+      if self.escaped:
+        # Process this byte without special conditions
+        self.escaped = False
+      elif byte == Packet.ESCAPE_BYTE:
+        # Escape next byte
+        self.escaped = True
+        continue
+      elif byte == Packet.START_BYTE:
+        # Unescaped start byte: start of new packet
+        self.state = Packet.READ_LENGTH
+        continue
 
-      elif self.state == Packet.READ_LENGTH:
+      # Receive state machine
+      if self.state == Packet.READ_LENGTH:
         self.length = byte
         self.data = ''
         self.checksum = byte
@@ -51,7 +63,6 @@ class BaseController:
   Encapsulates the hardware functionality of the robot.
   Communicates with the Arduino and any other peripherals.
   '''
-  START_BYTE = 0xFF
   CMD_SET_RAW = 0x41
   CMD_SET_VELOCITY = 0x42
   CMD_SET_PICKUP = 0x43
@@ -99,7 +110,8 @@ class BaseController:
     '''
     Called whenever a full packet is received back from the arduino
     '''
-    if ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
+    if len(packet.data) > 0 and \
+          ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
       cmd, self.counts, self.counts_delta, self.angle, self.angular_velocity = \
           struct.unpack('>Bllhh', packet.data)
       print '%d\t%d\t%d\t%d' % (self.counts, self.counts_delta, self.angle, self.angular_velocity)
@@ -110,7 +122,8 @@ class BaseController:
       # Read as many characters as possible
       data_string = self.serial.read(100)
       # Fill the packet object
-      recv_packet.read(data_string)      
+      if len(data_string) > 0:
+        recv_packet.read(data_string)
 
   def reset(self):
     self.set_steering(0)
@@ -168,12 +181,15 @@ class BaseController:
     # Generate checksum
     length = len(data_string)
     checksum = length ^ reduce(lambda x,y: x^y, bytearray(data_string), 0)
+
+    # Escape special chars
+    string = chr(length) + data_string + chr(checksum)
+    escaped_string = re.sub('([\xAE\xAF])', '\xAE\\1', string)
     
     # Construct full packet
-    string = chr(Packet.START_BYTE) + chr(length) + \
-              data_string + chr(checksum)
+    escaped_string = chr(Packet.START_BYTE) + escaped_string
     
-    self.serial.write(string)
+    self.serial.write(escaped_string)
     self.serial.flush()
 
   def set_steering(self, angle):

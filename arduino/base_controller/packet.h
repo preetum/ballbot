@@ -15,12 +15,14 @@
 
 /* Packet format
   
-  START   (1 byte  =  0xFF)
+  START   (1 byte  =  0xAF)
   LENGTH  (1 byte)
   DATA    (LENGTH bytes)
   CHECKSUM(1 byte  = XOR of LENGTH and DATA bits)
  */
-#define START_BYTE 0xFF
+#define START_BYTE         0xAF
+#define ESCAPE_BYTE        0xAE
+
 #define MAX_PACKET_LENGTH  20
 
 // Serial state machine states
@@ -34,6 +36,7 @@ enum {
 // Packet structure
 class Packet {
   unsigned char state;  // receive state machine state
+  unsigned char escaped; // receive state (if last char was an escape)
   unsigned char index;  // receive data index
 
  public:
@@ -43,6 +46,7 @@ class Packet {
 
   Packet(void) {
     state = WAIT;
+    escaped = false;
     index = 0;
   }
 
