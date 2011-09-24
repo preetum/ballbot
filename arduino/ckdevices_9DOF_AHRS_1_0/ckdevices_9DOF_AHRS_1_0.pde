@@ -41,6 +41,7 @@
 #include <HMC58X3.h>
 #include <EEPROM.h>
 #include <Wire.h>
+#include "packet.h"
 
 #define pi 3.1415926536
 #define ToRad(x) (x*0.01745329252)  // *pi/180
@@ -181,6 +182,8 @@ unsigned int  GPS_counter=0;
 float DCM_Matrix[3][3]       = {{1,0,0},{0,1,0},{0,0,1}}; 
 float Update_Matrix[3][3]    = {{0,1,2},{3,4,5},{6,7,8}}; 
 float Temporary_Matrix[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+
+Packet responsePacket;
  
 //Function Headers
 int radians2BAMS(float angle);
@@ -228,6 +231,9 @@ void setup()
   Compass_counter=0;
   Baro_counter=0;
   GPS_counter=0;
+
+  // init response packet
+  responsePacket.length = 10;
 }
 
 int radians2BAMS(float angle)
@@ -235,17 +241,6 @@ int radians2BAMS(float angle)
   int binaryAngle  = (int) (angle*(32768.0/(float)pi));
   return binaryAngle;
 }
-
-void SendInt(void *bytes, unsigned char len, unsigned char &checksum)
-{
-  char *Bytes = (char*)bytes;
-  while (len-- > 0)
-  {
-      Serial.print(Bytes[i], BYTE);
-      checksum ^= Bytes[i];
-  }
-}
-
 
 void loop() //Main Loop
 {
@@ -255,39 +250,20 @@ void loop() //Main Loop
     int yawBAMS = radians2BAMS(yaw), 
     	rollBAMS = radians2BAMS(roll),
 	pitchBAMS = radians2BAMS(pitch);
-    long time = millis();
+    unsigned long time = millis();
 
-    // 12 int variables: {rollBAMS, pitchBAMS, yawBAMS}, {gyro, magentom, accel}_{x, y, z}_raw + 4-byte time
-    unsigned char  length = 28, checksum = length;
+    // Send response packet (10 bytes - big endian)
+    // int16 rollBAMS
+    // int16 pitchBAMS
+    // int16 yawBAMS
+    // int32 timestamp
 
-    Serial.print(0xFF, BYTE); // START
-    Serial.print(length, BYTE); // LENGTH
-      
-    //Send Roll, Pitch, Yaw
-    SendInt(&rollBAMS, 2, checksum);
-    SendInt(&pitchBAMS, 2, checksum);
-    SendInt(&yawBAMS, 2, checksum);
-
-    //Send Gyro Raw
-    SendInt(&sen_data.gyro_x_raw, 2, checksum);
-    SendInt(&sen_data.gyro_y_raw, 2, checksum);
-    SendInt(&sen_data.gyro_z_raw, 2, checksum);
-    
-    //Send Acceleromater Raw
-    SendInt(&sen_data.accel_x_raw, 2, checksum);
-    SendInt(&sen_data.accel_y_raw, 2, checksum);
-    SendInt(&sen_data.accel_z_raw, 2, checksum);
-
-    //Send Magnetometer Raw
-    SendInt(&sen_data.magnetom_x_raw, 2, checksum);
-    SendInt(&sen_data.magnetom_y_raw, 2, checksum);
-    SendInt(&sen_data.magnetom_z_raw, 2, checksum);
-
-    // Send timestamp
-    SendInt(&time, 4, checksum);
-
-    //Send Checksum
-    Serial.print(checksum, BYTE);
+    // avr-gcc stores ints little-endian so swap the byte order
+    reverse_memcpy(responsePacket.data, &rollBAMS, 2);
+    reverse_memcpy(responsePacket.data+2, &pitchBAMS, 2);
+    reverse_memcpy(responsePacket.data+4, &yawBAMS, 2);
+    reverse_memcpy(responsePacket.data+6, &time, 4);
+    responsePacket.send();
   }
   
   if((DIYmillis()-timer)>=20)  // Main loop runs at 50Hz

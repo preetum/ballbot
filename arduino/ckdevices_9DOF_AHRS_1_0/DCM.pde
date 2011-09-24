@@ -98,7 +98,7 @@ void Drift_correction(void)
   Vector_Scale(&Scaled_Omega_I[0],&errorRollPitch[0],Ki_ROLLPITCH*Accel_weight);
   Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);     
   
-  //*****YAW***************
+  /*****YAW***************
   // We make the gyro YAW drift correction based on compass magnetic heading
  
   mag_heading_x = cos(sen_data.magnetom_heading);
@@ -119,7 +119,8 @@ void Drift_correction(void)
     Serial.print("Integrator being contrained from ");
     Serial.print(ToDeg(Integrator_magnitude));
     Serial.println(" degrees");
-  }    
+  }
+  //*/  
 }
 
 /**************************************************/

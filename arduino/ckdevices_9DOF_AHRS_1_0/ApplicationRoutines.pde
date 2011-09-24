@@ -18,9 +18,9 @@ void mongooseCalibrate(void)
     sen_offset.accel_offset[1]     = 5; 
     sen_offset.accel_offset[2]     = -25;
     
-    sen_offset.gyro_offset[0]      = -4;
+    sen_offset.gyro_offset[0]      = -2;
     sen_offset.gyro_offset[1]      = 1;
-    sen_offset.gyro_offset[2]      = 3;
+    sen_offset.gyro_offset[2]      = 0;
     
     sen_offset.magnetom_offset[0]  = -159; //39;
     sen_offset.magnetom_offset[1]  = -85; //-365;
