@@ -15,7 +15,7 @@
 #include "encoder.h"
 #include "feedback.h"
 
-int sampleRateHz = 10;
+#define sampleRateHz  10
 
 double velocityInput = 0,
   velocityOutput = 0,

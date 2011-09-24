@@ -32,9 +32,8 @@ SimpleMotorController driveMotor(5);
 
 Packet packet;
 
-int heading;
-
-unsigned long last_setvelocity = 0;
+bool watchdogFlag = false;
+//unsigned long last_setvelocity = 0;
 
 void setSteering(int angle) {
   angle = -angle + SERVO_CENTER;
@@ -43,15 +42,6 @@ void setSteering(int angle) {
   else if (angle < SERVO_RIGHT)
     angle = SERVO_RIGHT;
   steering.write((unsigned char)angle);
-}
-
-/* Writes the first LEN bytes of SOURCE in reverse order into DESTINATION buffer */
-void reverse_memcpy(void *destination, const void *source, size_t len) {
-  char *dest = (char*)destination;
-  char *src = (char*)source;
-
-  while (len-- > 0)
-    *(dest+len) = *src++;
 }
 
 /* Note: this reuses the global packet object and is not thread-safe!
@@ -63,16 +53,14 @@ void writeOdometry(void) {
   // Compute change in encoder count (discrete velocity estimate)
   long tmpEncoderCount = encoder_getCount();
   long delta = tmpEncoderCount - lastEncoderCount;
+  unsigned long time = millis();
   lastEncoderCount = tmpEncoderCount;
 
   packet.length = 13;
   packet.data[0] = CMD_SYNC_ODOMETRY;
-
-  long *pDest = (long*)(packet.data+1);
   reverse_memcpy(packet.data+1, &tmpEncoderCount, 4);
   reverse_memcpy(packet.data+5, &delta, 4);
-  reverse_memcpy(packet.data+9, &heading, 2);
-  memset(packet.data+11, 0, 2);
+  reverse_memcpy(packet.data+9, &time, 4);
   packet.send();
 }
 
@@ -93,7 +81,8 @@ void packetReceived (void) {
     setSteering(angular);
     // TODO steering PID
 
-    last_setvelocity = millis(); // time of most recent setvelocity
+    // Clear watchdog (timeout) flag
+    watchdogFlag = false;
     break;
   }
 
@@ -122,8 +111,9 @@ void packetReceived (void) {
   }
         
   case CMD_SYNC_ODOMETRY:
-    heading = packet.data[1] << 8 | packet.data[2];
-    writeOdometry();
+    // No longer polling
+    //heading = packet.data[1] << 8 | packet.data[2];
+    //writeOdometry();
     break;
 
   } // switch
@@ -151,11 +141,14 @@ void setup() {
   analogReference(EXTERNAL);
 
   pinMode(13, OUTPUT); // enable LED pin
-  last_setvelocity = 0;
+  //last_setvelocity = 0;
 }
 
 void loop()  {
-  static unsigned long nextUpdate = 0L;  
+  static unsigned long nextUpdate = 0L;
+  static unsigned char feedbackCount = 0,
+    outputCount = 0,
+    timeoutCount = 0;
 
   // Process serial buffer
   while (Serial.available())
@@ -165,25 +158,39 @@ void loop()  {
       break;
     }
 
-  // Run feedback loop every 100ms
-  if (millis() > nextUpdate) {
-    nextUpdate += 100;
-    feedback_update();
-    //imu.update();
+  unsigned long time = millis();
 
-    // Debug
-    /*
-    Serial.print((int)velocityInput);
-    Serial.print('\t');
-    Serial.print((int)velocitySetpoint);
-    Serial.println();
-    */
-  }
+  if (time > nextUpdate) {
+    nextUpdate += 20;  // Run this outer loop every 20 ms
 
-  // TIMEOUT manager
-  // send stop command to motors if no setvelocity command has been recieved in 0.5 seconds
-  if (millis() - last_setvelocity > 500){
-    feedback_setVelocity(0);
-    setSteering(0);
+    // Run feedback loop every 100ms
+    if (feedbackCount == 0) {
+      feedbackCount = 4;
+      feedback_update();
+    } else {
+      feedbackCount -= 1;
+    }
+
+    // Write odometry every 40 ms
+    if (outputCount == 0) {
+      outputCount = 1;
+      writeOdometry();
+    } else {
+      outputCount -= 1;
+    }
+
+    // Check the timeout flag every 500 ms
+    if (timeoutCount == 0) {
+      timeoutCount = 24;
+      // If flag hasn't been cleared in last 500 ms, stop the motors
+      if (watchdogFlag) {
+        feedback_setVelocity(0);
+        setSteering(0);
+      }
+      // reset the flag
+      watchdogFlag = true;
+    } else {
+      timeoutCount -= 1;
+    }
   }
 }

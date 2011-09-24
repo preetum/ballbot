@@ -23,7 +23,7 @@
 #define START_BYTE         0xAF
 #define ESCAPE_BYTE        0xAE
 
-#define MAX_PACKET_LENGTH  20
+#define MAX_PACKET_LENGTH  16
 
 // Serial state machine states
 enum {
@@ -53,5 +53,8 @@ class Packet {
   void send(void);
   unsigned char receive(unsigned char byte);
 };
+
+// Function prototypes
+void reverse_memcpy(void *destination, const void *source, size_t len);
 
 #endif

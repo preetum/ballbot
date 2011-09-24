@@ -11,6 +11,15 @@
 #include <WProgram.h>
 #include "packet.h"
 
+/* Writes the first LEN bytes of SOURCE in reverse order into DESTINATION buffer */
+void reverse_memcpy(void *destination, const void *source, size_t len) {
+  char *dest = (char*)destination;
+  char *src = (char*)source;
+
+  while (len-- > 0)
+    *(dest+len) = *src++;
+}
+
 inline void printEscaped(unsigned char c) {
   if (c == ESCAPE_BYTE || c == START_BYTE)
     Serial.print((unsigned char)ESCAPE_BYTE);

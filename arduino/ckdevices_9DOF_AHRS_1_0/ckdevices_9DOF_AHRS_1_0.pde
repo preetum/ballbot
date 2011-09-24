@@ -174,8 +174,8 @@ float errorYaw[3]= {0,0,0};
 
 //These counters allow us to sample some of the sensors at lower rates
 unsigned int  Compass_counter=0;
-unsigned int  Baro_counter=0;
-unsigned int  GPS_counter=0;
+//unsigned int  Baro_counter=0;
+//unsigned int  GPS_counter=0;
 
 
 
@@ -229,8 +229,8 @@ void setup()
   
   //init some counters
   Compass_counter=0;
-  Baro_counter=0;
-  GPS_counter=0;
+  //Baro_counter=0;
+  //GPS_counter=0;
 
   // init response packet
   responsePacket.length = 10;
@@ -244,27 +244,7 @@ int radians2BAMS(float angle)
 
 void loop() //Main Loop
 {
-  if (Serial.available() && Serial.read() == 'a') // Check for requests
-  {
-    //Convert Float {yaw, pitch, roll} to BAMS (ints)
-    int yawBAMS = radians2BAMS(yaw), 
-    	rollBAMS = radians2BAMS(roll),
-	pitchBAMS = radians2BAMS(pitch);
-    unsigned long time = millis();
-
-    // Send response packet (10 bytes - big endian)
-    // int16 rollBAMS
-    // int16 pitchBAMS
-    // int16 yawBAMS
-    // int32 timestamp
-
-    // avr-gcc stores ints little-endian so swap the byte order
-    reverse_memcpy(responsePacket.data, &rollBAMS, 2);
-    reverse_memcpy(responsePacket.data+2, &pitchBAMS, 2);
-    reverse_memcpy(responsePacket.data+4, &yawBAMS, 2);
-    reverse_memcpy(responsePacket.data+6, &time, 4);
-    responsePacket.send();
-  }
+  static unsigned char outputCounter = 0;
   
   if((DIYmillis()-timer)>=20)  // Main loop runs at 50Hz
   {
@@ -339,6 +319,32 @@ void loop() //Main Loop
         // Make sure you don't take too long here!
      
         //printdata();
+        
+        // Output at 25Hz, half the update frequency
+        if (outputCounter == 0) {
+          outputCounter = 1; // reset counter
+          
+          //Convert Float {yaw, pitch, roll} to BAMS (ints)
+          int yawBAMS = radians2BAMS(yaw), 
+              rollBAMS = radians2BAMS(roll),
+	      pitchBAMS = radians2BAMS(pitch);
+
+          // Send response packet (10 bytes, big endian)
+          // int16 rollBAMS
+          // int16 pitchBAMS
+          // int16 yawBAMS
+          // int32 timestamp
+
+          // avr-gcc stores ints little-endian so swap the byte order
+          reverse_memcpy(responsePacket.data, &rollBAMS, 2);
+          reverse_memcpy(responsePacket.data+2, &pitchBAMS, 2);
+          reverse_memcpy(responsePacket.data+4, &yawBAMS, 2);
+          reverse_memcpy(responsePacket.data+6, &timer, 4);
+          responsePacket.send();
+        } else {
+          outputCounter -= 1;
+        }
+        
         StatusLEDToggle();
  
   }
