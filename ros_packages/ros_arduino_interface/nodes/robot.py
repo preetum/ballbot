@@ -92,32 +92,13 @@ class BaseController:
     self.cmd_packet_format = struct.Struct('>BBH')
     self.cmd_packet = [BaseController.CMD_SET_RAW, 0, 0]
    
-    # Initialize odometry variables
-    self.counts = 0
-    self.counts_delta = 0
-    self.angle = 0
-    self.angular_velocity = 0
-
     # Wait for Arduino to initialize, then set initial values
-    time.sleep(2)
+    time.sleep(1)
     self.reset()
-
     
-    # Start serial read thread
-    thread.start_new_thread(self.serial_read_thread, ())
-
-  def serial_read_callback(self, packet):
-    '''
-    Called whenever a full packet is received back from the arduino
-    '''
-    if len(packet.data) > 0 and \
-          ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
-      cmd, self.counts, self.counts_delta, self.angle, self.angular_velocity = \
-          struct.unpack('>Bllhh', packet.data)
-      print '%d\t%d\t%d\t%d' % (self.counts, self.counts_delta, self.angle, self.angular_velocity)
-
-  def serial_read_thread(self):
-    recv_packet = Packet(self.serial_read_callback)
+  def serial_read_thread(self, callback):
+    print 'Arduino: Listening'
+    recv_packet = Packet(callback)
     while True:
       # Read as many characters as possible
       data_string = self.serial.read(100)
@@ -219,6 +200,16 @@ class BaseController:
 	velocity = BaseController.MAX_VELOCITY
     self.cmd_packet[2] = int(velocity)
 
+def serial_read_callback(self, packet):
+  '''
+  Called whenever a full packet is received back from the arduino
+  '''
+  if len(packet.data) > 0 and \
+        ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
+    cmd, counts, counts_delta, timestamp = struct.unpack('>BllL', packet.data)
+    print '%d\t%d\t%d' % (counts, counts_delta, timestamp)
+
+
 def main():
   '''
   Test stub: reads values from the command line
@@ -238,6 +229,9 @@ def main():
   velocity_values = [0, 0]
   vpid_values = [0, 0, 0]
   spid_values = [0, 0, 0]
+
+  # Start serial read thread
+  thread.start_new_thread(robot.serial_read_thread, (serial_read_callback,))
 
   try:
     while (True):
@@ -267,8 +261,6 @@ def main():
         elif re.match('pickup', line):
           line = line[6:]
           robot.set_pickup(int(line))
-
-      robot.sync_odometry(42)
 
   except:
     # In case of error or Ctrl-C, zero motor values
