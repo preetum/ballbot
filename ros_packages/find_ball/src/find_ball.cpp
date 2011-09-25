@@ -23,9 +23,6 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 
-#define RAD2DEG(x)  ((x) * 180.0 / PI)
-#define DEG2RAD(x)  ((x) * PI / 180.0)
-
 ros::Publisher ball_pub;
 
 using namespace cv;
@@ -39,7 +36,7 @@ int high_r = 100, high_g = 100, high_b = 17;
 const double pi = 3.141592654;
 Mat img;
 int ffillMode = 1;
-int loDiff = 20, upDiff = 40;
+int loDiff = 25, upDiff = 25;
 int connectivity = 4;
 int isColor = true;
 bool useMask = true;
@@ -220,7 +217,7 @@ void publishMessage(Point ballPosition) {
   double d = sqrt(x*x + y*y);
   // Publish ball position
   bb_msgs::BallPosition msg;
-  msg.d = d;
+  msg.d = d/100.0;
   msg.theta = phi;
   ball_pub.publish(msg);
 }
@@ -228,10 +225,10 @@ void publishMessage(Point ballPosition) {
 void processNewFrame(Mat &frame) {
   //cut off the part above horizon
   frame.adjustROI(-horizonPt.y,0,0,0);
-  imshow("original", frame);
+  //imshow("original", frame);
 
   Mat dst;
-  pyrMeanShiftFiltering(frame, dst, 5, 8, 1);
+  pyrMeanShiftFiltering(frame, dst, 6, 15, 3);
   Mat mask = floodFillPostprocess(dst);
   //imshow("flood", mask);
 
@@ -272,9 +269,8 @@ void processNewFrame(Mat &frame) {
   } else {
     ROS_INFO("No ball found!");
   }
-  imshow("ball detected", ballFound);
-  
-  waitKey(5);
+  //  imshow("ball detected", ballFound+frame);
+  //waitKey(3);
 }
 
 void received_frame(const sensor_msgs::ImageConstPtr &msgFrame) {
@@ -302,15 +298,18 @@ int main( int argc, char** argv ) {
   if (!nPrivate.hasParam("image_transport"))
     nPrivate.setParam("image_transport", "compressed");
   nPrivate.param<string>("image", imageTopic, "gscam/image_raw");
-  imageSub = it.subscribe(imageTopic, 1, received_frame);
+  imageSub = it.subscribe(imageTopic, 100, received_frame);
   ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1000);
   
   //find the horizon pt
   camera cam;
   Point3d camWorldPt = get_camera_world_coordinates(
-			   Point3d(2500, 0, -cam.position.z),
+			   Point3d(500, 0, -cam.position.z),
 			   cam.position, cam.theta, cam.pan,
-			   cam.tilt-0*pi/180.0);
+			   cam.tilt);
+  //^^^^^^^^^^^^^^^^^^^^^^^^^ 500 is the farthest depth we want to see (in cm).
+  //------------------------- change it as per convenience----------------//
+
   horizonPt = cam_world_position_to_imageXY(camWorldPt, cam);
   ros::spin();
   return 0;
