@@ -4,7 +4,6 @@
  *  Created on: Sep 11, 2011
  *      Author: ankush
  */
-
 #include "camera.h"
 
 cv::Point2d cam_world_position_to_imageXY(cv::Point3d cam_world_position, camera &bb_cam)
@@ -17,17 +16,17 @@ cv::Point2d cam_world_position_to_imageXY(cv::Point3d cam_world_position, camera
 	 * cam_world_position: Position of the point in camera-world frame
 	 * bb_cam            : Camera you are looking the point from
 	 */
-
-	cv::Point2d imageXY;
-
-	double x = cam_world_position.x,
-		   y = cam_world_position.y,
-		   z = cam_world_position.z;
-
-	imageXY.x =  ((x/z)*bb_cam.intrinsics.fx + bb_cam.intrinsics.cx);
-	imageXY.y =  ((y/z)*bb_cam.intrinsics.fy + bb_cam.intrinsics.cy);
-
-	return imageXY;
+  
+  cv::Point2d imageXY;
+  
+  double x = cam_world_position.x,
+    y = cam_world_position.y,
+    z = cam_world_position.z;
+  
+  imageXY.x =  ((x/z)*bb_cam.intrinsics.fx + bb_cam.intrinsics.cx);
+  imageXY.y =  ((y/z)*bb_cam.intrinsics.fy + bb_cam.intrinsics.cy);
+  
+  return imageXY;
 }
 
 
