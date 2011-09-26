@@ -55,7 +55,7 @@ def odometry_callback(packet, imu, pub):
     pub.publish(dist, dist_delta, heading, heading_delta)
 
 
-def initializer():
+def main():
     ballBot = BaseController()
     rospy.init_node('ros_arduino_interface', anonymous=True)
     odometryPublisher = rospy.Publisher('odometry', Odometry)
@@ -74,5 +74,8 @@ def initializer():
     # Spin, process callbacks
     rospy.spin()
 
+    # On quit, stop the robot and turn off odometry sending
+    ballBot.reset()
+
 if __name__ == '__main__':
-    initializer()
+    main()

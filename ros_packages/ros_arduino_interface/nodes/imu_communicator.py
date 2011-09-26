@@ -51,8 +51,8 @@ class IMU:
         rollBAMS, pitchBAMS, yawBAMS, timestamp = \
             struct.unpack('>hhhI', packet.data)
       self.headingBAMS = yawBAMS
-      #print float(yawBAMS)*180.0/32768.0,
-      #print timestamp
+      print float(yawBAMS)*180.0/32768.0,
+      print timestamp
 
       # Refresh GUI if running in standalone mode
       if self.canvas is not None:
@@ -90,18 +90,17 @@ class IMU:
     self.serial.write('a\n')
     self.serial.flush()
 
-def update_loop():
-  while True:
-    sys.stdin.readline()
-    imu.request_data()
 
-  
 def main():
   '''
   Test stub: Initializes IMU, lets it to print roll, pitch yaw
   '''
+  import sys
+
   imu = IMU()
-  imu.start_gui()
+
+  if len(sys.argv) > 1 and sys.argv[1] == '-g':
+    imu.start_gui()
 
         
 if __name__ == '__main__':
