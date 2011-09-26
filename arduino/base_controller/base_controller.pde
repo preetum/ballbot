@@ -33,6 +33,7 @@ SimpleMotorController driveMotor(5);
 Packet packet;
 
 bool watchdogFlag = false;
+bool sendOdometry = false;
 //unsigned long last_setvelocity = 0;
 
 void setSteering(int angle) {
@@ -110,10 +111,8 @@ void packetReceived (void) {
     break;
   }
         
-  case CMD_SYNC_ODOMETRY:
-    // No longer polling
-    //heading = packet.data[1] << 8 | packet.data[2];
-    //writeOdometry();
+  case CMD_SET_ODOMETRY:
+    sendOdometry = (packet.data[1] != false);
     break;
 
   } // switch
@@ -172,11 +171,13 @@ void loop()  {
     }
 
     // Write odometry every 40 ms
-    if (outputCount == 0) {
-      outputCount = 1;
-      writeOdometry();
-    } else {
-      outputCount -= 1;
+    if (sendOdometry) {
+      if (outputCount == 0) {
+        outputCount = 1;
+        writeOdometry();
+      } else {
+        outputCount -= 1;
+      }
     }
 
     // Check the timeout flag every 500 ms
@@ -185,9 +186,8 @@ void loop()  {
       // If flag hasn't been cleared in last 500 ms, stop the motors
       if (watchdogFlag) {
         feedback_setVelocity(0);
-        setSteering(0);
       }
-      // reset the flag
+      // Reset the flag
       watchdogFlag = true;
     } else {
       timeoutCount -= 1;

@@ -38,7 +38,13 @@
 #define CMD_SET_VELOCITY_PID       0x44
 #define CMD_SET_STEERING_PID       0x45
 
-// SYNC_ODOMETRY (3 bytes)
+// SET_ODOMETRY (2 bytes)
+// uint8     id = 0x46
+// uint8     send odometry on/off (bool)
+#define CMD_SET_ODOMETRY           0x46
+
+
+// SYNC_ODOMETRY (3 bytes) - *DEPRECATED*
 //  uint8    id = 0x61
 //  int16    heading (16-bit binary angle)
 // Response is in packet format (17 bytes):
