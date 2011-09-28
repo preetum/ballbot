@@ -269,8 +269,8 @@ void processNewFrame(Mat &frame) {
   } else {
     ROS_INFO("No ball found!");
   }
-  //  imshow("ball detected", ballFound+frame);
-  //waitKey(3);
+    imshow("ball detected", ballFound+frame);
+  waitKey(3);
 }
 
 void received_frame(const sensor_msgs::ImageConstPtr &msgFrame) {
@@ -298,7 +298,7 @@ int main( int argc, char** argv ) {
   if (!nPrivate.hasParam("image_transport"))
     nPrivate.setParam("image_transport", "compressed");
   nPrivate.param<string>("image", imageTopic, "gscam/image_raw");
-  imageSub = it.subscribe(imageTopic, 100, received_frame);
+  imageSub = it.subscribe(imageTopic, 1, received_frame);
   ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1000);
   
   //find the horizon pt
