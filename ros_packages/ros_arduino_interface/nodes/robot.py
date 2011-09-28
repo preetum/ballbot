@@ -68,6 +68,7 @@ class BaseController:
   CMD_SET_PICKUP = 0x43
   CMD_SET_VELOCITY_PID = 0x44
   CMD_SET_STEERING_PID = 0x45
+  CMD_SET_ODOMETRY = 0x46
   CMD_SYNC_ODOMETRY = 0x61
   
   SERVO_LEFT = 57
@@ -83,20 +84,14 @@ class BaseController:
       self.serial = serial.Serial(port, baudrate=115200, timeout=0.01)
     except serial.serialutil.SerialException:
       print "No Arduino connected."
+      raise
     
-    # Initialize Arduino command packet
-    # Command packet format:
-    # > = big endian
-    # B = unsigned byte
-    # H = unsigned short (2 bytes)
-    self.cmd_packet_format = struct.Struct('>BBH')
-    self.cmd_packet = [BaseController.CMD_SET_RAW, 0, 0]
-   
     # Wait for Arduino to initialize, then set initial values
     time.sleep(1)
     self.reset()
     
   def serial_read_thread(self, callback):
+    self.set_odometry(True)
     print 'Arduino: Listening'
     recv_packet = Packet(callback)
     while True:
@@ -107,9 +102,8 @@ class BaseController:
         recv_packet.read(data_string)
 
   def reset(self):
-    self.set_steering(0)
-    self.set_drive(0)
-    self.refresh()
+    self.set_velocity(0, 0)
+    self.set_odometry(False)
 
   def set_velocity(self, linear, angular):
     data_string = struct.pack('>Bhh', BaseController.CMD_SET_VELOCITY, linear, angular)
@@ -117,6 +111,14 @@ class BaseController:
 
   def set_pickup(self, state):
     data_string = struct.pack('>Bb', BaseController.CMD_SET_PICKUP, state)
+    self.send_arduino_packet(data_string)
+
+  def set_odometry(self, state):
+    '''
+    Enable odometry sending from the Arduino.
+    '''
+    state = int(bool(state))
+    data_string = struct.pack('>BB', BaseController.CMD_SET_ODOMETRY, state)
     self.send_arduino_packet(data_string)
 
   def set_velocity_pid(self, kp, ki, kd):
@@ -135,11 +137,6 @@ class BaseController:
 
   def sync_odometry(self, heading):
     data_string = struct.pack('>Bh', BaseController.CMD_SYNC_ODOMETRY, heading)
-    self.send_arduino_packet(data_string)
-
-  def refresh(self):
-    # Send data commands
-    data_string = self.cmd_packet_format.pack(*self.cmd_packet)
     self.send_arduino_packet(data_string)
     
   def send_arduino_packet(self, data_string):
@@ -173,32 +170,6 @@ class BaseController:
     self.serial.write(escaped_string)
     self.serial.flush()
 
-  def set_steering(self, angle):
-    '''
-    Set the steering servo to the given angle in degrees.
-    0 is center, a positive angle is right, and a negative angle is left.
-    
-    NOTE: actual angle => servo values have not been calibrated!
-    '''
-    value = angle + BaseController.SERVO_CENTER
-    
-    # check that output value is in valid range
-    if value > BaseController.SERVO_RIGHT:
-      value = BaseController.SERVO_RIGHT
-    elif value < BaseController.SERVO_LEFT:
-      value = BaseController.SERVO_LEFT
-    
-    self.cmd_packet[1] = int(value)
-
-  def set_drive(self, velocity):
-    '''
-    Set the velocity setpoint to the given value in cm/s.
-    '''
-    if velocity < 0:
-	velocity = 0
-    elif velocity > BaseController.MAX_VELOCITY:
-	velocity = BaseController.MAX_VELOCITY
-    self.cmd_packet[2] = int(velocity)
 
 def serial_read_callback(self, packet):
   '''
@@ -264,7 +235,7 @@ def main():
 
   except:
     # In case of error or Ctrl-C, zero motor values
-    robot.reset()
+    #robot.reset()
     raise
     
 if __name__ == '__main__':
