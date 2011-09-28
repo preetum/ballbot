@@ -264,19 +264,17 @@ void processNewFrame(Mat &frame) {
     Point updatedBallPosition = Point(maxColorConformityContour.pixelPosition.x,
 				      maxColorConformityContour.pixelPosition.y + (actualFrameSize.height - ballFound.size().height));
     publishMessage(updatedBallPosition);
-    ellipse( ballFound, maxColorConformityContour.pixelPosition, Size(5,5),
-	     0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);
-  } else {
-    ROS_INFO("No ball found!");
+    /*ellipse( ballFound, maxColorConformityContour.pixelPosition, Size(5,5),
+      0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);*/
   }
-    imshow("ball detected", ballFound+frame);
-  waitKey(3);
+  //imshow("ball detected", ballFound+frame);
+  //waitKey(3);
 }
 
 void received_frame(const sensor_msgs::ImageConstPtr &msgFrame) {
   /** The callback function called whenever
       a frame is published by gscam.*/
-  ROS_INFO("frame received!");
+  //ROS_INFO("frame received!");
   cv_bridge::CvImagePtr cvPtr;
   try {
     cvPtr = cv_bridge::toCvCopy(msgFrame, sensor_msgs::image_encodings::BGR8);
