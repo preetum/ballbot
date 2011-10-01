@@ -7,7 +7,7 @@ import random, time, thread, sys
 import numpy as np
 from Tkinter import *
 
-class Simulator:
+class Simulator(object):
 
   lines = [
     # Field boundaries
@@ -76,7 +76,7 @@ class Simulator:
     Helper for draw_field
     '''
     (x1, y1), (x2, y2) = self.transform(line)
-    self.canvas.create_line(x1, y1, x2, y2, *args, **kwargs)
+    return self.canvas.create_line(x1, y1, x2, y2, *args, **kwargs)
 
   def draw_field(self):
     '''

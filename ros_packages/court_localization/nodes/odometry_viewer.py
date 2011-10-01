@@ -7,6 +7,40 @@ from particle_viewer import Simulator
 import random, time, thread, sys, math
 import numpy as np
 
+class SingleSimulator(Simulator):
+
+  def refresh(self, belief, trails=False):
+    beliefs = np.array([belief])
+    points = self.transform(beliefs[:,0:2])
+    angles = beliefs[:,2] - np.pi/2
+    A = np.cos(angles)
+    B = np.sin(angles)
+    R = np.array([[A, B], [-B, A]])
+
+    lowerLeft = points + np.dot([-4,4], R).T
+    center = points + np.dot([0,-4], R).T
+    lowerRight = points + np.dot([4,4], R).T
+
+    l = lowerLeft[0]
+    c = center[0]
+    r = lowerRight[0]
+
+    if trails:
+      # Draw new lines
+      self.canvas.create_line(l[0], l[1], c[0], c[1], fill='blue')
+      self.canvas.create_line(r[0], r[1], c[0], c[1], fill='blue')
+    else:
+      # Move old lines
+      try:
+        self.canvas.coords(self.line1, l[0], l[1], c[0], c[1])
+        self.canvas.coords(self.line2, r[0], r[1], c[0], c[1])
+      except AttributeError:
+        self.line1 = self.canvas.create_line(l[0], l[1], c[0], c[1],
+                                             fill='blue')
+        self.line2 = self.canvas.create_line(r[0], r[1], c[0], c[1],
+                                             fill='blue')
+
+
 x = 0
 y = 0
 theta = 0
@@ -27,8 +61,8 @@ def msg_callback(msg, sim):
 
   lastHeading = msg.heading   # store last reading to calculate dtheta
 
-  beliefs = np.array([[x, y, theta]])
-  sim.refresh(beliefs, trails=True)
+  belief = np.array([x, y, theta])
+  sim.refresh(belief, trails=False)
 
 def spin_thread(sim):
   # While ROS is alive, wait for messages
@@ -41,7 +75,7 @@ def main():
   topic_name = rospy.get_param('~topic', 'odometry')
   init_pose = rospy.get_param('~initial', '500,1150,-1.3')
 
-  sim = Simulator('Odometry')
+  sim = SingleSimulator('Odometry')
 
   # Initial position
   global x, y, theta
