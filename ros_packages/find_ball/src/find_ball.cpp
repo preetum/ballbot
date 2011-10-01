@@ -266,6 +266,8 @@ void processNewFrame(Mat &frame) {
     publishMessage(updatedBallPosition);
     /*ellipse( ballFound, maxColorConformityContour.pixelPosition, Size(5,5),
       0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);*/
+  } else {
+    ROS_INFO("no ball found");
   }
   //imshow("ball detected", ballFound+frame);
   //waitKey(3);
