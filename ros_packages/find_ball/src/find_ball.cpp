@@ -36,13 +36,14 @@ int high_r = 100, high_g = 100, high_b = 17;
 const double pi = 3.141592654;
 Mat img;
 int ffillMode = 1;
-int loDiff = 25, upDiff = 25;
+int loDiff = 30, upDiff = 30;
 int connectivity = 4;
 int isColor = true;
 bool useMask = true;
 int newMaskVal = 255;
 Point2d horizonPt;
 Size actualFrameSize;
+RNG rng;
 
 struct bgr
 {
@@ -191,6 +192,7 @@ Mat floodFillPostprocess( Mat& img) {
 	    if(mask.at<uchar>(y+1, x+1) == 0 && mask.at<uchar>(y-1, x-1) == 0) {
 	      maskLocal = Mat::zeros(mask.size(), mask.type());
 	      int area;
+	      //Scalar newVal( rng.uniform(0,255), rng.uniform(0, 255), rng.uniform(0, 255));
 	      area = floodFill(img, maskLocal, Point(x,y), newVal, 0, lo, up, flags);
 	      bitwise_or(mask, maskLocal, mask);
 	      
@@ -228,10 +230,11 @@ void processNewFrame(Mat &frame) {
   //imshow("original", frame);
 
   Mat dst;
-  pyrMeanShiftFiltering(frame, dst, 6, 15, 3);
+  pyrMeanShiftFiltering(frame, dst, 5, 50, 3);
+  imshow("posterized", dst);
   Mat mask = floodFillPostprocess(dst);
-  //imshow("flood", mask);
-
+  imshow("flood", dst);
+  imshow("flood fill filtered", mask);
   //Mat contoursMaskTemp, contoursMask ;
   ballContour prevBall(-1);
   vector <ballContour> candidates  = doContours(mask);
@@ -243,18 +246,19 @@ void processNewFrame(Mat &frame) {
     try {
       // get the blob image pixels
       blobPix = getContourPixels(candidates[i].contour, frame);
-      	//Do color filtering
-	Mat contourHSV(blobPix.size(), blobPix.type());
-	cvtColor(blobPix, contourHSV, CV_BGR2HSV);
-	Mat colorRangeMask(blobPix.size(), CV_8UC1);
-	inRange(contourHSV, Scalar((low_b/100.0)*255, (low_g/100.0)*255, (low_r/100.0)*255, 0),
+
+      //Do color filtering
+      Mat contourHSV(blobPix.size(), blobPix.type());
+      cvtColor(blobPix, contourHSV, CV_BGR2HSV);
+      Mat colorRangeMask(blobPix.size(), CV_8UC1);
+      inRange(contourHSV, Scalar((low_b/100.0)*255, (low_g/100.0)*255, (low_r/100.0)*255, 0),
 		Scalar((high_b/100.0)*255, (high_g/100.0)*255, (high_r/100.0)*255, 0), colorRangeMask);
 	
-	/**Find the candidate with max number of pixels in range.*/
-	int pixCount = countNonZero(colorRangeMask);
-	candidates[i].sizeMeasure = pixCount;
-	if (pixCount > 0 && pixCount > maxColorConformityContour.sizeMeasure) {
-	  maxColorConformityContour = candidates[i];
+      /**Find the candidate with max number of pixels in range.*/
+      int pixCount = countNonZero(colorRangeMask);
+      candidates[i].sizeMeasure = pixCount;
+      if (pixCount > 0 && pixCount > maxColorConformityContour.sizeMeasure) {
+	maxColorConformityContour = candidates[i];
       }
     } catch(...) {
       continue;
@@ -264,13 +268,13 @@ void processNewFrame(Mat &frame) {
     Point updatedBallPosition = Point(maxColorConformityContour.pixelPosition.x,
 				      maxColorConformityContour.pixelPosition.y + (actualFrameSize.height - ballFound.size().height));
     publishMessage(updatedBallPosition);
-    /*ellipse( ballFound, maxColorConformityContour.pixelPosition, Size(5,5),
-      0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);*/
+    ellipse( ballFound, maxColorConformityContour.pixelPosition, Size(5,5),
+      0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);
   } else {
     ROS_INFO("no ball found");
   }
-  //imshow("ball detected", ballFound+frame);
-  //waitKey(3);
+  imshow("ball detected", ballFound+frame);
+  waitKey(3);
 }
 
 void received_frame(const sensor_msgs::ImageConstPtr &msgFrame) {
@@ -297,14 +301,15 @@ int main( int argc, char** argv ) {
   string imageTopic;
   if (!nPrivate.hasParam("image_transport"))
     nPrivate.setParam("image_transport", "compressed");
+
   nPrivate.param<string>("image", imageTopic, "gscam/image_raw");
-  imageSub = it.subscribe(imageTopic, 1, received_frame);
+  imageSub = it.subscribe(imageTopic, 5, received_frame);
   ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1000);
   
   //find the horizon pt
   camera cam;
   Point3d camWorldPt = get_camera_world_coordinates(
-			   Point3d(500, 0, -cam.position.z),
+			   Point3d(2500, 0, -cam.position.z),
 			   cam.position, cam.theta, cam.pan,
 			   cam.tilt);
   //^^^^^^^^^^^^^^^^^^^^^^^^^ 500 is the farthest depth we want to see (in cm).
