@@ -36,7 +36,7 @@ int high_r = 100, high_g = 100, high_b = 17;
 const double pi = 3.141592654;
 Mat img;
 int ffillMode = 1;
-int loDiff = 30, upDiff = 30;
+int loDiff = 35, upDiff = 35;
 int connectivity = 4;
 int isColor = true;
 bool useMask = true;
@@ -225,22 +225,47 @@ void publishMessage(Point ballPosition) {
 }
 
 void processNewFrame(Mat &frame) {
-  //cut off the part above horizon
-  frame.adjustROI(-horizonPt.y,0,0,0);
-  //imshow("original", frame);
 
-  Mat dst;
-  pyrMeanShiftFiltering(frame, dst, 5, 50, 3);
-  imshow("posterized", dst);
+  imshow("original", frame);
+  
+  /** Split the cut-off frame into 2. Use different
+      thresholds for posterization and then pu them
+      together.*/
+
+  Mat frameCopy, frameCopy2;
+  frame.copyTo(frameCopy);
+  frame.copyTo(frameCopy2);
+
+  Mat top;
+  frame.adjustROI(-horizonPt.y,((int) ((horizonPt.y - frame.rows)/2.0)), 0, 0);
+  pyrMeanShiftFiltering(frame, top, 5, 30, 3);  
+  //imshow("Top", top);
+
+  Mat bottom;
+  frameCopy.adjustROI(((int) (-(horizonPt.y + frameCopy.rows)/2.0)), 0, 0, 0);
+  pyrMeanShiftFiltering(frameCopy, bottom, 5, 40, 3);
+  //imshow("Bottom", bottom);
+
+  Size combinedSize(top.cols, top.rows + bottom.rows);
+  Mat dst(combinedSize, top.type());
+  Point pt(0, 0); 
+  Mat roi = Mat(dst, Rect(pt, top.size())); 
+  top.copyTo(roi);
+
+  Point pt2(0, top.rows);
+  Mat roi2 = Mat(dst, Rect(pt2, bottom.size()));
+  bottom.copyTo(roi2);
+  imshow("combined", dst);
+ 
   Mat mask = floodFillPostprocess(dst);
-  imshow("flood", dst);
-  imshow("flood fill filtered", mask);
-  //Mat contoursMaskTemp, contoursMask ;
+  //imshow("flood", dst);
+  //imshow("flood fill filtered", mask);
+  
   ballContour prevBall(-1);
   vector <ballContour> candidates  = doContours(mask);
   
   ballContour maxColorConformityContour((double) -1);
-  Mat ballFound = Mat::zeros(frame.size(), frame.type());
+  Mat ballFound = Mat::zeros(dst.size(), dst.type());
   for (unsigned int i  = 0; i < candidates.size(); i++) {
     Mat blobPix;
     try {
@@ -254,7 +279,7 @@ void processNewFrame(Mat &frame) {
       inRange(contourHSV, Scalar((low_b/100.0)*255, (low_g/100.0)*255, (low_r/100.0)*255, 0),
 		Scalar((high_b/100.0)*255, (high_g/100.0)*255, (high_r/100.0)*255, 0), colorRangeMask);
 	
-      /**Find the candidate with max number of pixels in range.*/
+      //Find the candidate with max number of pixels in range.
       int pixCount = countNonZero(colorRangeMask);
       candidates[i].sizeMeasure = pixCount;
       if (pixCount > 0 && pixCount > maxColorConformityContour.sizeMeasure) {
@@ -273,7 +298,7 @@ void processNewFrame(Mat &frame) {
   } else {
     ROS_INFO("no ball found");
   }
-  imshow("ball detected", ballFound+frame);
+  imshow("ball detected", ballFound+dst);
   waitKey(3);
 }
 
