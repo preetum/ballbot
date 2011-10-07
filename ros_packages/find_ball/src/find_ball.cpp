@@ -169,7 +169,7 @@ bool withinBounds(int n, int m, int nMax, int mMax) {
 Mat floodFillPostprocess( Mat& img) {
   /** Finds connected components in the input image img.
    The similarity is based on color and intensity of neighbouring pixels.
-   Filters the connected components based on size.
+   Filters the connected components based on size and color (here color bounds are loose).
   @param:
       1. img : The input image
   @return:
@@ -196,7 +196,7 @@ Mat floodFillPostprocess( Mat& img) {
 	      area = floodFill(img, maskLocal, Point(x,y), newVal, 0, lo, up, flags);
 	      bitwise_or(mask, maskLocal, mask);
 	      
-	      if(area>0 && area < 600) {
+	      if(area>0 && area < 10000) { //<<<<<<<<<<<<<<<<< was 600
 		bitwise_or(maskOut, maskLocal, maskOut);
 	      }
 	    } else {continue;}
@@ -227,9 +227,11 @@ void publishMessage(Point ballPosition) {
 void processNewFrame(Mat &frame) {
 
   imshow("original", frame);
-  
+  Mat frameROI = frame(Range(horizonPt.y, frame.rows), Range::all());
+
+
   /** Split the cut-off frame into 2. Use different
-      thresholds for posterization and then pu them
+      thresholds for posterization and then put them
       together.*/
 
   Mat frameCopy, frameCopy2;
@@ -238,12 +240,12 @@ void processNewFrame(Mat &frame) {
 
   Mat top;
   frame.adjustROI(-horizonPt.y,((int) ((horizonPt.y - frame.rows)/2.0)), 0, 0);
-  pyrMeanShiftFiltering(frame, top, 5, 30, 3);  
+  pyrMeanShiftFiltering(frame, top, 6, 30, 3);  
   //imshow("Top", top);
 
   Mat bottom;
   frameCopy.adjustROI(((int) (-(horizonPt.y + frameCopy.rows)/2.0)), 0, 0, 0);
-  pyrMeanShiftFiltering(frameCopy, bottom, 5, 40, 3);
+  pyrMeanShiftFiltering(frameCopy, bottom, 5, 100, 4);
   //imshow("Bottom", bottom);
 
   Size combinedSize(top.cols, top.rows + bottom.rows);
@@ -256,10 +258,10 @@ void processNewFrame(Mat &frame) {
   Mat roi2 = Mat(dst, Rect(pt2, bottom.size()));
   bottom.copyTo(roi2);
   imshow("combined", dst);
- 
+
   Mat mask = floodFillPostprocess(dst);
   //imshow("flood", dst);
-  //imshow("flood fill filtered", mask);
+  imshow("flood fill filtered", mask);
   
   ballContour prevBall(-1);
   vector <ballContour> candidates  = doContours(mask);
@@ -270,15 +272,16 @@ void processNewFrame(Mat &frame) {
     Mat blobPix;
     try {
       // get the blob image pixels
-      blobPix = getContourPixels(candidates[i].contour, frame);
+      blobPix = getContourPixels(candidates[i].contour, frameROI);
 
       //Do color filtering
       Mat contourHSV(blobPix.size(), blobPix.type());
       cvtColor(blobPix, contourHSV, CV_BGR2HSV);
+
       Mat colorRangeMask(blobPix.size(), CV_8UC1);
       inRange(contourHSV, Scalar((low_b/100.0)*255, (low_g/100.0)*255, (low_r/100.0)*255, 0),
 		Scalar((high_b/100.0)*255, (high_g/100.0)*255, (high_r/100.0)*255, 0), colorRangeMask);
-	
+
       //Find the candidate with max number of pixels in range.
       int pixCount = countNonZero(colorRangeMask);
       candidates[i].sizeMeasure = pixCount;
@@ -334,10 +337,10 @@ int main( int argc, char** argv ) {
   //find the horizon pt
   camera cam;
   Point3d camWorldPt = get_camera_world_coordinates(
-			   Point3d(2500, 0, -cam.position.z),
+			   Point3d(3500, 0, -cam.position.z),
 			   cam.position, cam.theta, cam.pan,
 			   cam.tilt);
-  //^^^^^^^^^^^^^^^^^^^^^^^^^ 500 is the farthest depth we want to see (in cm).
+  //^^^^^^^^^^^^^^^^^^^^^^^^^ 3500 is the farthest depth we want to see (in cm).
   //------------------------- change it as per convenience----------------//
 
   horizonPt = cam_world_position_to_imageXY(camWorldPt, cam);
