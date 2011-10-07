@@ -44,6 +44,8 @@ int newMaskVal = 255;
 Point2d horizonPt;
 Size actualFrameSize;
 RNG rng;
+camera cam;
+
 
 struct bgr
 {
@@ -208,18 +210,18 @@ Mat floodFillPostprocess( Mat& img) {
 
 void publishMessage(Point ballPosition) {
   double radians_per_px = 0.0016;
-  camera cam;
-  double theta = (double)(ballPosition.y - actualFrameSize.height/2)
-    * radians_per_px - cam.pan,
-    y = cam.position.z / tan(theta);
-	// Angle/X offset to target
-  double phi = (double)(ballPosition.x - actualFrameSize.width/2)
-    * radians_per_px + cam.pan,
-    x = y * tan(phi);
+  // Distance to target
+  double theta = (ballPosition.y - cam.intrinsics.cy)
+    * radians_per_px - cam.tilt;
+  double y = ((double)cam.position.z) / tan(theta);
+  // Angle/X offset to target
+  double phi = (ballPosition.x - cam.intrinsics.cx)
+    * radians_per_px + cam.pan;
+  double x = y * tan(phi);
   double d = sqrt(x*x + y*y);
-  // Publish ball position
+
   bb_msgs::BallPosition msg;
-  msg.d = d/100.0;
+  msg.d = (d/100.0);
   msg.theta = phi;
   ball_pub.publish(msg);
 }
@@ -294,7 +296,8 @@ void processNewFrame(Mat &frame) {
   }
   if (maxColorConformityContour.sizeMeasure != -1) {
     Point updatedBallPosition = Point(maxColorConformityContour.pixelPosition.x,
-				      maxColorConformityContour.pixelPosition.y + (actualFrameSize.height - ballFound.size().height));
+				      maxColorConformityContour.pixelPosition.y
+				      + (actualFrameSize.height - ballFound.size().height));
     publishMessage(updatedBallPosition);
     ellipse( ballFound, maxColorConformityContour.pixelPosition, Size(5,5),
       0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);
@@ -335,7 +338,6 @@ int main( int argc, char** argv ) {
   ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1000);
   
   //find the horizon pt
-  camera cam;
   Point3d camWorldPt = get_camera_world_coordinates(
 			   Point3d(3500, 0, -cam.position.z),
 			   cam.position, cam.theta, cam.pan,
