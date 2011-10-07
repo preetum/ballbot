@@ -226,10 +226,10 @@ void publishMessage(Point ballPosition) {
 
 void processNewFrame(Mat &frame) {
 
-  imshow("original", frame);
+  //imshow("original", frame);
   Mat frameROI = frame(Range(horizonPt.y, frame.rows), Range::all());
 
-
+  //imshow("original", frame);
   /** Split the cut-off frame into 2. Use different
       thresholds for posterization and then put them
       together.*/
