@@ -36,13 +36,16 @@ int high_r = 100, high_g = 100, high_b = 17;
 const double pi = 3.141592654;
 Mat img;
 int ffillMode = 1;
-int loDiff = 25, upDiff = 25;
+int loDiff = 35, upDiff = 35;
 int connectivity = 4;
 int isColor = true;
 bool useMask = true;
 int newMaskVal = 255;
 Point2d horizonPt;
 Size actualFrameSize;
+RNG rng;
+camera cam;
+
 
 struct bgr
 {
@@ -168,7 +171,7 @@ bool withinBounds(int n, int m, int nMax, int mMax) {
 Mat floodFillPostprocess( Mat& img) {
   /** Finds connected components in the input image img.
    The similarity is based on color and intensity of neighbouring pixels.
-   Filters the connected components based on size.
+   Filters the connected components based on size and color (here color bounds are loose).
   @param:
       1. img : The input image
   @return:
@@ -191,10 +194,11 @@ Mat floodFillPostprocess( Mat& img) {
 	    if(mask.at<uchar>(y+1, x+1) == 0 && mask.at<uchar>(y-1, x-1) == 0) {
 	      maskLocal = Mat::zeros(mask.size(), mask.type());
 	      int area;
+	      //Scalar newVal( rng.uniform(0,255), rng.uniform(0, 255), rng.uniform(0, 255));
 	      area = floodFill(img, maskLocal, Point(x,y), newVal, 0, lo, up, flags);
 	      bitwise_or(mask, maskLocal, mask);
 	      
-	      if(area>0 && area < 600) {
+	      if(area>0 && area < 10000) { //<<<<<<<<<<<<<<<<< was 600
 		bitwise_or(maskOut, maskLocal, maskOut);
 	      }
 	    } else {continue;}
@@ -206,55 +210,85 @@ Mat floodFillPostprocess( Mat& img) {
 
 void publishMessage(Point ballPosition) {
   double radians_per_px = 0.0016;
-  camera cam;
-  double theta = (double)(ballPosition.y - actualFrameSize.height/2)
-    * radians_per_px - cam.pan,
-    y = cam.position.z / tan(theta);
-	// Angle/X offset to target
-  double phi = (double)(ballPosition.x - actualFrameSize.width/2)
-    * radians_per_px + cam.pan,
-    x = y * tan(phi);
+  // Distance to target
+  double theta = (ballPosition.y - cam.intrinsics.cy)
+    * radians_per_px - cam.tilt;
+  double y = ((double)cam.position.z) / tan(theta);
+  // Angle/X offset to target
+  double phi = (ballPosition.x - cam.intrinsics.cx)
+    * radians_per_px + cam.pan;
+  double x = y * tan(phi);
   double d = sqrt(x*x + y*y);
-  // Publish ball position
+
   bb_msgs::BallPosition msg;
-  msg.d = d/100.0;
+  msg.d = (d/100.0);
   msg.theta = phi;
   ball_pub.publish(msg);
 }
 
 void processNewFrame(Mat &frame) {
-  //cut off the part above horizon
-  frame.adjustROI(-horizonPt.y,0,0,0);
+
   //imshow("original", frame);
+  Mat frameROI = frame(Range(horizonPt.y, frame.rows), Range::all());
 
-  Mat dst;
-  pyrMeanShiftFiltering(frame, dst, 6, 15, 3);
+  //imshow("original", frame);
+  /** Split the cut-off frame into 2. Use different
+      thresholds for posterization and then put them
+      together.*/
+
+  Mat frameCopy, frameCopy2;
+  frame.copyTo(frameCopy);
+  frame.copyTo(frameCopy2);
+
+  Mat top;
+  frame.adjustROI(-horizonPt.y,((int) ((horizonPt.y - frame.rows)/2.0)), 0, 0);
+  pyrMeanShiftFiltering(frame, top, 6, 30, 3);  
+  //imshow("Top", top);
+
+  Mat bottom;
+  frameCopy.adjustROI(((int) (-(horizonPt.y + frameCopy.rows)/2.0)), 0, 0, 0);
+  pyrMeanShiftFiltering(frameCopy, bottom, 5, 100, 4);
+  //imshow("Bottom", bottom);
+
+  Size combinedSize(top.cols, top.rows + bottom.rows);
+  Mat dst(combinedSize, top.type());
+  Point pt(0, 0); 
+  Mat roi = Mat(dst, Rect(pt, top.size())); 
+  top.copyTo(roi);
+
+  Point pt2(0, top.rows);
+  Mat roi2 = Mat(dst, Rect(pt2, bottom.size()));
+  bottom.copyTo(roi2);
+  imshow("combined", dst);
+
   Mat mask = floodFillPostprocess(dst);
-  //imshow("flood", mask);
-
-  //Mat contoursMaskTemp, contoursMask ;
+  //imshow("flood", dst);
+  imshow("flood fill filtered", mask);
+  
   ballContour prevBall(-1);
   vector <ballContour> candidates  = doContours(mask);
   
   ballContour maxColorConformityContour((double) -1);
-  Mat ballFound = Mat::zeros(frame.size(), frame.type());
+  Mat ballFound = Mat::zeros(dst.size(), dst.type());
   for (unsigned int i  = 0; i < candidates.size(); i++) {
     Mat blobPix;
     try {
       // get the blob image pixels
-      blobPix = getContourPixels(candidates[i].contour, frame);
-      	//Do color filtering
-	Mat contourHSV(blobPix.size(), blobPix.type());
-	cvtColor(blobPix, contourHSV, CV_BGR2HSV);
-	Mat colorRangeMask(blobPix.size(), CV_8UC1);
-	inRange(contourHSV, Scalar((low_b/100.0)*255, (low_g/100.0)*255, (low_r/100.0)*255, 0),
+      blobPix = getContourPixels(candidates[i].contour, frameROI);
+
+      //Do color filtering
+      Mat contourHSV(blobPix.size(), blobPix.type());
+      cvtColor(blobPix, contourHSV, CV_BGR2HSV);
+
+      Mat colorRangeMask(blobPix.size(), CV_8UC1);
+      inRange(contourHSV, Scalar((low_b/100.0)*255, (low_g/100.0)*255, (low_r/100.0)*255, 0),
 		Scalar((high_b/100.0)*255, (high_g/100.0)*255, (high_r/100.0)*255, 0), colorRangeMask);
-	
-	/**Find the candidate with max number of pixels in range.*/
-	int pixCount = countNonZero(colorRangeMask);
-	candidates[i].sizeMeasure = pixCount;
-	if (pixCount > 0 && pixCount > maxColorConformityContour.sizeMeasure) {
-	  maxColorConformityContour = candidates[i];
+
+      //Find the candidate with max number of pixels in range.
+      int pixCount = countNonZero(colorRangeMask);
+      candidates[i].sizeMeasure = pixCount;
+      if (pixCount > 0 && pixCount > maxColorConformityContour.sizeMeasure) {
+	maxColorConformityContour = candidates[i];
       }
     } catch(...) {
       continue;
@@ -262,21 +296,22 @@ void processNewFrame(Mat &frame) {
   }
   if (maxColorConformityContour.sizeMeasure != -1) {
     Point updatedBallPosition = Point(maxColorConformityContour.pixelPosition.x,
-				      maxColorConformityContour.pixelPosition.y + (actualFrameSize.height - ballFound.size().height));
+				      maxColorConformityContour.pixelPosition.y
+				      + (actualFrameSize.height - ballFound.size().height));
     publishMessage(updatedBallPosition);
     ellipse( ballFound, maxColorConformityContour.pixelPosition, Size(5,5),
-	     0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);
+      0, 0, 360, Scalar(0,0,255), CV_FILLED, 8, 0);
   } else {
-    ROS_INFO("No ball found!");
+    ROS_INFO("no ball found");
   }
-  //  imshow("ball detected", ballFound+frame);
-  //waitKey(3);
+  imshow("ball detected", ballFound+dst);
+  waitKey(3);
 }
 
 void received_frame(const sensor_msgs::ImageConstPtr &msgFrame) {
   /** The callback function called whenever
       a frame is published by gscam.*/
-  ROS_INFO("frame received!");
+  //ROS_INFO("frame received!");
   cv_bridge::CvImagePtr cvPtr;
   try {
     cvPtr = cv_bridge::toCvCopy(msgFrame, sensor_msgs::image_encodings::BGR8);
@@ -297,17 +332,17 @@ int main( int argc, char** argv ) {
   string imageTopic;
   if (!nPrivate.hasParam("image_transport"))
     nPrivate.setParam("image_transport", "compressed");
+
   nPrivate.param<string>("image", imageTopic, "gscam/image_raw");
-  imageSub = it.subscribe(imageTopic, 100, received_frame);
+  imageSub = it.subscribe(imageTopic, 5, received_frame);
   ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1000);
   
   //find the horizon pt
-  camera cam;
   Point3d camWorldPt = get_camera_world_coordinates(
-			   Point3d(500, 0, -cam.position.z),
+			   Point3d(3500, 0, -cam.position.z),
 			   cam.position, cam.theta, cam.pan,
 			   cam.tilt);
-  //^^^^^^^^^^^^^^^^^^^^^^^^^ 500 is the farthest depth we want to see (in cm).
+  //^^^^^^^^^^^^^^^^^^^^^^^^^ 3500 is the farthest depth we want to see (in cm).
   //------------------------- change it as per convenience----------------//
 
   horizonPt = cam_world_position_to_imageXY(camWorldPt, cam);
