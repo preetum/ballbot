@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import roslib; roslib.load_manifest('court_localization')
 import rospy
-from bb_msgs.msg import Odometry
+from bb_msgs.msg import OdometryStamped
 from particle_viewer import Simulator
 
 import random, time, thread, sys, math
@@ -49,6 +49,8 @@ lastHeading = None
 def msg_callback(msg, sim):
   global x, y, theta, lastHeading
 
+  msg = msg.odometry # don't need timestamp header
+
   if lastHeading is None:
       lastHeading = msg.heading
 
@@ -86,7 +88,7 @@ def main():
 
   # Initialize ROS listener
   rospy.init_node('pose_viewer', anonymous=True)
-  rospy.Subscriber(topic_name, Odometry,
+  rospy.Subscriber(topic_name, OdometryStamped,
                    lambda msg: msg_callback(msg, sim))
 
   # Start rospy spin thread

@@ -3,7 +3,8 @@
 import roslib; roslib.load_manifest('ros_arduino_interface')
 import rospy
 from robot import BaseController
-from bb_msgs.msg import DriveCmd, Odometry,BallPickup
+from bb_msgs.msg import DriveCmd, Odometry, OdometryStamped, BallPickup
+from std_msgs.msg import Header
 import imu_communicator
 import struct, thread, math
 
@@ -52,13 +53,16 @@ def odometry_callback(packet, imu, pub):
     # Publish odometry message
     dist = counts_to_meters(counts)
     dist_delta = counts_to_meters(counts_delta)
-    pub.publish(dist, dist_delta, heading, heading_delta)
+    msg = OdometryStamped()
+    msg.header.stamp = rospy.Time.now()
+    msg.odometry = Odometry(dist, dist_delta, heading, heading_delta)
+    pub.publish(msg)
 
 
 def main():
     ballBot = BaseController()
     rospy.init_node('ros_arduino_interface', anonymous=True)
-    odometryPublisher = rospy.Publisher('odometry', Odometry)
+    odometryPublisher = rospy.Publisher('odometry', OdometryStamped)
     rospy.Subscriber("vel_cmd", DriveCmd,
                      lambda pkt: recieved_drive_packet(ballBot, pkt))
 
