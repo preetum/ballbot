@@ -334,7 +334,7 @@ int main( int argc, char** argv ) {
     nPrivate.setParam("image_transport", "compressed");
 
   nPrivate.param<string>("image", imageTopic, "gscam/image_raw");
-  imageSub = it.subscribe(imageTopic, 5, received_frame);
+  imageSub = it.subscribe(imageTopic, 1, received_frame);
   ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1000);
   
   //find the horizon pt
