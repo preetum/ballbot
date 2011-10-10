@@ -1,0 +1,5 @@
+<launch>
+  <node name="base_controller" pkg="ros_arduino_interface"
+	type="ros_arduino_interface.py" />
+  <node name="gscam" pkg="gscam" type="gscam" />
+</launch>
