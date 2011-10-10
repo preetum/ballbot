@@ -1,3 +1,15 @@
+// -*- indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*-
+/*
+ * opencv_cam.cpp
+ *
+ * AUTHOR: John Wang
+ * VERSION: 0.1 (10 Oct 2011)
+ *
+ * DESCRIPTION:
+ * Uses OpenCV's VideoCapture class to get fast video frame input, then
+ *  publishes to a ROS topic. On Linux it uses fast V4L2 memory-mapped
+ *  IO calls.
+ */
 #include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
@@ -15,49 +27,33 @@
 // globals
 sensor_msgs::CameraInfo camera_info;
 
-bool setCameraInfo(sensor_msgs::SetCameraInfo::Request &req, sensor_msgs::SetCameraInfo::Response &rsp) {
-
-  ROS_INFO("New camera info received");
-  camera_info = req.camera_info;
-
-  if (camera_calibration_parsers::writeCalibrationIni("../camera_parameters.txt", "gscam", camera_info)) {
-    ROS_INFO("Camera information written to camera_parameters.txt");
-    return true;
-  }
-  else {
-    ROS_ERROR("Could not write camera_parameters.txt");
-    return false;
-  }
-}
-
-
 int main(int argc, char** argv) {
-
-	// We could probably do something with the camera name, check
-	// errors or something, but at the moment, we don't care.
-	std::string camera_name;
-	if (camera_calibration_parsers::readCalibrationIni("../camera_parameters.txt", camera_name, camera_info)) {
-	  ROS_INFO("Successfully read camera calibration.  Rerun camera calibrator if it is incorrect.");
-	}
-	else {
-	  ROS_ERROR("No camera_parameters.txt file found.  Use default file if no other is available.");
-	}
-
 	ros::init(argc, argv, "opencv_publisher");
 	ros::NodeHandle nh;
+
+	// Read camera calibration info
+	std::string camera_name;
+	if (camera_calibration_parsers::
+	    readCalibrationIni("../camera_parameters.txt",
+			       camera_name, camera_info)) {
+	  ROS_INFO("Successfully read camera calibration.  "
+		   "Rerun camera calibrator if it is incorrect.");
+	}
+	else {
+	  ROS_ERROR("No camera_parameters.txt file found.  "
+		    "Use default file if no other is available.");
+	}
 
 	image_transport::ImageTransport it(nh);
 	image_transport::CameraPublisher pub =
 	    it.advertiseCamera("gscam/image_raw", 1);
-
-	ros::ServiceServer set_camera_info =
-	    nh.advertiseService("gscam/set_camera_info", setCameraInfo);
 
 	std::cout << "Processing..." << std::endl;
 
 	cv::Mat frame;
 	cv::VideoCapture cam(0);
 	while(nh.ok()) {
+	  
 	    cam >> frame;
 
 	    // Send ROS image message
@@ -65,7 +61,7 @@ int main(int argc, char** argv) {
 	    sensor_msgs::Image msg;
 	    msg.width = cols; 
 	    msg.height = rows;
-	    msg.encoding = "rgb8";
+	    msg.encoding = "bgr8";
 	    msg.is_bigendian = false;
 	    msg.step = cols*3;
 	    msg.data.resize(rows*cols*3);
