@@ -24,18 +24,19 @@
 #include <sensor_msgs/SetCameraInfo.h>
 #include <camera_calibration_parsers/parse_ini.h>
 
-// globals
-sensor_msgs::CameraInfo camera_info;
-
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "opencv_publisher");
 	ros::NodeHandle nh;
+    ros::NodeHandle nh_private("~");
 
 	// Read camera calibration info
+    std::string calib_filename;
 	std::string camera_name;
+    sensor_msgs::CameraInfo camera_info;
+    nh_private.param<std::string>("calib", calib_filename,
+                                  "camera_parameters.txt");
 	if (camera_calibration_parsers::
-	    readCalibrationIni("../camera_parameters.txt",
-			       camera_name, camera_info)) {
+	    readCalibrationIni(calib_filename, camera_name, camera_info)) {
 	  ROS_INFO("Successfully read camera calibration.  "
 		   "Rerun camera calibrator if it is incorrect.");
 	}
@@ -46,17 +47,18 @@ int main(int argc, char** argv) {
 
 	image_transport::ImageTransport it(nh);
 	image_transport::CameraPublisher pub =
-	    it.advertiseCamera("gscam/image_raw", 1);
+	    it.advertiseCamera("camera/image", 1);
 
 	std::cout << "Processing..." << std::endl;
 
-	cv::Mat frame;
+	cv::Mat frame_raw, frame;
 	cv::VideoCapture cam(0);
 	while(nh.ok()) {
-	  
-	    cam >> frame;
+        // Capture frame
+	    cam >> frame_raw;
+        //cv::undistort(frame_raw, frame, camera_info.K, camera_info.D);
 
-	    // Send ROS image message
+	    // Convert to ROS image message
 	    int cols = frame.cols, rows = frame.rows;
 	    sensor_msgs::Image msg;
 	    msg.width = cols; 
@@ -66,18 +68,17 @@ int main(int argc, char** argv) {
 	    msg.step = cols*3;
 	    msg.data.resize(rows*cols*3);
 
-	    // Copy frame to image message data
+	    // Copy raw pixels to image message data
 	    if (frame.isContinuous()) {
-		cols *= rows;
-		rows = 1;
+            cols *= rows;
+            rows = 1;
 	    }
-	    size_t offset = 0;
 	    for (int i = 0; i < rows; i++) {
-		const unsigned char* row = frame.ptr<unsigned char>(i);
-		std::copy(row, row+(cols*3), msg.data.begin() + offset);
-		offset += cols*3;
+            const unsigned char* row = frame.ptr<unsigned char>(i);
+            std::copy(row, row+(cols*3), msg.data.begin() + (i*cols*3));
 	    }
 
+        // Publish ROS image
 	    pub.publish(msg, camera_info);
 
 	    ros::spinOnce();
