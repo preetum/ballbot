@@ -51,11 +51,11 @@ int main(int argc, char** argv) {
 
 	std::cout << "Processing..." << std::endl;
 
-	cv::Mat frame_raw, frame;
+	cv::Mat frame;
 	cv::VideoCapture cam(0);
 	while(nh.ok()) {
         // Capture frame
-	    cam >> frame_raw;
+	    cam >> frame;
         //cv::undistort(frame_raw, frame, camera_info.K, camera_info.D);
 
 	    // Convert to ROS image message
