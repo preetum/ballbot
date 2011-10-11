@@ -27,6 +27,9 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 #include_directories(. ./src)
+
+find_package(OpenCV REQUIRED)
+
 rosbuild_add_executable(particle_filter src/particle_filter.cpp src/backproject.cpp src/findlines.cpp src/differentiation.cpp src/geometry.cpp)
 target_link_libraries(particle_filter opencv_core opencv_imgproc opencv_highgui opencv_objdetect)
 
