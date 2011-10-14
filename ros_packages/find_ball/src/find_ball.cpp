@@ -304,7 +304,7 @@ void processNewFrame(Mat &frame) {
   } else {
     ROS_INFO("no ball found");
   }
-  imshow("ball detected", ballFound+dst);
+  //imshow("ball detected", ballFound+dst);
   waitKey(3);
 }
 
@@ -335,7 +335,7 @@ int main( int argc, char** argv ) {
 
   nPrivate.param<string>("image", imageTopic, "gscam/image_raw");
   imageSub = it.subscribe(imageTopic, 1, received_frame);
-  ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1000);
+  ball_pub = n.advertise<bb_msgs::BallPosition>("ball", 1);
   
   //find the horizon pt
   Point3d camWorldPt = get_camera_world_coordinates(
