@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
 """
-Command center for Ballbot motion planning.
+Drive on to ball planner+controller
 
 Author: Karthik Lakshmanan
 
 Description:
-This node receives ball location from the tennis ball tracker, odometry information from the bot, and sends appropriate commands to the lattice_planner package
+This node receives ball location from the ball finder, and drives the steering to drive directly on to the ball, and pick it up when reached
 
 """
 
@@ -17,6 +17,7 @@ from bb_msgs.msg import Goal,Pose,BallPickup,BallPosition
 import math
 
 pub_goal = rospy.Publisher("goal",Goal)
+pub_velcmd = rospy.Publisher('vel_cmd', DriveCmd)
 pub_ballpickup = rospy.Publisher("ball_pickup",BallPickup)
 
 # Ballbot State variables
@@ -28,9 +29,12 @@ Ballbot_status = None
 
 Ballbot_STATE = "IDLE" # can be IDLE, BALLPICKUP, BALLRETRIEVE
 
+# Ballbot Control variables
+Ballbot_steering = 0.0
+Ballbot_speed = 0.0
+
 # Ball state variables
-Ball_x = -1.0
-Ball_y = -1.0
+Ball_d = -1.0
 Ball_theta = -1.0
 
 # Goal related variables
@@ -39,31 +43,10 @@ Goal_current = None
 def callback(data):
     rospy.loginfo(rospy.get_name()+"I heard %s",data.data)
 
-def received_odometry(data):
-    global Ballbot_x,Ballbot_y,Ballbot_theta
-    Ballbot_x = data.x
-    Ballbot_y = data.y
-    Ballbot_theta = data.theta
-
-"""
 def received_ballposition(data):
-    global Ball_x,Ball_y,Ball_theta
-    Ball_x = data.x
-    Ball_y = data.y
+    global Ball_d,Ball_theta
+    Ball_d = data.d
     Ball_theta = data.theta
-"""
-
-def received_ballposition(data):
-    global Ball_x,Ball_y
-    heading_ball = data.theta
-    print "d =",data.d,"th=",heading_ball
-    Ball_x = Ballbot_x + data.d*math.cos(heading_ball)
-    Ball_y = Ballbot_y + data.d*math.sin(heading_ball)
-    print "Ball_x",Ball_x,"Ball_y",Ball_y
-
-def received_status(data):
-    global Ballbot_status
-    Ballbot_status = data.data
 
 def CMD_STATEMACHINE():
     """
@@ -98,95 +81,80 @@ def CMD_STATEMACHINE():
         Ballbot_STATE = next_STATE
     
 def state_IDLE():
-    global Goal_current,Ball_x,Ball_y,Ball_theta
-    if (Ball_x >= 0) and (Ball_y >= 0):
+    global Ball_d,Ball_theta
+    if (Ball_d >= 0):
         print "new ball seen. Hit a key to pickup",Ball_x,Ball_y,Ball_theta
-        raw_input()
-        
-        goal_msg = Goal()
-        goal_msg.goaltype = String("newball")    
-        goal_msg.pose = Pose(Ball_x*100.0,Ball_y*100.0,Ball_theta)    
-        pub_goal.publish(goal_msg)        
-        Goal_current = goal_msg
+        raw_input()        
         return "newballseen"    
     else:
         return "noball"
 
-def state_BALLPICKUP():
-    global Goal_current,Ballbot_status
-    while((Ballbot_status != "goalreached") and not(rospy.is_shutdown())): 
-        if(Ball_x >= 0) and (Ball_y >= 0): # if ball is visible
-            dist = math.sqrt(math.pow((Goal_current.pose.x/100.0 - Ball_x),2) + math.pow((Goal_current.pose.y/100.0 - Ball_y),2))        
-            goal_msg = Goal()
-            goal_msg.pose = Pose(Ball_x*100.0,Ball_y*100.0,Ball_theta)
-
-            
-            if (dist >= 0.10) and (dist <= 0.5):                
-                goal_msg.goaltype = String("updategoal")                                                            
-                pub_goal.publish(goal_msg)        
-                Goal_current = goal_msg
-                #print (Ball_x,Ball_y),goal_msg.goaltype
-
-            elif(dist >= 0.5):
-                goal_msg.goaltype = String("newball")                
-                pub_goal.publish(goal_msg)        
-                Goal_current = goal_msg
-
-                #print (Ball_x,Ball_y),goal_msg.goaltype
-            
-        rospy.sleep(1.0) # update goal position every 1 s for now    
-
-    Ballbot_status = None   
+def state_BALLPICKUP():    
+    global Ballbot_speed, Ballbot_steering
+    Ballbot_speed = 0.75
+    Steering_gain = 1.5
+    r = rospy.Rate(60)
+    while((Ballbot_d >= 0.25) and not(rospy.is_shutdown())): 
+        Ballbot_steering = Steering_gain * Ball_theta
+        if(Ballbot_steering >= math.radians(30)):
+            Ballbot_steering = math.radians(30)
+        elif(Ballbot_steering <= math.radians(-30)):
+            Ballbot_steering = -math.radians(30)
+        
+        pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
+        r.sleep()    
 
     #--------------------------------------
-    # activate ball pickup for 10 seconds
+    Ballbot_speed = 0.5
+    Ballbot_steering = 0.0    
+    pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
+
+    # activate ball pickup for 5 seconds
     ballpickup_msg = BallPickup()
     ballpickup_msg.direction = 1
     pub_ballpickup.publish(ballpickup_msg)
     
-    rospy.sleep(10)
+    rospy.sleep(5)
     
     # deactivate ball pickup
     ballpick_msg = BallPickup()
     ballpickup_msg.direction = 0
     pub_ballpickup.publish(ballpickup_msg)                
     
+    Ballbot_speed = 0.0
+    pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
+
     #----------------------------------------
-
-    goal_msg = Goal()
-    goal_msg.pose = Pose(10.0 * 100.0,10.0 * 100.0,0.0)
-    goal_msg.goaltype = String("gotopose")
-    print "Go to (10.0 10.0 0); hit any key to drive"
-    raw_input()
-    pub_goal.publish(goal_msg)
-    Goal_current = goal_msg
-
     return "pickedup"
 
 def state_BALLDELIVERY():
-    global Ballbot_status
-    if(Ballbot_status == "goalreached"):
-        Ballbot_status = None
-        # activate ball delivery for 10 seconds
-        ballpickup_msg = BallPickup()
-        ballpickup_msg.direction = -1
-        pub_ballpickup.publish(ballpickup_msg)        
-        rospy.sleep(10)
+    global Ballbot_speed,Ballbot_steering
+    Ballbot_speed = 1
+    Ballbot_steering = math.radians(30)
+    pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
+    rospy.sleep(5)
     
-        # deactivate ball pickup
-        ballpick_msg = BallPickup()
-        ballpickup_msg.direction = 0
-        pub_ballpickup.publish(ballpickup_msg)   
-        return "delivered"
-    else:
-        return "notdelivered"
+    Ballbot_speed = 0
+    Ballbot_steering = 0
+    pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
+
+    # activate ball delivery for 5 seconds
+    ballpickup_msg = BallPickup()
+    ballpickup_msg.direction = -1
+    pub_ballpickup.publish(ballpickup_msg)        
+    rospy.sleep(5)
+    
+    # deactivate ball pickup
+    ballpick_msg = BallPickup()
+    ballpickup_msg.direction = 0
+    pub_ballpickup.publish(ballpickup_msg)   
+
+    return "delivered"
+
 
 def initialize_commandcenter():
-    rospy.init_node('commandcenter', anonymous=True)
-    rospy.Subscriber("pose", Pose, received_odometry)
-    #rospy.Subscriber("ball",Pose,received_ballposition)
-    rospy.Subscriber("ball",BallPosition,received_ballposition)
-    rospy.Subscriber("status",String,received_status)
+    rospy.init_node('driveontoball', anonymous=True)        
+    rospy.Subscriber("ball",BallPosition,received_ballposition)    
 
     CMD_STATEMACHINE()
     rospy.spin()

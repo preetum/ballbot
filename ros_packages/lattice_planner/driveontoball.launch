@@ -1,0 +1,4 @@
+<launch>  
+  <node pkg="lattice_planner" type="driveontoball.py" name="driveontoball"/>
+  <node pkg="ros_arduino_interface" type="ros_arduino_interface.py" name="ros_arduino_interface"/>
+</launch>
