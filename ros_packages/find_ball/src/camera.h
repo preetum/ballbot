@@ -43,7 +43,7 @@ struct camera
 		position.z = 33; // Camera is 33cm above the ground
 		theta = 0;
 		pan = 0;
-		tilt = -15.0*PI/180.0; //<<<<< UPDATE CAMERA TILT angle here
+		tilt = -18.8*PI/180.0; //<<<<< UPDATE CAMERA TILT angle here
 	}
 };
 

@@ -209,14 +209,14 @@ Mat floodFillPostprocess( Mat& img) {
 }
 
 void publishMessage(Point ballPosition) {
-  double radians_per_px = 0.0016;
   // Distance to target
-  double theta = (ballPosition.y - cam.intrinsics.cy)
-    * radians_per_px - cam.tilt;
+  double theta = atan((ballPosition.y - cam.intrinsics.cy)
+		      / cam.intrinsics.fy) - cam.tilt;
   double y = ((double)cam.position.z) / tan(theta);
+
   // Angle/X offset to target
-  double phi = (ballPosition.x - cam.intrinsics.cx)
-    * radians_per_px + cam.pan;
+  double phi = atan((ballPosition.x - cam.intrinsics.cx)
+		    / cam.intrinsics.fx) + cam.pan;
   double x = y * tan(phi);
   double d = sqrt(x*x + y*y);
 
@@ -305,7 +305,7 @@ void processNewFrame(Mat &frame) {
     ROS_INFO("no ball found");
   }
   //imshow("ball detected", ballFound+dst);
-  waitKey(3);
+  //waitKey(3);
 }
 
 void received_frame(const sensor_msgs::ImageConstPtr &msgFrame) {
