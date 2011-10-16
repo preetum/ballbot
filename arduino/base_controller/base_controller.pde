@@ -28,7 +28,7 @@
 // Globals
 Servo steering;
 SimpleMotorController driveMotor(5);
-//IMU imu(7, 10);
+IMU imu(Serial1);
 
 Packet packet;
 
@@ -57,11 +57,12 @@ void writeOdometry(void) {
   unsigned long time = millis();
   lastEncoderCount = tmpEncoderCount;
 
-  packet.length = 13;
+  packet.length = 15;
   packet.data[0] = CMD_SYNC_ODOMETRY;
   reverse_memcpy(packet.data+1, &tmpEncoderCount, 4);
   reverse_memcpy(packet.data+5, &delta, 4);
-  reverse_memcpy(packet.data+9, &time, 4);
+  reverse_memcpy(packet.data+9, &imu.yaw, 2);
+  reverse_memcpy(packet.data+11, &time, 4);
   packet.send();
 }
 
@@ -123,7 +124,11 @@ void packetReceived (void) {
 
 
 void setup() {
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  Serial3.begin(115200);
+#else
   Serial.begin(115200);
+#endif
 
   // Initialize servos
   steering.attach(4);
@@ -150,12 +155,23 @@ void loop()  {
     timeoutCount = 0;
 
   // Process serial buffer
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  while (Serial3.available())
+    // If full packet received, process the packet
+    if (packet.receive(Serial3.read())) {
+      packetReceived();
+      break;
+    }
+#else
   while (Serial.available())
     // If full packet received, process the packet
     if (packet.receive(Serial.read())) {
       packetReceived();
       break;
     }
+#endif
+
+  imu.update();
 
   unsigned long time = millis();
 

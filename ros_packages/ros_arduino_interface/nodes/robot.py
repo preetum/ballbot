@@ -177,7 +177,7 @@ def serial_read_callback(self, packet):
   '''
   if len(packet.data) > 0 and \
         ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
-    cmd, counts, counts_delta, timestamp = struct.unpack('>BllL', packet.data)
+    cmd, counts, counts_delta, yaw, timestamp = struct.unpack('>BllhL', packet.data)
     print '%d\t%d\t%d' % (counts, counts_delta, timestamp)
 
 

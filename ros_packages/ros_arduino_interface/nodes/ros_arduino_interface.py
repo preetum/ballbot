@@ -5,7 +5,7 @@ import rospy
 from robot import BaseController
 from bb_msgs.msg import DriveCmd, Odometry, OdometryStamped, BallPickup
 from std_msgs.msg import Header
-import imu_communicator
+#import imu_communicator
 import struct, thread, math
 
 def binaryangle_to_radians(BAMS):
@@ -31,19 +31,20 @@ def recieved_ballpickup_packet(ballBot,ballpickupPacket):
     #rospy.loginfo("Ball Pickup! Direction %d" % ballpickupPacket.direction)
 
 lastHeading = None
-def odometry_callback(packet, imu, pub):
+def odometry_callback(packet, pub):
   '''
   Called whenever a full packet is received back from the arduino
   '''
 
   if len(packet.data) > 0 and \
         ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
-    cmd, counts, counts_delta, timestamp = struct.unpack('>BllL', packet.data)
+    cmd, counts, counts_delta, yaw, timestamp = \
+        struct.unpack('>BllhL', packet.data)
     print '%d\t%d\t%d' % (counts, counts_delta, timestamp)
 
     # Calculate change in heading
     global lastHeading
-    heading = binaryangle_to_radians(imu.headingBAMS)
+    heading = yaw #binaryangle_to_radians(imu.headingBAMS)
 
     if lastHeading is None:
         lastHeading = heading
@@ -69,11 +70,11 @@ def main():
     rospy.Subscriber("ball_pickup",BallPickup,
                      lambda pkt: recieved_ballpickup_packet(ballBot,pkt))
 
-    imu = imu_communicator.IMU() # Initialize IMU
+    #imu = imu_communicator.IMU() # Initialize IMU
 
     # Start serial read thread
     thread.start_new_thread(ballBot.serial_read_thread,
-        (lambda pkt: odometry_callback(pkt, imu, odometryPublisher),))
+        (lambda pkt: odometry_callback(pkt, odometryPublisher),))
 
     # Spin, process callbacks
     rospy.spin()

@@ -5,15 +5,23 @@ volatile long encoder0Count = 0L;
 
 /* Callback for encoder on interrupt 0
    B channel = pin 2 / interrupt 0
-   A channel = pin 12 / PB4
+   A channel = pin 12 / PB6 on arduino mega (PB4 on arduino)
  */
 void encoder0Handler() {
   // hard code the port instead of digitalRead for execution speed
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  if (PINB & (1 << PB6)) {
+    encoder0Count -= 1;
+  } else {
+    encoder0Count += 1;
+  }
+#else
   if (PINB & (1 << PB4)) {
     encoder0Count -= 1;
   } else {
     encoder0Count += 1;
   }
+#endif
 }
 
 void encoder_initialize() {

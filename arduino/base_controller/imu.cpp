@@ -15,36 +15,31 @@
 #include "imu.h"
 #include "WProgram.h"
 
-IMU::IMU(int rxPin, int txPin)
-  : serial(rxPin, txPin) {
-  pinMode(txPin, OUTPUT);
-  pinMode(rxPin, INPUT);
-  digitalWrite(rxPin, HIGH);
-  serial.begin(9600);
+IMU::IMU(HardwareSerial serial)
+  : mySerial(serial) {
+  mySerial.begin(115200);
 
   roll = 0.0;
   pitch = 0.0;
   yaw = 0.0;
 }
 
-void IMU::update(void) {
-  unsigned char buf[IMU_PACKET_LENGTH];
+/* Call in main loop to process the IMU serial buffer.
+ * Returns true iff values were updated.
+ */
+unsigned char IMU::update(void) {
+  // Read as many bytes are available
+  while (mySerial.available()) {
+    // If full packet received, process the packet
+    if (packet.receive(mySerial.read())) {
+      if (packet.length == IMU_PACKET_LENGTH) {
+        roll = ((int)packet.data[0] << 8) | packet.data[1];
+        pitch = ((int)packet.data[2] << 8) | packet.data[3];
+        yaw = ((int)packet.data[4] << 8) | packet.data[5];
 
-  // Ping the IMU
-  serial.print('a');
-
-  // Read the bytes
-  cli();
-  for (unsigned char i = 0; i < IMU_PACKET_LENGTH; i += 1) {
-    buf[i] = serial.read();
-  }
-  sei();
-
-  // Process packet
-  for (unsigned char i = 0; i < IMU_PACKET_LENGTH; i += 1)
-    if (packet.receive(buf[i])) {
-      // Read 4 big-endian bytes and convert bytewise to float32
-      float *tmp = (float*)packet.data;
-      yaw = *tmp;
+        return true;
+      }
     }
+  }
+  return false;
 }
