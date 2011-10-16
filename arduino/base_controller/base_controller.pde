@@ -30,7 +30,7 @@ Servo steering;
 SimpleMotorController driveMotor(5);
 IMU imu(Serial1);
 
-Packet packet;
+Packet packet(Serial3);
 
 bool watchdogFlag = false;
 bool sendOdometry = false;

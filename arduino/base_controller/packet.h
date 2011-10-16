@@ -11,6 +11,7 @@
 #ifndef __packet_h
 #define __packet_h
 
+#include <WProgram.h>
 #include <stddef.h>
 
 /* Packet format
@@ -35,6 +36,8 @@ enum {
 
 // Packet structure
 class Packet {
+  HardwareSerial mySerial;
+
   unsigned char state;  // receive state machine state
   unsigned char escaped; // receive state (if last char was an escape)
   unsigned char index;  // receive data index
@@ -44,7 +47,8 @@ class Packet {
   unsigned char data[MAX_PACKET_LENGTH];
   unsigned char checksum;
 
-  Packet(void) {
+ Packet(HardwareSerial serial) :
+  mySerial(serial) {
     state = WAIT;
     escaped = false;
     index = 0;
@@ -52,6 +56,7 @@ class Packet {
 
   void send(void);
   unsigned char receive(unsigned char byte);
+  void printEscaped(unsigned char c);
 };
 
 // Function prototypes

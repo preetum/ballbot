@@ -20,10 +20,10 @@ void reverse_memcpy(void *destination, const void *source, size_t len) {
     *(dest+len) = *src++;
 }
 
-inline void printEscaped(unsigned char c) {
+inline void Packet::printEscaped(unsigned char c) {
   if (c == ESCAPE_BYTE || c == START_BYTE)
-    Serial.print((unsigned char)ESCAPE_BYTE);
-  Serial.print(c);
+    mySerial.print((unsigned char)ESCAPE_BYTE);
+  mySerial.print(c);
 }
 
 void Packet::send(void) {
@@ -31,7 +31,7 @@ void Packet::send(void) {
     length = MAX_PACKET_LENGTH;
 
   // Print packet header
-  Serial.print((unsigned char)START_BYTE);
+  mySerial.print((unsigned char)START_BYTE);
   printEscaped(length);
 
   // Print data
