@@ -120,7 +120,7 @@ cv::Point3d get_camera_world_coordinates(cv::Point3d real_world_position,
                                          double tilt);
 cv::Point2d cam_world_position_to_imageXY(cv::Point3d cam_world_position,
                                           camera &bb_cam);
-vector <line_segment_all_frames> get_view_lines(camera particle_camera,
+std::vector <line_segment_all_frames> get_view_lines(camera particle_camera,
                                                 cv::Size frame_size,
                                                 cv::Mat &view_frame,
                                                 float near_dist = 0.2,

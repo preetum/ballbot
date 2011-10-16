@@ -61,8 +61,9 @@ def odometry_callback(packet, pub):
 
 
 def main():
-    ballBot = BaseController()
     rospy.init_node('ros_arduino_interface', anonymous=True)
+
+    ballBot = BaseController(port='/dev/ttyO3')
     odometryPublisher = rospy.Publisher('odometry', OdometryStamped)
     rospy.Subscriber("vel_cmd", DriveCmd,
                      lambda pkt: recieved_drive_packet(ballBot, pkt))

@@ -119,9 +119,11 @@ void ParticleFilter::initializeUniformly(unsigned int n, Bounds xRange,
 }
 
 void ParticleFilter::observe(cv::Mat &observation) {
+    printTime("start observe");
     // Detect lines in the image
     vector<Vec4i> seenLines;
     findLines(observation, seenLines);
+    printTime(" findlines");
 
     // Transform visible lines to robot frame
     camera cam;
@@ -165,6 +167,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
             seenLines.erase(seenLines.begin() + i);
         }
     }
+    printTime(" conv to ground plane");
 
     // If no lines visible, count it as a non-observation
     // This was perhaps too harsh
@@ -172,7 +175,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
     //    return;
 
     // Draw detected lines for debugging
-    drawLines(observation, seenLines);
+    //drawLines(observation, seenLines);
 
     // Adjust y coordinates (since the ROI is shifted,
     //  all the y coordinates will be off)
@@ -267,6 +270,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
         // especially the faraway ones
         particle.weight *= w1 + 2*w2;
     }
+    printTime(" reweight");
 }
 
 /* Move each particle by the specified amount, with Gaussian noise */
@@ -400,10 +404,12 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+        printTime("cvbridge conversion");
 
         // Update particle filter
         cv_ptr->image.adjustROI(-horizon, 0, 0, 0);
         pf.observe(cv_ptr->image);
+        printTime("observe");
 
         // If weight sum falls below some threshold, reinitialize the filter
         double ws = weightSum(pf.particles);
@@ -425,6 +431,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
             //*/
             // Resample
             pf.resample();
+            printTime("resample");
         }
         printTime("compute");
         // Publish particles
@@ -446,7 +453,7 @@ int main(int argc, char** argv) {
     ros::NodeHandle nhPrivate("~");
 
     // Create debug windows
-    namedWindow("image", CV_WINDOW_AUTOSIZE);
+    //namedWindow("image", CV_WINDOW_AUTOSIZE);
 
     // Create particle publisher to topic "filter/particles"
     particlePub = nh.advertise<bb_msgs::PoseArray>("filter/particles", 4);

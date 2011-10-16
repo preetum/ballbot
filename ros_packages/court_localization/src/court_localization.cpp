@@ -48,15 +48,9 @@ void pfEstimateCallback(const bb_msgs::PoseConstPtr& msg) {
 }
 
 void odometryCallback(const bb_msgs::OdometryConstPtr& msg) {
-    static double lastHeading = HUGE_VAL;
-
-    // On first message, initialize lastHeading
-    if (lastHeading == HUGE_VAL)
-        lastHeading = msg->heading;
-
     // Control vector = [distance dtheta]'
     double dist = msg->distance_delta,
-        dtheta = lastHeading - msg->heading;
+        dtheta = -1 * msg->heading_delta;
     kfControl(0,0) = dist;
     kfControl(1,0) = dtheta;
 
