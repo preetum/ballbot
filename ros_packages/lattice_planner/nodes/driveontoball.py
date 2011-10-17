@@ -13,7 +13,7 @@ This node receives ball location from the ball finder, and drives the steering t
 import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 from std_msgs.msg import String
-from bb_msgs.msg import Goal,Pose,BallPickup,BallPosition
+from bb_msgs.msg import Goal,Pose,BallPickup,BallPosition,DriveCmd
 import math
 
 pub_goal = rospy.Publisher("goal",Goal)
@@ -47,11 +47,11 @@ def received_ballposition(data):
     global Ball_d,Ball_theta
     Ball_d = data.d
     Ball_theta = data.theta
-
+    #rospy.loginfo("Ball_d %f Ball_theta %f",Ball_d,Ball_theta)
+    
 def CMD_STATEMACHINE():
     """
-    implements a state machine for Ballbot
-    """
+    implements a state machine for Ballbot    """
     global Ballbot_STATE
     
     while not rospy.is_shutdown():
@@ -83,7 +83,7 @@ def CMD_STATEMACHINE():
 def state_IDLE():
     global Ball_d,Ball_theta
     if (Ball_d >= 0):
-        print "new ball seen. Hit a key to pickup",Ball_x,Ball_y,Ball_theta
+        print "new ball seen. Hit a key to pickup",Ball_d,Ball_theta
         raw_input()        
         return "newballseen"    
     else:
@@ -91,16 +91,17 @@ def state_IDLE():
 
 def state_BALLPICKUP():    
     global Ballbot_speed, Ballbot_steering
-    Ballbot_speed = 0.75
-    Steering_gain = 1.5
-    r = rospy.Rate(60)
-    while((Ballbot_d >= 0.25) and not(rospy.is_shutdown())): 
+    Ballbot_speed = 1.0
+    Steering_gain = 1.0
+    r = rospy.Rate(10)
+    while((Ball_d >= 0.5) and not(rospy.is_shutdown())): 
         Ballbot_steering = Steering_gain * Ball_theta
         if(Ballbot_steering >= math.radians(30)):
             Ballbot_steering = math.radians(30)
         elif(Ballbot_steering <= math.radians(-30)):
             Ballbot_steering = -math.radians(30)
-        
+
+        rospy.loginfo("Ball_d %f Ball_theta %f Ballbot_steering %f",Ball_d,Ball_theta,Ballbot_steering)
         pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
         r.sleep()    
 
@@ -154,7 +155,7 @@ def state_BALLDELIVERY():
 
 def initialize_commandcenter():
     rospy.init_node('driveontoball', anonymous=True)        
-    rospy.Subscriber("ball",BallPosition,received_ballposition)    
+    rospy.Subscriber("ball",BallPosition,received_ballposition,buff_size=1)    
 
     CMD_STATEMACHINE()
     rospy.spin()

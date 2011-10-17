@@ -52,9 +52,10 @@ int main(int argc, char** argv) {
 	std::cout << "Processing..." << std::endl;
 
 	cv::Mat frame;
-	cv::VideoCapture cam(1);
-    cam.set(CV_CAP_PROP_FRAME_WIDTH,320);
-    cam.set(CV_CAP_PROP_FRAME_HEIGHT,240);
+	cv::VideoCapture cam(0);
+    cam.set(CV_CAP_PROP_FRAME_WIDTH, 320);
+    cam.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
+
 	while(nh.ok()) {
         // Capture frame
         //	    cam >> frame;

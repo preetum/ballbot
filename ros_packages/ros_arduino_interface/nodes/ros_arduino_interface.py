@@ -40,7 +40,7 @@ def odometry_callback(packet, pub):
         ord(packet.data[0]) == BaseController.CMD_SYNC_ODOMETRY:
     cmd, counts, counts_delta, yaw, timestamp = \
         struct.unpack('>BllhL', packet.data)
-    print '%d\t%d\t%d' % (counts, counts_delta, timestamp)
+    #print '%d\t%d\t%d' % (counts, counts_delta, timestamp)
 
     # Calculate change in heading
     global lastHeading
@@ -61,8 +61,9 @@ def odometry_callback(packet, pub):
 
 
 def main():
-    ballBot = BaseController()
     rospy.init_node('ros_arduino_interface', anonymous=True)
+
+    ballBot = BaseController(port='/dev/ttyO3')
     odometryPublisher = rospy.Publisher('odometry', OdometryStamped)
     rospy.Subscriber("vel_cmd", DriveCmd,
                      lambda pkt: recieved_drive_packet(ballBot, pkt))
