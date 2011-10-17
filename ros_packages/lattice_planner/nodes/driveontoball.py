@@ -111,15 +111,19 @@ def state_BALLPICKUP():
     pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
     # activate ball pickup for 5 seconds
-    ballpickup_msg = BallPickup()
-    ballpickup_msg.direction = 1
+    ballpickup_msg = BallPickup()    
+    ballpickup_msg.direction = -1
     pub_ballpickup.publish(ballpickup_msg)
+    ballpickup_msg = BallPickup()    
+    ballpickup_msg.direction = 0
+    pub_ballpickup.publish(ballpickup_msg)
+    
     
     rospy.sleep(5)
     
     # deactivate ball pickup
     ballpick_msg = BallPickup()
-    ballpickup_msg.direction = 0
+    ballpickup_msg.direction = 1
     pub_ballpickup.publish(ballpickup_msg)                
     
     Ballbot_speed = 0.0
@@ -147,7 +151,7 @@ def state_BALLDELIVERY():
     
     # deactivate ball pickup
     ballpick_msg = BallPickup()
-    ballpickup_msg.direction = 0
+    ballpickup_msg.direction = 1
     pub_ballpickup.publish(ballpickup_msg)   
 
     return "delivered"

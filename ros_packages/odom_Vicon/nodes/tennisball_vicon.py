@@ -11,7 +11,7 @@ from std_msgs.msg import String
 from vicon_mocap.msg import Markers
 from vicon_mocap.msg import Marker
 
-pub = rospy.Publisher('ball', Pose )
+pub = rospy.Publisher('ball_vicon', Pose )
 
 def callback(data):
     """
