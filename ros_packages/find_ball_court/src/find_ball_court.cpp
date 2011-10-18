@@ -182,7 +182,7 @@ Mat floodFillPostprocess( Mat& img) {
   Mat maskOut( img.rows+2, img.cols+2, CV_8UC1, Scalar::all(0) );
   Mat mask( img.rows+2, img.cols+2, CV_8UC1, Scalar::all(0) );
   Mat maskLocal( img.rows+2, img.cols+2, CV_8UC1, Scalar::all(0));
-  Scalar newVal( 200, 150, 100);
+  //Scalar newVal( 200, 150, 100);
   Scalar lo = Scalar(loDiff, loDiff, loDiff),
     up = Scalar(upDiff, upDiff, upDiff);
   int flags = connectivity + (newMaskVal << 8) + CV_FLOODFILL_FIXED_RANGE;
@@ -194,7 +194,7 @@ Mat floodFillPostprocess( Mat& img) {
 	    if(mask.at<uchar>(y+1, x+1) == 0 && mask.at<uchar>(y-1, x-1) == 0) {
 	      maskLocal = Mat::zeros(mask.size(), mask.type());
 	      int area;
-	      //Scalar newVal( rng.uniform(0,255), rng.uniform(0, 255), rng.uniform(0, 255));
+	      Scalar newVal( rng.uniform(0,255), rng.uniform(0, 255), rng.uniform(0, 255));
 	      area = floodFill(img, maskLocal, Point(x,y), newVal, 0, lo, up, flags);
 	      bitwise_or(mask, maskLocal, mask);
 	      
