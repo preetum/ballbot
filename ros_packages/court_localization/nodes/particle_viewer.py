@@ -32,6 +32,8 @@ class Simulator(object):
     self.root.title(title)
     self.canvas = Canvas(self.root, width=self.width, height=self.height)
     self.canvas.pack()
+
+    self.lines = []
     
     self.draw_field()
   
@@ -41,8 +43,8 @@ class Simulator(object):
     x, y is the position in centimeters
     t is the heading
     '''
-    if not trails:
-      self.draw_field()
+    #if not trails:
+    #  self.draw_field()
     beliefs = np.array(beliefs)
 
     points = self.transform(beliefs[:,0:2])
@@ -55,9 +57,18 @@ class Simulator(object):
     center = points + np.dot([0,-4], R).T
     lowerRight = points + np.dot([4,4], R).T
 
+    i = 0
+    L = len(self.lines)
     for l, c, r in zip(lowerLeft, center, lowerRight):
-      self.canvas.create_line(l[0], l[1], c[0], c[1], fill='blue')
-      self.canvas.create_line(r[0], r[1], c[0], c[1], fill='blue')
+      if i < L:
+        self.canvas.coords(self.lines[i], l[0], l[1], c[0], c[1])
+        self.canvas.coords(self.lines[i+1], r[0], r[1], c[0], c[1])
+      else:
+        a = self.canvas.create_line(l[0], l[1], c[0], c[1], fill='blue')
+        b = self.canvas.create_line(r[0], r[1], c[0], c[1], fill='blue')
+        self.lines.append(a)
+        self.lines.append(b)
+      i += 2
 
   def transform(self, points):
     '''
