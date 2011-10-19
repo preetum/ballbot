@@ -37,14 +37,12 @@ class Simulator(object):
     
     self.draw_field()
   
-  def refresh(self, beliefs, trails=False):
+  def refresh(self, beliefs):
     '''
     Refresh the field, given a current list of robots:
     x, y is the position in centimeters
     t is the heading
     '''
-    #if not trails:
-    #  self.draw_field()
     beliefs = np.array(beliefs)
 
     points = self.transform(beliefs[:,0:2])
