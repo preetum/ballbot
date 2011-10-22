@@ -23,10 +23,11 @@ Ballbot_theta = math.pi/2
 
 def received_odometry(data):
     global Ballbot_x,Ballbot_y,Ballbot_theta
-    Ballbot_x = data.x*100.0
-    Ballbot_y = data.y*100.0
-    Ballbot_theta = data.theta
-
+    # Coordinate frame conversion from localization frame to planner frame
+    Ballbot_x = (data.y + 3.658)*100.0
+    Ballbot_y = (30.17 - data.x)*100.0
+    Ballbot_theta = (data.theta - math.pi/2)%(2*math.pi)
+    
 def startPlanner(data):
     global startNode,goalNode,plan,path
     
@@ -36,10 +37,10 @@ def startPlanner(data):
     (x2,y2,th2,v2) = util.point_to_lattice(data.pose.x,data.pose.y,data.pose.theta,util.ROBOT_SPEED_MAX)
     
     if(x1 < 0) or (x1 > util.COURT_WIDTH) or (y1 < 0) or (y1 > util.COURT_LENGTH):
-        print "Invalid start!"
+        print "Invalid start!",(x1,y1,th1)
         return
     if(x2 < 0) or (x2 > util.COURT_WIDTH) or (y2 < 0) or (y2 > util.COURT_LENGTH):
-        print "Invalid goal!"
+        print "Invalid goal!",(x2,y2,th2)
         return   
  
     util.goaltype = data.goaltype.data
@@ -83,9 +84,11 @@ def startPlanner(data):
     path[0] = (x1/100.0,y1/100.0,th1,path[1][3],path[1][4])
 
     print "plan of length",len(plan)
-   # for (Node,action) in plan:
-   #     if action == "B":
-   #         print Node.get_stateparams(),action,Node.get_g()
+    actionlist=[]
+    for (Node,action) in plan:
+        actionlist.append(action)
+        #print Node.get_stateparams(),action,Node.get_g()
+    rospy.loginfo(actionlist)
 
     path_to_send = Path()    
     for point in path:        

@@ -31,7 +31,6 @@ def startPlanner(d_goal=0.0,th_goal=0.0,x_goal=0.0,y_goal=0.0,th_goal_abs=0.0,go
     """
     Send a goal message to topic 'goal'
     """
-
     """
     Draw court
     """
@@ -96,9 +95,11 @@ def startPlanner(d_goal=0.0,th_goal=0.0,x_goal=0.0,y_goal=0.0,th_goal_abs=0.0,go
 
 def received_odometry(data):
     global Ballbot_x,Ballbot_y,Ballbot_theta,Ballbot_Tkobjects
-    Ballbot_x = data.x
-    Ballbot_y = data.y
-    Ballbot_theta = data.theta
+    # Coordinate frame conversion from localization frame to planner frame
+    Ballbot_x = (data.y + 3.658)
+    Ballbot_y = (30.17 - data.x)
+    Ballbot_theta = (data.theta - math.pi/2)%(2*math.pi)
+    #print (Ballbot_x,Ballbot_y,Ballbot_theta)
     """
     delete old car
     """
@@ -108,7 +109,7 @@ def received_odometry(data):
     """
     redraw car at new position
     """            
-    Ballbot_Tkobjects = graphics.draw_car(data.x*100.0 + 17.41*math.cos(data.theta) ,data.y*100.0+ 17.41*math.sin(data.theta),data.theta)
+    Ballbot_Tkobjects = graphics.draw_car(Ballbot_x*100.0 + 17.41*math.cos(Ballbot_theta) ,Ballbot_y*100.0+ 17.41*math.sin(Ballbot_theta),Ballbot_theta)
 
 def received_path(data):
     """

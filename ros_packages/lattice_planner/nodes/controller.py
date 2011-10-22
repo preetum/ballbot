@@ -261,6 +261,8 @@ def newPath_arrived(data):
     path = data.poses
 
     print "newpathseen! length",len(path)        
+    print "hit a key to drive"
+    raw_input()
     newPath = True
 
 def received_odometry(data):
@@ -268,9 +270,10 @@ def received_odometry(data):
     Update pose of the car
     """
     global Ballbot_X,Ballbot_Y,Ballbot_TH
-    Ballbot_X  = data.x
-    Ballbot_Y  = data.y
-    Ballbot_TH = data.theta
+    # Coordinate frame conversion from localization frame to planner frame
+    Ballbot_x = (data.y + 3.658)*100.0
+    Ballbot_y = (30.17 - data.x)*100.0
+    Ballbot_theta = (data.theta - math.pi/2)%(2*math.pi)
 
 def listener():
     rospy.init_node('controller',anonymous = True)

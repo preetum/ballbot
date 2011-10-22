@@ -41,7 +41,7 @@ def simulator():
         currentindex_inPath = 0
         if newPath == False:
             # wait for first path to arrive
-            pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
+            pub_odom.publish(30.17 - Ballbot_y,Ballbot_x - 3.658,(math.pi/2 + Ballbot_theta)%(2*math.pi))
             r.sleep()
             continue
         while(currentindex_inPath < len(path)):
@@ -55,11 +55,11 @@ def simulator():
                 Ballbot_x = path[currentindex_inPath].pose.x
                 Ballbot_y = path[currentindex_inPath].pose.y
                 Ballbot_theta = path[currentindex_inPath].pose.theta
-                pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
+                pub_odom.publish(30.17 - Ballbot_y,Ballbot_x - 3.658,(math.pi/2 + Ballbot_theta)%(2*math.pi))
                 currentindex_inPath += 1                            
             r.sleep()     
         pub_status.publish("goalreached")
-        pub_odom.publish(Ballbot_x,Ballbot_y,Ballbot_theta)
+        pub_odom.publish(30.17 - Ballbot_y,Ballbot_x - 3.658,(math.pi/2 + Ballbot_theta)%(2*math.pi))
         
 
 def newPath_arrived(data):

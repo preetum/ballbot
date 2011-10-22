@@ -15,8 +15,8 @@ def draw_court():
     Draw the tennis court
     """
     global cm_to_pixels
-    canvas.create_rectangle(0.9*50,5.95*50,5.1*50,6.05*50,width=1,outline = 'black',fill = '')
-    canvas.create_rectangle(1.2*50,2.1*50,4.8*50,9.9*50,width=1,outline = 'black')
+    canvas.create_rectangle(0.9*50,5.95*50,5.1*50,6.05*50,width=1,outline = 'black',fill = '') # net
+    canvas.create_rectangle(1.2*50,2.1*50,4.8*50,9.9*50,width=1,outline = 'black') # court
     canvas.create_line(1.65*50,2.1*50,1.65*50,9.9*50,width=1,fill='black')
     canvas.create_line(4.35*50,2.1*50,4.35*50,9.9*50,width=1,fill='black')
     canvas.create_line(1.65*50,3.9*50,4.35*50,3.9*50,width=1,fill='black')
