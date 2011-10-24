@@ -89,7 +89,8 @@ def startPlanner(data):
         actionlist.append(action)
         #print Node.get_stateparams(),action,Node.get_g()
     rospy.loginfo(actionlist)
-
+    print "hit any key to confirm"
+    raw_input()
     path_to_send = Path()    
     for point in path:        
         pose = Pose()

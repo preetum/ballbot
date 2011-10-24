@@ -261,8 +261,8 @@ def newPath_arrived(data):
     path = data.poses
 
     print "newpathseen! length",len(path)        
-    print "hit a key to drive"
-    raw_input()
+    #print "hit a key to drive"
+    #raw_input()
     newPath = True
 
 def received_odometry(data):
