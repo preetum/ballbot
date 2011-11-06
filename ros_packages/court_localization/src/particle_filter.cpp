@@ -364,8 +364,8 @@ void ParticleFilter::publish(ros::Publisher &pub) const {
         thetaY += sin(p.pose.theta);
     }
     bb_msgs::Pose poseMsg;
-    poseMsg.x = x / len;
-    poseMsg.y = y / len;
+    poseMsg.x = 0.01*x / len; // converting to m
+    poseMsg.y = 0.01*y / len; // converting to m
     poseMsg.theta = atan2(thetaY, thetaX);
     fprintf(stderr, "Avg pose: %.2f, %.2f @ %f deg ", poseMsg.x, poseMsg.y,
             poseMsg.theta * 180 / CV_PI);
@@ -489,8 +489,8 @@ int main(int argc, char** argv) {
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-250, 0),
     //                  Bounds(0,2*CV_PI));
     // Top strip
-    drawUniformly(init, 50, Bounds(400, 800), Bounds(997, 1397),
-                  Bounds(0,2*CV_PI));
+    //drawUniformly(init, 50, Bounds(400, 800), Bounds(997, 1397),
+    //              Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(1097, 1297),
     //                  Bounds(0,2*CV_PI));
 
