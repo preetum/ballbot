@@ -20,8 +20,8 @@ Ballbot_theta = -math.pi/2
 
 def goalsender():
     argv = rospy.myargv(argv=sys.argv) 
-    if (Ballbot_x == -10):
-	rospy.sleep(2)
+    while (Ballbot_x == -10) and not (rospy.is_shutdown()):
+	rospy.sleep(1)
     if(len(argv) == 3):
         d_goal = float(argv[1])*100
         th_goal = float(argv[2])

@@ -102,11 +102,7 @@ def controller_PD():
                 if abs(error) is greater than 180, then we'd rather turn the other way!
                 """
                 if abs(error) > math.pi:
-                    error = (2*math.pi - abs(error))*(-1*cmp(error,0))
-            
-                #print "Ballbot",(Ballbot_X,Ballbot_Y,Ballbot_TH),"targetpoint",(path[targetindex_inPath].x,path[targetindex_inPath].y)
-                #print "heading",heading,"error",error
-                #raw_input()		
+                    error = (2*math.pi - abs(error))*(-1*cmp(error,0))                          		
 
                 Pterm = steering_P * error
                 
@@ -145,7 +141,7 @@ def controller_Stanley():
   
     currentindex_inPath = 0 # path index that the car is closest to
     targetindex_inPath = 0  # path index that is 50 cm ahead of the car
-    r = rospy.Rate(60)
+    r = rospy.Rate(10)
     
     average_error_position = 0
     ctr_error_position = 0
@@ -154,7 +150,7 @@ def controller_Stanley():
         if newPath == False:
             continue
         while(currentindex_inPath < len(path)-1) and not (rospy.is_shutdown()):
-            Ballbot_speed = 0.0 # set speed                   
+            Ballbot_speed = 1.0 # set speed                   
             if(newPath == True):
                 # if there is a new path, restart driving along this path
                 newPath = False
@@ -235,7 +231,8 @@ def controller_Stanley():
                     Ballbot_speed = 0.0
                 
                 Ballbot_speed = 0.0;
-                rospy.loginfo("Angle error %f Crosstrack error %f Steering %f",psi_t,x_t,Ballbot_steering)
+               # rospy.loginfo("ballbot pose (%f,%f,%f), path element (%f,%f,%f)",Ballbot_X,Ballbot_Y,Ballbot_TH,path_element.pose.x,path_element.pose.y,path_element.pose.theta)
+               # rospy.loginfo("Angle error %f Crosstrack error %f Steering %f",psi_t,x_t,Ballbot_steering)
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
 
             r.sleep()
@@ -273,9 +270,9 @@ def received_odometry(data):
     """
     global Ballbot_X,Ballbot_Y,Ballbot_TH
     # Coordinate frame conversion from localization frame to planner frame
-    Ballbot_x = (data.y + 3.658)*100.0
-    Ballbot_y = (30.17 - data.x)*100.0
-    Ballbot_theta = (data.theta - math.pi/2)%(2*math.pi)
+    Ballbot_X = (data.y + 3.658)*100.0
+    Ballbot_Y = (30.17 - data.x)*100.0
+    Ballbot_TH = (data.theta - math.pi/2)%(2*math.pi)
 
 def listener():
     rospy.init_node('controller',anonymous = True)
