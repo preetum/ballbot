@@ -1,0 +1,10 @@
+<!-- Launch file to drive on to ball without any real planning/control - used for ICRA video -->
+<launch>  
+  <node pkg="ros_arduino_interface" type="ros_arduino_interface.py" name="ros_arduino_interface"/>
+  <node name="opencv_cam" pkg="opencv_cam" type="opencv_cam">
+    <param name="calib" value="$(find opencv_cam)/camera_parameters.txt" />
+  </node>
+  <node pkg="find_ball_court" type="find_ball_court" name="Ballfinder"/>
+  <node pkg="lattice_planner" type="driveontoball.py" name="Driveontoball"/>
+
+</launch>
