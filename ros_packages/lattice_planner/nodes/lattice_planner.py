@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import math
+import parameters
 import util
 import time
 import controlset
@@ -28,18 +29,18 @@ def received_odometry(data):
     Ballbot_y = (30.17 - data.x)*100.0
     Ballbot_theta = (data.theta - math.pi/2)%(2*math.pi)
     
-def startPlanner(data):
+def startPlanner(data):    
     global startNode,goalNode,plan,path
     
-    (x1,y1,th1,v) = util.point_to_lattice(Ballbot_x,Ballbot_y,Ballbot_theta,util.ROBOT_SPEED_MAX)    
+    (x1,y1,th1,v) = util.point_to_lattice(Ballbot_x,Ballbot_y,Ballbot_theta,parameters.ROBOT_SPEED_MAX)    
  
     v2 = util.ROBOT_SPEED_MAX
-    (x2,y2,th2,v2) = util.point_to_lattice(data.pose.x,data.pose.y,data.pose.theta,util.ROBOT_SPEED_MAX)
+    (x2,y2,th2,v2) = util.point_to_lattice(data.pose.x,data.pose.y,data.pose.theta,parameters.ROBOT_SPEED_MAX)
     
-    if(x1 < 0) or (x1 > util.COURT_WIDTH) or (y1 < 0) or (y1 > util.COURT_LENGTH):
+    if(x1 < 0) or (x1 > parameters.COURT_WIDTH) or (y1 < 0) or (y1 > parameters.COURT_LENGTH):
         print "Invalid start!",(x1,y1,th1)
         return
-    if(x2 < 0) or (x2 > util.COURT_WIDTH) or (y2 < 0) or (y2 > util.COURT_LENGTH):
+    if(x2 < 0) or (x2 > parameters.COURT_WIDTH) or (y2 < 0) or (y2 > parameters.COURT_LENGTH):
         print "Invalid goal!",(x2,y2,th2)
         return   
  
@@ -56,21 +57,21 @@ def startPlanner(data):
     (x2,y2,th2,v2) = goalNode.get_stateparams()
 
     ########################################## DEBUGGING 
-    if (util.SEARCHALGORITHM == "straightline"):
+    if (parameters.SEARCHALGORITHM == "straightline"):
         debugpaths.straightLine((x1,y1,th1,v1),(x2,y2,th2,v2))
         return
 
-    elif (util.SEARCHALGORITHM == "figureofeight"):
+    elif (parameters.SEARCHALGORITHM == "figureofeight"):
         debugpaths.figureofeight((x1,y1,th1,v1))
         return
     ###########################################################################################################
         
-    elif (util.SEARCHALGORITHM == "A*"):
+    elif (parameters.SEARCHALGORITHM == "A*"):
         Astarsearch(startNode,goalNode)
-    elif (util.SEARCHALGORITHM == "LPA*"):
+    elif (parameters.SEARCHALGORITHM == "LPA*"):
         print "running LPA*"
         LPAstarsearch(startNode,goalNode)
-    elif (util.SEARCHALGORITHM == "MT-AdaptiveA*"):
+    elif (parameters.SEARCHALGORITHM == "MT-AdaptiveA*"):
         rospy.loginfo("running MT-AdaptiveA* %s",(startNode.get_stateparams(), goalNode.get_stateparams()))
         util.goaltype = data.goaltype.data
         MTAdaptiveAstarsearch(startNode,goalNode)
@@ -82,15 +83,13 @@ def startPlanner(data):
     path.append((x1/100.0,y1/100.0,th1,'s','f'))
     path = path + util.plan_to_path(plan)        
     path[0] = (x1/100.0,y1/100.0,th1,path[1][3],path[1][4])
-
     print "plan of length",len(plan)
     actionlist=[]
     for (Node,action) in plan:
         actionlist.append(action)
         #print Node.get_stateparams(),action,Node.get_g()
-    rospy.loginfo(actionlist)
-    print "hit any key to confirm"
-    raw_input()
+    rospy.loginfo(actionlist)    
+    raw_input("Hit any key to confirm path")
     path_to_send = Path()    
     for point in path:        
         pose = Pose()
@@ -164,18 +163,15 @@ def obstacle_added(event):
         graphics.draw_point_directed(start_x,start_y,start_th,'red')
         graphics.draw_point_directed(goal_x,goal_y,goal_th,'red')
 
-
 def init_planner():
     rospy.init_node('lattice_planner', anonymous=True)
     rospy.Subscriber("goal", Goal, startPlanner)
-    rospy.Subscriber("pose",Pose,received_odometry)
+    rospy.Subscriber("pose",Pose,received_odometry)    
     rospy.spin()
-
 
 if __name__ == '__main__':
     try:
-        util.controlset = controlset.ControlSet()
-        util.costmap = util.CostMap()
-        init_planner()
+        util.controlset = controlset.ControlSet()        
+        util.costmap = util.CostMap()             
+        init_planner()    
     except rospy.ROSInterruptException: pass
-

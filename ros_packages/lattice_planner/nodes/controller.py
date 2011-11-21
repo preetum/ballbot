@@ -36,7 +36,6 @@ def nearestNeighbor_inPath((x,y,th),currentindex_inPath):
     global path
     d_min = float('inf')
     index_min = 0
-
     index = currentindex_inPath
     for path_element in path[currentindex_inPath:currentindex_inPath+10]:
         """
@@ -61,15 +60,12 @@ def controller_PD():
     global path,newPath,Ballbot_steering,Ballbot_speed,pub_velcmd
     Ballbot_speed = 0.0
     Ballbot_steering = 0.0
-  
     currentindex_inPath = 0 # path index that the car is closest to
     targetindex_inPath = 0  # path index that is 50 cm ahead of the car
-
     # PID stuff
     # -- tuning parameters
     steering_P = 1.0
-    steering_D = 0.1
-    
+    steering_D = 0.1    
     # -- state parameters
     error = 0.0
     theta_old = 0.0 # stores previous theta value for D-term
@@ -103,25 +99,19 @@ def controller_PD():
                 """
                 if abs(error) > math.pi:
                     error = (2*math.pi - abs(error))*(-1*cmp(error,0))                          		
-
-                Pterm = steering_P * error
-                
+                Pterm = steering_P * error                
                 # D - Differential term
                 Dterm = steering_D * (Ballbot_TH - theta_old)
                 theta_old = Ballbot_TH
-
                 # set output
                 Ballbot_steering = Pterm - Dterm
                 if(Ballbot_steering > math.radians(30)):
                     Ballbot_steering = math.radians(30)
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
-
 		#print "error",error,"steering",Ballbot_steering
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
-
-            r.sleep()	
-        
+            r.sleep()	        
         # goal reached!
         print "goalreached"
         Ballbot_speed = 0
@@ -138,14 +128,11 @@ def controller_Stanley():
     k = 2.0
     Ballbot_speed = 0.0
     Ballbot_steering = 0.0
-  
     currentindex_inPath = 0 # path index that the car is closest to
     targetindex_inPath = 0  # path index that is 50 cm ahead of the car
-    r = rospy.Rate(10)
-    
+    r = rospy.Rate(10)    
     average_error_position = 0
     ctr_error_position = 0
-
     while not rospy.is_shutdown():
         if newPath == False:
             continue
@@ -169,88 +156,67 @@ def controller_Stanley():
 
                 average_error_position += x_t
                 ctr_error_position +=1
-
                 heading = (math.atan2(path[targetindex_inPath].pose.y-Ballbot_Y, path[targetindex_inPath].pose.x-Ballbot_X)%(2*math.pi))
                 error = Ballbot_TH - heading
                 """
                 correct roll-over problems with error:
                 if abs(error) is greater than 180, then we'd rather turn the other way!
                 """
-
                 if abs(error) > math.pi:
                     error = (2*math.pi - abs(error))*(-1*cmp(error,0))
                 if error < 0:
-                    x_t = -1*x_t
-                
+                    x_t = -1*x_t                
                 # calculate heading error, psi_t
-                psi_t = Ballbot_TH - path_element.pose.theta
-               
+                psi_t = Ballbot_TH - path_element.pose.theta               
                 """
                 correct roll-over problems with error:
                 if abs(error) is greater than 180, then we'd rather turn the other way!
                 """
-
                 if abs(psi_t) > math.pi:
-                    psi_t = (2*math.pi - abs(psi_t))*(-1*cmp(psi_t,0))
-                    
-                # Set output
+                    psi_t = (2*math.pi - abs(psi_t))*(-1*cmp(psi_t,0))                    
+                # Set steering
                 Ballbot_steering = psi_t + math.atan(k*x_t/Ballbot_speed)
                 if(Ballbot_steering > math.radians(30)):
                     Ballbot_steering = math.radians(30)
                 elif(Ballbot_steering < -math.radians(30)):
                     Ballbot_steering = -math.radians(30)
-
-
                 # Speed control
                 cur_dir = path_element.direction
                 lookahead_dir = path[targetindex_inPath].direction
                 cur_type = path_element.type
                 lookahead_type = path[targetindex_inPath].type
-                near_obstacle = path_element.near_obstacle
-                #print cur_dir,lookahead_dir
-                
-                Ballbot_speed = 1.0
-
+                near_obstacle = path_element.near_obstacle            
+                Ballbot_speed = 1.0 # 2.0 
                 if(cur_type=='t') or (lookahead_type=='t'):
+                    Ballbot_speed = 1.0                
+                if(near_obstacle == "t"):                    # if near obstacle, slow down
                     Ballbot_speed = 1.0
-                
-                if(near_obstacle == "t"):
-                    Ballbot_speed = 1.0
-
-                if(cur_dir != lookahead_dir):
+                if(cur_dir != lookahead_dir):                # if a reverse is coming up, slow down
                     Ballbot_speed = 0.5                
-
                 if(currentindex_inPath >= (len(path) - 20)): # if within 1 m of goal, slow down
                     Ballbot_speed = 1.0
-
-                if(cur_dir == 'b'):
+                if(cur_dir == 'b'):                          # flip sign to reverse
                     Ballbot_speed = -1*abs(Ballbot_speed)
                 elif(cur_dir == 'f'):
                     Ballbot_speed = abs(Ballbot_speed)
                 else:
                     Ballbot_speed = 0.0
                 
-                Ballbot_speed = 0.0;
-               # rospy.loginfo("ballbot pose (%f,%f,%f), path element (%f,%f,%f)",Ballbot_X,Ballbot_Y,Ballbot_TH,path_element.pose.x,path_element.pose.y,path_element.pose.theta)
-               # rospy.loginfo("Angle error %f Crosstrack error %f Steering %f",psi_t,x_t,Ballbot_steering)
+                #Ballbot_speed = 0.0;  # UNCOMMENT TO SET DRIVE SPEED to 0
                 pub_velcmd.publish(Ballbot_speed,Ballbot_steering)
-
             r.sleep()
-
         # goal reached!
         rospy.loginfo("goalreached")
-        pub_status.publish("goalreached")
-        
+        pub_status.publish("goalreached")        
         Ballbot_speed = 0
         Ballbot_steering = 0
         currentindex_inPath = 0
         targetindex_inPath = 0
-        pub_velcmd.publish(Ballbot_speed,Ballbot_steering) 
-        
-        final_error_position = util.distance_Euclidean(Ballbot_X,Ballbot_Y,path[-1].pose.x,path[-1].pose.y)
-        final_error_angle = abs(Ballbot_TH - path[-1].pose.theta)
-        average_error_position = average_error_position/ctr_error_position
-        rospy.loginfo("final_error_pos %f final_error_angle %f average_error_pos %f",final_error_position,final_error_angle,average_error_position)
+        pub_velcmd.publish(Ballbot_speed,Ballbot_steering)         
+        #final_error_position = util.distance_Euclidean(Ballbot_X,Ballbot_Y,path[-1].pose.x,path[-1].pose.y)
+        #final_error_angle = abs(Ballbot_TH - path[-1].pose.theta)
+        #average_error_position = average_error_position/ctr_error_position
+        #rospy.loginfo("final_error_pos %f final_error_angle %f average_error_pos %f",final_error_position,final_error_angle,average_error_position)
 
 def newPath_arrived(data):
     """

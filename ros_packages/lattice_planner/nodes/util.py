@@ -5,6 +5,7 @@ Contains functions to implement A* search, LPA* search
 """
 import math
 import heapq
+import parameters
 import controlset
 import rospy
 
@@ -14,30 +15,32 @@ agentNode = None # node occupied by agent
 goaltype = None  # type of current goal
 
 
-SEARCHALGORITHM ="MT-AdaptiveA*"
+SEARCHALGORITHM = parameters.SEARCHALGORITHM
 count_expandednodes = 0
 S = [] # list of all nodes seen so far by LPA* search, represents the graph S
 U = []
 plan_LPAstar = []
+
 # ROBOT PROPERTIES
-ROBOT_LENGTH = 49         # 49 cm
-ROBOT_WIDTH  = 28         # 28 cm
-ROBOT_RADIUS_MIN = 70.0   # 70 cm
-ROBOT_RADIUS_2   = 119.5  # 119.5 cm
-ROBOT_RADIUS_3   = 84.497 # 84.497 cm
-ROBOT_RADIUS_4   = 74.246 # 74.246 cm
-ROBOT_RADIUS_5   = 76.6845 # 76.6845 cm
-ROBOT_SPEED_MAX = 100.0   #100 cm/s 
+ROBOT_LENGTH = parameters.ROBOT_LENGTH  
+ROBOT_WIDTH  = parameters.ROBOT_WIDTH
+ROBOT_RADIUS_MIN = parameters.ROBOT_RADIUS_MIN
+ROBOT_RADIUS_2   = parameters.ROBOT_RADIUS_2
+ROBOT_RADIUS_3   = parameters.ROBOT_RADIUS_3
+ROBOT_RADIUS_4   = parameters.ROBOT_RADIUS_4
+ROBOT_RADIUS_5   = parameters.ROBOT_RADIUS_5
+ROBOT_SPEED_MAX  = parameters.ROBOT_SPEED_MAX
 
 #ENVIRONMENT PROPERTIES
-COURT_LENGTH = 3657.6    #cm
-COURT_WIDTH = 1828.8     #cm
+COURT_LENGTH = parameters.COURT_LENGTH
+COURT_WIDTH = parameters.COURT_WIDTH
 
 #LATTICE PROPERTIES
-CELL_SIZE = ROBOT_RADIUS_MIN/4 # 17.5 cm
+CELL_SIZE = parameters.CELL_SIZE
 
 controlset = None
 costmap = None
+normdist = None
 
 def feet_to_cm(feet):
     return feet*30.48
@@ -47,6 +50,39 @@ def cm_to_feet(cm):
 
 def distance_Euclidean(x1,y1,x2,y2):
     return math.sqrt(math.pow(x1-x2,2) + math.pow(y1-y2,2))
+
+def init_normdist():
+    """
+    precompute values of the standard normal distribution for x in [-3,3], with step size 0.5
+    """
+    global normdist
+    x = 0
+    normdist = []
+    while(x <= 3):
+        normdist.append(math.exp(-0.5*x*x))
+        x = x+0.5
+    #print normdist
+    return normdist   
+
+def lookup_normdist(x):
+    """
+    Input: x in cm
+    linearly interpolate to find the value of the standard normal distribution at x
+    """
+    # convert x to m
+    x = float(x)/100
+   # print x
+    if (x > 3):
+        return 0
+    elif (x%0.5 == 0):
+        return normdist[int(x/0.5)]
+    else:                
+        low =  int(math.floor(x/0.5))
+        high = int(math.ceil(x/0.5))
+        #print "x,x%0.5,low,high",x,x%0.5,low,high   
+        lookup = normdist[low] + (normdist[high]-normdist[low])*(x/0.5 - low)/(high - low)        
+        return lookup
+
 #############################################################################################
 
 class PriorityQueue:
@@ -296,6 +332,7 @@ class CostMap:
         """
         self.obstacles = [] 
         self.highcostregions = []
+        
         # Net
         net = [(feet_to_cm(9.0),feet_to_cm(60.5)),(feet_to_cm(51.0),feet_to_cm(59.5))]
         vertex = net[0]
@@ -307,21 +344,27 @@ class CostMap:
         (x_bottomright,y_bottomright,ignore3,ignore4) = point_to_lattice(vertex[0],vertex[1])
         x_bottomright += CELL_SIZE
         y_bottomright -= CELL_SIZE    
-        self.obstacles.append(((x_topleft,y_topleft),(x_bottomright,y_bottomright)))
-               
-        """
-        # court
-        court = [(feet_to_cm(12),feet_to_cm(99)),(feet_to_cm(48),feet_to_cm(21))]
-        (x_topleft,y_topleft,ignore1,ignore2) = point_to_lattice(court[0][0],court[0][1])
-        x_topleft -= CELL_SIZE # padding
-        y_topleft += CELL_SIZE # padding
-    
-        (x_bottomright,y_bottomright,ignore3,ignore4) = point_to_lattice(court[1][0],court[1][1])
-        x_bottomright += CELL_SIZE # padding
-        y_bottomright -= CELL_SIZE # padding
-        self.highcostregions.append(((x_topleft,y_topleft),(x_bottomright,y_bottomright)))
-        """
+        self.obstacles.append(((x_topleft,y_topleft),(x_bottomright,y_bottomright)))                
         
+        init_normdist()
+        # append each line-intersection as a landmark
+        self.landmarks = [ (365.8,640.0), # left bottom - doubles
+                           (503,640.0),   # left bottom - singles
+                           (1326.0,640.0), # right bottom - singles
+                           (1463.2,640.0), # right bottom - doubles
+                           (503,1190),     # left service line
+                           (1326,1190),    # right service line
+                           (914.5,1190),   # center service line
+                           
+                           # --- top half of court --- #
+                           (365.8,3017.0),  # left bottom - doubles
+                           (503,3017.0),    # left bottom - singles
+                           (1326.0,3017.0), # right bottom - singles
+                           (1463.2,3017.0), # right bottom - doubles 
+                           (503.0,2467.0),   # left service line
+                           (1326.0,2467.0),  # right service line
+                           (914.5,2467.0)]   # center service line
+    
     def cost_cell(self,x,y):
         """
         Given points x,y, return the cost of the cell at that point
@@ -386,6 +429,24 @@ class CostMap:
 #                                   COST COMPUTATION
 # -------------------------------------------------------------------------------------------------
 
+def cost_landmarks(x,y,theta):
+    """
+    return cost affected by landmarks for point (x,y)
+    """    
+    cost = 0.0
+    if(y <= COURT_LENGTH/2):
+        # bottom half
+        landmarks = costmap.landmarks[0:7]
+        cost = 0.0
+        for landmark in landmarks:
+            dist_x = abs(landmark[0] - x)
+            dist_y = abs(landmark[1] - y)
+            
+            dist_theta = abs(theta - math.atan2(landmark[1]-y,landmark[0]-x))            
+            cost_theta =  1 + (dist_theta < math.radians(30))                        
+            cost = cost + cost_theta*lookup_normdist(dist_x)*lookup_normdist(dist_y);    
+    return 1/(1+cost)
+
 def cost(state,action,newstate,goalNode):
   """
   Given a state and action from that state that reaches newstate, return the cost of executing this action
@@ -402,7 +463,7 @@ def cost(state,action,newstate,goalNode):
   elif action in ("R_b","L_b","B","B_diag","B1_26.6","B1_63.4"):
       cost_mult = 10.0
   else:
-      cost_mult = 1.2 
+      cost_mult = 1.2 #2.5#1.2 
 
   if goal_in_radius(state_x,state_y,goalNode):
       nearGoal = True      
@@ -433,11 +494,12 @@ def cost(state,action,newstate,goalNode):
               average_cellcost += cost_cell
           num_cells += (strip[2]+1 - strip[1])
       average_cellcost = average_cellcost/num_cells      
-      cost = length_action*average_cellcost  
-      #print cost
+      cost = length_action*average_cellcost        
 
-  
-  cost = cost*cost_mult
+  #landmark_weight = 40
+  #landmark_factor = landmark_weight*cost_landmarks(newstate_x,newstate_y,newstate_th)  
+  landmark_factor = 0
+  cost = cost*cost_mult + landmark_factor
   return cost
 
 def obstacle_in_radius(x,y):
@@ -445,6 +507,7 @@ def obstacle_in_radius(x,y):
     Given a state's x,y coordinates, return True if an obstacle may be within 175 cm of the state
     else return False
     """
+    
     if (abs(y- COURT_LENGTH) <= 175) or (abs(y) <= 175) or (abs(x - COURT_WIDTH) <= 175) or (abs(x- COURT_LENGTH) <= 175) or (abs(x) <= 175):
         return True
 
@@ -709,13 +772,8 @@ def ComputeShortestPath():
     while ((U[0][0],U[0][1]) < CalcKey(goalNode)) or (goalNode.get_rhs() != goalNode.get_g()):            
         (Nodekey1,Nodekey2,Node) = heapq.heappop(U)       
         (x,y,theta,v) = Node.get_stateparams()
-        #graphics.draw_point(x,y,theta,'blue')
         count_expandednodes += 1
-        #print Node.get_stateparams(),"key",CalcKey(Node)
-        #print "Nodekey",(Nodekey1,Nodekey2),"goalKey",CalcKey(goalNode),"goalrhs",goalNode.get_rhs(),"goalg",goalNode.get_g()
-        #raw_input("hit enter")
         rhs = Node.get_rhs()
-        #print "rhs",rhs
         if (Node.get_g() > rhs): # Underconsistent
             #print "under"
             Node.set_g(rhs)
@@ -743,9 +801,7 @@ def ComputeShortestPath():
             if (stepcost + pred.get_g()) < backwardcost_min:
                 pred_mincost = (pred,action)
                 backwardcost_min = stepcost + pred.get_g()
-        node = pred_mincost[0]
-        #print node.get_stateparams(),"cost",pred_mincost[1],"g",node.get_g()
-        #raw_input("hit enter")        
+        node = pred_mincost[0]            
         plan_LPAstar.append(pred_mincost)
     plan_LPAstar.reverse()
 
