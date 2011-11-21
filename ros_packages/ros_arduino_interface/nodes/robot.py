@@ -99,6 +99,7 @@ class BaseController:
       data_string = self.serial.read(100)
       # Fill the packet object
       if len(data_string) > 0:
+        #print map(ord, data_string)
         recv_packet.read(data_string)
 
   def reset(self):
