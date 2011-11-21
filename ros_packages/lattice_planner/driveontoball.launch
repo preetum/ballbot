@@ -1,8 +1,0 @@
-<launch>  
-  <node pkg="ros_arduino_interface" type="ros_arduino_interface.py" name="ros_arduino_interface"/>
-  <node name="opencv_cam" pkg="opencv_cam" type="opencv_cam">
-    <param name="calib" value="$(find opencv_cam)/camera_parameters.txt" />
-  </node>
-  <node pkg="find_ball_court" type="find_ball_court" name="Ballfinder"/>
-
-</launch>
