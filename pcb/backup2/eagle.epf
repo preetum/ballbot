@@ -335,10 +335,10 @@ UsedLibrary="/home/ankush/ballbot/pcb/SparkFun.lbr"
 [Win_1]
 Type="Board Editor"
 Loc="0 0 599 399"
-State=1
+State=0
 Number=2
-File="/home/ankush/ballbot/pcb/power_backup/power_backup.brd"
-View="448728 -27453 970024 561469"
+File="backup2.brd"
+View="-9968 -48573 441840 427197"
 WireWidths=" 0 2540 3048 6096 8128 10160 12700 14224 16764 17780 19304 21844 25400 38100 64516 4064"
 PadDiameters=" 2540 3048 4064 6096 8128 10160 12700 14224 16764 17780 19304 21844 25400 38100 64516 0"
 PadDrills=" 5000 6000 7000 9000 10000 11000 12000 13000 14000 15000 16000 20000 22000 28000 32000 8000"
@@ -373,8 +373,8 @@ Layer=16
 
 [Win_2]
 Type="Control Panel"
-Loc="334 189 933 588"
-State=1
+Loc="684 187 1283 586"
+State=2
 Number=0
 
 [Desktop]
