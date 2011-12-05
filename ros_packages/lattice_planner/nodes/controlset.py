@@ -1,10 +1,14 @@
 #!/usr/bin/env python
-import util
+"""
+controlset.py - creates (hardcoded) motion primitives for Ballbot
+                Currently, there are 8 possible headings.
+                Uncommenting the others allowed_headings will expand to 16 headings
+"""
+
+import parameters
 import math
-#import graphics
 import roslib; roslib.load_manifest('lattice_planner')
 import rospy
-
 from std_msgs.msg import String
 from bb_msgs.msg import Pose,Path,PathElement,Goal
 pub = rospy.Publisher('path',Path)
@@ -16,7 +20,7 @@ class ControlSet:
   """
   
   def __init__(self):  
-    ROBOT_SPEED_MAX  = util.ROBOT_SPEED_MAX    
+    ROBOT_SPEED_MAX  = parameters.ROBOT_SPEED_MAX    
     v = ROBOT_SPEED_MAX          
 
     self.allowed_headings = [0,math.pi/2,math.pi,3*math.pi/2,
@@ -43,12 +47,12 @@ class ControlSet:
     self.init_swaths()
     
   def init_actions(self,v):
-    ROBOT_RADIUS_MIN = util.ROBOT_RADIUS_MIN
-    ROBOT_RADIUS_2   = util.ROBOT_RADIUS_2
-    ROBOT_RADIUS_3  = util.ROBOT_RADIUS_3
-    ROBOT_RADIUS_4  = util.ROBOT_RADIUS_4
-    ROBOT_RADIUS_5  = util.ROBOT_RADIUS_5
-    CELL_SIZE        = util.CELL_SIZE
+    ROBOT_RADIUS_MIN = parameters.ROBOT_RADIUS_MIN
+    ROBOT_RADIUS_2   = parameters.ROBOT_RADIUS_2
+    ROBOT_RADIUS_3  = parameters.ROBOT_RADIUS_3
+    ROBOT_RADIUS_4  = parameters.ROBOT_RADIUS_4
+    ROBOT_RADIUS_5  = parameters.ROBOT_RADIUS_5
+    CELL_SIZE        = parameters.CELL_SIZE
 
     # map actions from origin to lattice points, for heading 0
     state_atOrigin = (0,0,0,v)
@@ -673,8 +677,9 @@ def getindices_origin_333_4():
                            "RSR2_f_63.4":[(-2,-1,0),(-1,-1,1),(0,-2,0),(1,-3,0),(2,-3,0),(3,-4,-2),(4,-5,-3),(5,-4,-3)]}
    return indices_origin_333_4
 
-
+"""
 if __name__ == '__main__':
+  import util
   controlset = ControlSet()  
   rospy.init_node('Controlset',anonymous=True)
   v = 0
@@ -714,3 +719,4 @@ if __name__ == '__main__':
       pub.publish(path_to_send)
       print "path published. Hit enter"
       raw_input()
+"""

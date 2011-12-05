@@ -1,3 +1,4 @@
+<!-- Launch file for planner in vicon room. Note: ros_arduino_interface_Vicon might be depracated -->
 <launch>  
   <node pkg="lattice_planner" type="lattice_planner.py" name="lattice_planner" />
   <node pkg="lattice_planner" type="controller.py" name="controller"/>

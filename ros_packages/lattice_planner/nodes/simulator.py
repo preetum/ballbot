@@ -7,7 +7,6 @@ Subscribes to: /path
 """
 import roslib; roslib.load_manifest('lattice_planner')
 import rospy
-import util
 import math
 import time
 from std_msgs.msg import String

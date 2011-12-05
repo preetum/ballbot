@@ -2,6 +2,7 @@
 
 """
 GUI display for ballbot
+You can send go-to-ball (end angle not specifed) as well as go-to-pose (end angle specified) commands.
 Publishes to topics:  goal,obstacles
 Subscribes to topics: path,odom
 """
@@ -9,8 +10,6 @@ import roslib; roslib.load_manifest('lattice_planner')
 import rospy
 import graphics
 import math
-import util
-import time
 from Tkinter import *
 
 from std_msgs.msg import String
@@ -36,10 +35,8 @@ def startPlanner(d_goal=0.0,th_goal=0.0,x_goal=0.0,y_goal=0.0,th_goal_abs=0.0,go
     """
     global Goal_x,Goal_y
 
-    graphics.canvas.delete(ALL)
-    #util.costmap.draw_costmap()
-    graphics.draw_court()    
-    #th1 = math.radians(th1)    
+    graphics.canvas.delete(ALL)    
+    graphics.draw_court()        
 
     if(goaltype == "newball"):        
         th_goal = Ballbot_theta - math.radians(th_goal)     # angle to goal in global coord
@@ -75,6 +72,7 @@ def startPlanner(d_goal=0.0,th_goal=0.0,x_goal=0.0,y_goal=0.0,th_goal_abs=0.0,go
         Goal_x = x2
         Goal_y = y2
 
+        """
     #return # remove for MTA*    
         while not rospy.is_shutdown():
             raw_input()
@@ -90,8 +88,8 @@ def startPlanner(d_goal=0.0,th_goal=0.0,x_goal=0.0,y_goal=0.0,th_goal_abs=0.0,go
             
             Goal_x = x2
             Goal_y = y2
-    
-    
+        """
+            
 
 def received_odometry(data):
     global Ballbot_x,Ballbot_y,Ballbot_theta,Ballbot_Tkobjects
@@ -109,6 +107,7 @@ def received_odometry(data):
     """
     redraw car at new position
     """            
+    #rospy.loginfo("drawing car at %f,%f,%f",Ballbot_x,Ballbot_y,Ballbot_theta)
     Ballbot_Tkobjects = graphics.draw_car(Ballbot_x*100.0 + 17.41*math.cos(Ballbot_theta) ,Ballbot_y*100.0+ 17.41*math.sin(Ballbot_theta),Ballbot_theta)
 
 def received_path(data):
@@ -133,9 +132,16 @@ def windowclosed():
     rospy.signal_shutdown("Window closed by user!") 
     root.quit()
 
-def initialize_gui():    
-    global root
+def onclick(event):
+    """ 
+    print cost of clicked point
+    """
+    x = event.x/graphics.cm_to_pixels
+    y = event.y/graphics.cm_to_pixels    
+    
 
+def initialize_gui():    
+    global root                 
     rospy.init_node('GUI')
     while not rospy.is_shutdown():
         root = graphics.root
@@ -197,12 +203,11 @@ def initialize_gui():
                                                                          th_goal_abs = float(entryWidget_th2.get()),
                                                                         goaltype = "gotopose"))
         b2.pack(side = RIGHT)
-
-        #util.costmap.draw_costmap()
+    
         graphics.draw_court()
-
-        graphics.canvas.configure(cursor = "crosshair")
-        #graphics.canvas.bind("<Button-1>",obstacle_added)
+        graphics.draw_landmarks()
+        graphics.canvas.configure(cursor = "crosshair")        
+        graphics.canvas.bind("<Button-1>", onclick)
 
         rospy.Subscriber("pose",Pose, received_odometry)
         rospy.Subscriber("path",Path,received_path)

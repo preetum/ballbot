@@ -1,5 +1,9 @@
-# contains hardcoded debug paths
+""" 
+contains hardcoded debug paths to test the controller
+specifically, has straightline and figure of eight
+"""
 import math
+import parameters
 import util
 import lattice_planner
 
@@ -38,8 +42,8 @@ def figureofeight((x1,y1,th1,v1)):
     state = (x1,y1,th1,v1)
     newstate = None
     d = 0
-    while d <=  2*math.pi*util.ROBOT_RADIUS_MIN:
-        newstate = util.turn_Left(state,'f',5,util.ROBOT_RADIUS_MIN)
+    while d <=  2*math.pi*parameters.ROBOT_RADIUS_MIN:
+        newstate = util.turn_Left(state,'f',5,parameters.ROBOT_RADIUS_MIN)
         path.append((newstate[0]/100,newstate[1]/100,newstate[2]))
         state = newstate
         d += 5
@@ -47,8 +51,8 @@ def figureofeight((x1,y1,th1,v1)):
     (x1,y1,th1,v1) = state
     newstate = None
     d = 0
-    while d <= 2*math.pi*util.ROBOT_RADIUS_MIN:
-        newstate = util.turn_Right(state,'f',5,util.ROBOT_RADIUS_MIN)
+    while d <= 2*math.pi*parameters.ROBOT_RADIUS_MIN:
+        newstate = util.turn_Right(state,'f',5,parameters.ROBOT_RADIUS_MIN)
         path.append((newstate[0]/100,newstate[1]/100,newstate[2]))
         state = newstate
         d += 5

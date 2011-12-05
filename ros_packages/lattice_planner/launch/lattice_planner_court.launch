@@ -1,3 +1,5 @@
+<!-- Use this to launch nav stack on court. Remember to use roslaunch --screen because
+     user may be prompted to confirm trajectory etc-->
 <launch>  
   <node pkg="lattice_planner" type="lattice_planner.py" name="lattice_planner" />
   <node pkg="lattice_planner" type="controller.py" name="controller"/>
