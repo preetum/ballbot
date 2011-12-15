@@ -89,6 +89,19 @@ double pointLineDistance(const Vec2d &point, const Vec4d &line) {
     return abs(n.dot(v));
 }
 
+double pointLineHeading(const Vec2d &point, const Vec4d &line) {
+    // Project point onto line
+    // n is a unit normal vector of the line
+    // v is a vector from point to line
+    Vec2d n(line[1]-line[3], line[2]-line[0]);
+    n *= 1.0/norm(n);
+    Vec2d v(line[0]-point[0], line[1]-point[1]);
+
+    // Generate vector from point to the closest point on line
+    Vec2d u = n.dot(v) * n;
+    return atan2(u[1], u[0]);
+}
+
 /* Returns the distance from POINT (x,y) to line segment 
  * SEGMENT whose endpoints are (x1, y1, x2, y2)
  *

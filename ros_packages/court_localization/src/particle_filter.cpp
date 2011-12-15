@@ -37,6 +37,9 @@ ros::Publisher particlePub, posePub;
 cv::RNG myRng(time(NULL));
 double horizon = 0.0;
 
+//cv::VideoWriter vid("video.avi",
+//                    CV_FOURCC('P','I','M','1'), 30, Size(640,480), true);
+
 // Utility functions
 
 void printTime(const char *label) {
@@ -70,10 +73,13 @@ void drawUniformly(vector<PoseParticle> *particles, unsigned int n,
     particles->reserve(particles->size() + n);
     while (n > 0) {
         double x = myRng.uniform(xRange.min, xRange.max),
-            y = myRng.uniform(yRange.min, yRange.max);
-            //theta = myRng.uniform(thetaRange.min, thetaRange.max);
+            y = myRng.uniform(yRange.min, yRange.max),
+            theta = myRng.uniform(thetaRange.min, thetaRange.max);
+        particles->push_back(PoseParticle(x, y, theta));
+        /*
         for (int i = 0; i < 16; i += 1)
             particles->push_back(PoseParticle(x, y, i*CV_PI/8, 1));
+        */
         n -= 1;
     }
 }
@@ -175,7 +181,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
     //    return;
 
     // Draw detected lines for debugging
-    //drawLines(observation, seenLines);
+    drawLines(observation, seenLines);
 
     // Adjust y coordinates (since the ROI is shifted,
     //  all the y coordinates will be off)
@@ -340,7 +346,11 @@ void ParticleFilter::publish(ros::Publisher &pub) const {
     bb_msgs::PoseArray msg;
 
     // TODO Undo hack! Publish every N particles to save time
-    for (size_t i = 0; i < particles->size(); i += 20) {
+    int len = particles->size(),
+        stepSize = 1;
+    if (len > 1000)
+        stepSize = 4;
+    for (size_t i = 0; i < len; i += stepSize) {
         const PoseParticle &p = particles->at(i);
         bb_msgs::Pose poseMsg;
         poseMsg.x = p.pose.x;
@@ -355,7 +365,6 @@ void ParticleFilter::publish(ros::Publisher &pub) const {
         y = 0,
         thetaX = 0,
         thetaY = 0;
-    int len = particles->size();
     for (int i = 0; i < len; i += 1) {
         const PoseParticle &p = particles->at(i);
         x += p.pose.x;
@@ -439,7 +448,10 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
         printTime("publish");
 
+        // Restore whole image
+        cv_ptr->image.adjustROI(horizon, 0, 0, 0);
         imshow("image", cv_ptr->image);
+        //vid << cv_ptr->image;
     }
     catch (cv_bridge::Exception& e) {
         ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -483,8 +495,11 @@ int main(int argc, char** argv) {
     //*/
     //*
     vector<PoseParticle> *init = new vector<PoseParticle>();
+    // Whole court
+    //drawUniformly(init, 5000, Bounds(-200,1389), Bounds(-200, 1297),
+    //                           Bounds(0,2*CV_PI));
     // Bottom strip
-    drawUniformly(init, 50, Bounds(400, 800), Bounds(-300, 100),
+    drawUniformly(init, 500, Bounds(300, 800), Bounds(-400, 100),
                   Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-250, 0),
     //                  Bounds(0,2*CV_PI));
@@ -505,7 +520,7 @@ int main(int argc, char** argv) {
     cam.position.z = 33.0;
     cam.tilt = -15.0 * CV_PI / 180.0;
     Point3d camWorldPt =
-        get_camera_world_coordinates(Point3d(2500, 0, -cam.position.z),
+        get_camera_world_coordinates(Point3d(8000, 0, -cam.position.z),
                                      cam.position, cam.theta, cam.pan,
                                      cam.tilt);
     Point2d horizonPt =

@@ -20,6 +20,7 @@ cv::Vec2d lineCenter(const cv::Vec4d &line);
 double lineAngle(const cv::Vec4i &line);
 double lineAngle(const cv::Vec4d &line);
 double pointLineDistance(const cv::Vec2d &point, const cv::Vec4d &line);
+double pointLineHeading(const cv::Vec2d &point, const cv::Vec4d &line);
 double pointLineSegmentDistance(const cv::Vec2d &point, 
 				const cv::Vec4d &segment);
 

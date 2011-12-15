@@ -53,26 +53,32 @@ struct camera
 
 };
 
+/* line_segment_3d is a pair of cv::Point3d's. The d stands for
+ * double-precision.
+ */
 struct line_segment_3d
 {
 	cv::Point3d pt1, pt2;
 
-	line_segment_3d()
-	{
-		pt1.x = 0; pt1.y = 0; pt1.z = 0;
-		pt2.x = 0; pt2.y = 0; pt2.z = 0;
-	}
+    // Initialize a LineSegment with values pt1=(0,0,0) pt2=(0,0,0)
+    // (initialized by default Point3d constructor)
+    line_segment_3d() { }
 
-	bool operator==(const line_segment_3d &other)
-		{
-			return (other.pt1 == pt1 && other.pt2 == pt2);
-		}
+    line_segment_3d(cv::Point3d _pt1, cv::Point3d _pt2) :
+        pt1(_pt1), pt2(_pt2) { };
 
-	void operator=(const line_segment_3d &other)
-		{
-			pt1 = other.pt1;
-			pt2 = other.pt2;
-		}
+    line_segment_3d(double x1, double y1, double z1,
+                    double x2, double y2, double z2) :
+        pt1(x1, y1, z1), pt2(x2, y2, z2) { };
+
+	bool operator==(const line_segment_3d &other) {
+        return (other.pt1 == pt1 && other.pt2 == pt2);
+    }
+
+	void operator=(const line_segment_3d &other) {
+        pt1 = other.pt1;
+        pt2 = other.pt2;
+    }
 
 };
 
@@ -106,11 +112,13 @@ struct line_segment_all_frames
 	 * 		1. Image plane
 	 * 		2. Camera world
 	 * 		3. Real World
+     * index is the index of the court line in the model
 	 */
 
 	line_segment_2d imgPlane;
 	line_segment_3d camWorld;
 	line_segment_3d realWorld;
+    int index;
 };
 
 
@@ -120,9 +128,10 @@ cv::Point3d get_camera_world_coordinates(cv::Point3d real_world_position,
                                          double tilt);
 cv::Point2d cam_world_position_to_imageXY(cv::Point3d cam_world_position,
                                           camera &bb_cam);
+
 std::vector <line_segment_all_frames> get_view_lines(camera particle_camera,
-                                                cv::Size frame_size,
-                                                cv::Mat &view_frame,
-                                                float near_dist = 0.2,
-                                                bool draw = false);
+                                              cv::Size frame_size,
+                                              cv::Mat &view_frame,
+                                              float near_dist = 0.2,
+                                              bool draw = false);
 #endif

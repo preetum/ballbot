@@ -33,5 +33,9 @@ find_package(OpenCV REQUIRED)
 rosbuild_add_executable(particle_filter src/particle_filter.cpp src/backproject.cpp src/findlines.cpp src/differentiation.cpp src/geometry.cpp)
 target_link_libraries(particle_filter opencv_core opencv_imgproc opencv_highgui opencv_objdetect)
 
-#rosbuild_add_executable(ekf_localization src/ekf_localization.cpp)
+rosbuild_add_executable(matlab_export src/matlab_export.cpp src/backproject.cpp src/findlines.cpp src/differentiation.cpp src/geometry.cpp)
+target_link_libraries(matlab_export opencv_core opencv_imgproc opencv_objdetect)
+
+
+#rosbuild_add_executable(ekf_localization src/ekf_localization.cpp src/backproject.cpp src/findlines.cpp src/differentiation.cpp src/geometry.cpp)
 #target_link_libraries(ekf_localization opencv_core opencv_imgproc opencv_objdetect)

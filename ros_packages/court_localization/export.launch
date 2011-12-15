@@ -1,0 +1,8 @@
+<launch>
+  <node pkg="rosbag" type="rosbag" name="rosbag" args="play -d 2 /home/john/capture/2011-10-17-run3.bag"/>
+  <node name="republish" pkg="image_transport" type="republish" args="compressed in:=camera/image raw out:=camera/decompressed" />
+  <node name="extract" pkg="image_view" type="extract_images" respawn="false" output="screen" cwd="node">
+    <param name="filename_format" value="/home/john/frame%04i.jpg"/>
+    <remap from="image" to="/camera/decompressed"/>
+  </node>
+</launch>

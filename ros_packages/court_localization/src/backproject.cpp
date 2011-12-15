@@ -47,6 +47,24 @@ struct _court
 	{
 		line_segment_3d line_seg;
 
+        // TODO *sigh* refactor this
+        // Line indices are used to identify them! Do not change the order!
+        court_lines.push_back(line_segment_3d(0, 0, 0, 0, 1097, 0));
+        court_lines.push_back(line_segment_3d(548, 137, 0, 548, 960, 0));
+        court_lines.push_back(line_segment_3d(1829, 137, 0, 1829, 960, 0));
+        court_lines.push_back(line_segment_3d(2377, 0, 0, 2377, 1097, 0));
+
+        court_lines.push_back(line_segment_3d(0, 0, 0, 2377, 0, 0));
+        court_lines.push_back(line_segment_3d(0, 137, 0, 2377, 137, 0));
+        court_lines.push_back(line_segment_3d(548, 548, 0, 1829, 548, 0));
+        court_lines.push_back(line_segment_3d(0, 960, 0, 2377, 960, 0));
+        court_lines.push_back(line_segment_3d(0, 1097, 0, 2377, 1097, 0));
+        
+        // Net
+        //court_lines.push_back(line_segment_3d(1188.5, 0, 99,
+        //                                      1188.5, 1097, 99));
+
+        /*
 		line_seg.pt1.x = 0; line_seg.pt1.y = 0; line_seg.pt1.z = 0;
 		line_seg.pt2.x = 0; line_seg.pt2.y = 1097; line_seg.pt2.z = 0;
 		court_lines.push_back(line_seg);
@@ -55,11 +73,10 @@ struct _court
 		line_seg.pt2.x = 548; line_seg.pt2.y = 960; line_seg.pt2.z = 0;
 		court_lines.push_back(line_seg);
 
-        /* the net
-		line_seg.pt1.x = 1188.5; line_seg.pt1.y = 0; line_seg.pt1.z = 99;
-		line_seg.pt2.x = 1188.5; line_seg.pt2.y = 1097; line_seg.pt2.z = 99;
-		court_lines.push_back(line_seg);
-        //*/
+        // the net
+		//line_seg.pt1.x = 1188.5; line_seg.pt1.y = 0; line_seg.pt1.z = 99;
+		//line_seg.pt2.x = 1188.5; line_seg.pt2.y = 1097; line_seg.pt2.z = 99;
+		//court_lines.push_back(line_seg);
 
 		line_seg.pt1.x = 1829; line_seg.pt1.y = 137; line_seg.pt1.z = 0;
 		line_seg.pt2.x = 1829; line_seg.pt2.y = 960; line_seg.pt2.z = 0;
@@ -88,7 +105,8 @@ struct _court
 		line_seg.pt1.x = 0; line_seg.pt1.y = 1097; line_seg.pt1.z = 0;
 		line_seg.pt2.x = 2377; line_seg.pt2.y = 1097; line_seg.pt2.z = 0;
 		court_lines.push_back(line_seg);
-
+        
+        */
 	}
 } court;
 
@@ -281,6 +299,9 @@ vector <line_segment_all_frames> get_view_lines(camera particle_camera,
 	for(unsigned int k = 0; k < court.court_lines.size(); k++)
 	{
 		line_segment_all_frames line_seg;
+
+        // Set index
+        line_seg.index = k;
 
 		Point3d cam_world_pt1 = get_camera_world_coordinates(
 											court.court_lines[k].pt1,
