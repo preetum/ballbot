@@ -31,7 +31,6 @@ struct line_segment
 	}
 };
 
-
 struct camera_intrinsic_values  //stores camera intrinsics
 {	// TODO: Add undisortion parameters
 	double fx, fy, cx, cy;
@@ -44,7 +43,6 @@ struct camera_intrinsic_values  //stores camera intrinsics
 		cy = 242.6572277189;
 	}
 };
-
 
 struct camera
 {
@@ -62,7 +60,7 @@ struct camera
 
 		position.x = 0;
 		position.y = 500;
-		position.z = 100; // Camera is 33cm above the ground
+		position.z = 100;
 		theta = 5.0*pi/180.0;
 		pan = 2.0*pi/180.0;
 		tilt = -5*pi/180.0;
@@ -145,13 +143,12 @@ Point3d get_camera_world_coordinates(Point3d real_world_position,
 	 *Assuming:
 	 *
 	 * world_position  : is the 3D position of a point in world frame
-	 * camera_position : is the 3D positi6on of the camera in the world frame
+	 * camera_position : is the 3D position of the camera in the world frame
 	 *
 	 * linear units: Centimeters
 	 * angluar units: radians
 	 *
-	 * 	 1. that height of the camera in the world is fixed = 33 above the gound.
-	 * 	 2. that roll angle = 0
+	 * that roll angle = 0
 	 */
 
 	Point3d cam_world_position;
@@ -178,16 +175,21 @@ Point3d get_camera_world_coordinates(Point3d real_world_position,
 
 Point2f cam_world_position_to_imageXY(Point3d cam_world_position, camera &bb_cam)
 {
-	Point2f imageXY;
+  /** Returns the projection of the point CAM_WORLD_POSITION in the
+      image plane of the camera BB_CAM.
 
-	double x = cam_world_position.x,
-		   y = cam_world_position.y,
-		   z = cam_world_position.z;
+      Assumes that CAM_WORLD_POSITION has its coordinates in the frame attached
+      to the camera.**/
 
-	imageXY.x = (float) ((x/z)*bb_cam.intrinsics.fx + bb_cam.intrinsics.cx);
-	imageXY.y = (float) ((y/z)*bb_cam.intrinsics.fy + bb_cam.intrinsics.cy);
+  Point2f imageXY;
+  double x = cam_world_position.x,
+    y = cam_world_position.y,
+    z = cam_world_position.z;
 
-	return imageXY;
+  imageXY.x = (float) ((x/z)*bb_cam.intrinsics.fx + bb_cam.intrinsics.cx);
+  imageXY.y = (float) ((y/z)*bb_cam.intrinsics.fy + bb_cam.intrinsics.cy);
+
+  return imageXY;
 }
 
 Point3f find_intersection(Point3f line_pt1, Point3f line_pt2, float z_projection)
@@ -202,16 +204,15 @@ Point3f find_intersection(Point3f line_pt1, Point3f line_pt2, float z_projection
 	Point3f pt_project;
 
 	pt_project.x = (pt_difference.x/pt_difference.z
-					*(z_projection - line_pt1.z)) + line_pt1.x;
+			*(z_projection - line_pt1.z)) + line_pt1.x;
 
 	pt_project.y = (pt_difference.y/pt_difference.z
-						*(z_projection - line_pt1.z)) + line_pt1.y;
+			*(z_projection - line_pt1.z)) + line_pt1.y;
 
 	pt_project.z = z_projection;
 
 	return pt_project;
 }
-
 
 bool draw_line2(Mat & frame, Point3f & pt1, Point3f & pt2)
 {
@@ -256,17 +257,15 @@ void update_view_on_trackbar_change(int, void* )
 	for(unsigned int k = 0; k < court.court_lines.size(); k++)
     {
 
-    	Point3f cam_world_pt1 = get_camera_world_coordinates(
-											 court.court_lines[k].pt1,
-    										 bb_camera.position,
-    										 bb_camera.theta, bb_camera.pan,
-    										 bb_camera.tilt);
+    	Point3f cam_world_pt1 = get_camera_world_coordinates(court.court_lines[k].pt1,
+							     bb_camera.position,
+							     bb_camera.theta, bb_camera.pan,
+							     bb_camera.tilt);
 
-    	Point3f cam_world_pt2 = get_camera_world_coordinates(
-											 court.court_lines[k].pt2,
-    										 bb_camera.position,
-    										 bb_camera.theta, bb_camera.pan,
-    										 bb_camera.tilt);
+    	Point3f cam_world_pt2 = get_camera_world_coordinates(court.court_lines[k].pt2,
+							     bb_camera.position,
+							     bb_camera.theta, bb_camera.pan,
+							     bb_camera.tilt);
     	draw_line2(frame, cam_world_pt1, cam_world_pt2);
     }
 
