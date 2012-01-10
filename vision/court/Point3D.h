@@ -2,6 +2,8 @@
  *  @author : Ankush Gupta.
  *  @date   : 10th January 2012.*/
 
+#include <string>
+
 class Point3D {
     protected :
     double xCoor, yCoor, zCoor;
@@ -67,6 +69,9 @@ class Point3D {
 
     /** Prints the point on standard output.*/
     void print();
+
+    /** Retuns a string representation of the point.*/
+    std::string toString();
 };
 
 /** Scalar mulplication. * is overloaded.*/

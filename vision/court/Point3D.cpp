@@ -5,6 +5,8 @@
 #include "Point3D.h"
 #include <stdio.h>
 #include <math.h>
+#include <sstream>
+#include <string>
 
 /** Constructor. Initializes to (0, 0, 0).*/
 Point3D::Point3D() {
@@ -125,4 +127,11 @@ double Point3D::norm() {
 /** Prints the point on standard output.*/
 void Point3D::print() {
     printf("(%.3f, %.3f, %.3f)", xCoor, yCoor, zCoor);
+}
+
+/** Retuns a string representation of the point.*/
+std::string Point3D::toString() {
+    char buffer[21];
+    sprintf(buffer, "(%.3f, %.3f, %.3f)", xCoor, yCoor, zCoor);
+    return std::string(buffer);
 }

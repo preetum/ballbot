@@ -2,7 +2,7 @@
  *  @author : Ankush Gupta.
  *  @date   : 10th January 2012.*/
 
-using namespace std;
+#include <string>
 
 class Point2D {
     protected :
@@ -64,6 +64,9 @@ class Point2D {
 
     /** Prints the point on standard output.*/
     void print();
+
+    /** Retuns a string representation of the point.*/
+    std::string toString();
 };
 
 /** Scalar mulplication. * is overloaded.*/

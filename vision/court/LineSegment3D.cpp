@@ -25,6 +25,13 @@ LineSegment3D::LineSegment3D(double x1, double y1, double z1, double x2,
     pt2 = Point3D(x2, y2, z2);
 }
 
+/** Checks for equality of line segments.
+ *  2 line segments are EQUAL iff their end-points are equal.*/
+bool operator==(LineSegment3D l) {
+    return ((pt1 == l.p1() && pt2 == l.p2())
+	    || (pt1 == l.p2() && pt2 == l.p1()));
+}
+
 /** Returns the first end-point.*/
 Point3D LineSegment3D::p1() {
 	return pt1;
@@ -40,6 +47,11 @@ Point3D LineSegment3D::mid() {
     return (0.5 * (pt1 + pt2));
 }
 
+/** Returns the length of the line-segment.*/
+double length() {
+    return (pt1 - pt2).norm();
+}
+
 /** Prints the text representation on the standard output.*/
 void LineSegment3D::print() {
     pt1.print(); std::cout<<"---"; pt2.print();
@@ -48,5 +60,5 @@ void LineSegment3D::print() {
 
 /** Returns a string representation of the line segment.*/
 std::string LineSegment3D::toString() {
-    return (pt1.toString().append("...")).append(pt2.toString());
+    return (pt1.toString().append("---")).append(pt2.toString());
 }

@@ -5,6 +5,7 @@
 #include "Point2D.h"
 #include <stdio.h>
 #include <math.h>
+#include <string>
 
 /** Constructor. Initializes to (0, 0).*/
 Point2D::Point2D() {
@@ -110,4 +111,11 @@ double Point2D::norm() {
 /** Prints the point on standard output.*/
 void Point2D::print() {
     printf("(%.3f, %.3f)", xCoor, yCoor);
+}
+
+/** Returns a string representation of the point.*/
+std::string Point2D::toString() {
+    char buffer[16];
+    sprintf(buffer, "(%.3f, %.3f)", xCoor, yCoor);
+    return buffer;
 }

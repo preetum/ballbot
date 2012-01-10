@@ -20,6 +20,9 @@ class LineSegment3D {
     LineSegment3D(double x1, double y1, double z1, double x2, double y2,
                   double z2);
 
+    /** Override the equality operator.*/
+    bool operator==(LineSegment3D);
+
     /** Returns the first end-point.*/
     Point3D p1();
 
@@ -28,6 +31,9 @@ class LineSegment3D {
 
     /** Returns the mid-point of the segment.*/
     Point3D mid();
+
+    /** Returns the length of the line-segment.*/
+    double length();
 
     /** Prints the text representation on the standard output.*/
     void print();
