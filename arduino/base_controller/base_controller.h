@@ -43,6 +43,11 @@
 // uint8     send odometry on/off (bool)
 #define CMD_SET_ODOMETRY           0x46
 
+// SET_PANTILT (3 bytes)
+// uint8     id = 0x47
+// uint8     pan
+// uint8     tilt
+#define CMD_SET_PANTILT            0x47
 
 // SYNC_ODOMETRY (3 bytes) - *DEPRECATED*
 //  uint8    id = 0x61
