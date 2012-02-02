@@ -25,7 +25,7 @@
 #include <camera_calibration_parsers/parse_ini.h>
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "opencv_publisher");
+	ros::init(argc, argv, "opencv_publisher", ros::init_options::AnonymousName);
 	ros::NodeHandle nh;
     ros::NodeHandle nh_private("~");
 
@@ -46,13 +46,16 @@ int main(int argc, char** argv) {
 	}
 
 	image_transport::ImageTransport it(nh);
+    std::string name("camera");
+    name += argv[1];
+    name += "/append";
 	image_transport::CameraPublisher pub =
-	    it.advertiseCamera("camera/image", 1);
+	    it.advertiseCamera(name, 1);
 
 	std::cout << "Processing..." << std::endl;
 
 	cv::Mat frame;
-	cv::VideoCapture cam(0);
+	cv::VideoCapture cam(atoi[argv[1]));
     cam.set(CV_CAP_PROP_FRAME_WIDTH, 320);
     cam.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
 
