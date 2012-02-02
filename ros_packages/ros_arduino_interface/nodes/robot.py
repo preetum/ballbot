@@ -69,6 +69,7 @@ class BaseController:
   CMD_SET_VELOCITY_PID = 0x44
   CMD_SET_STEERING_PID = 0x45
   CMD_SET_ODOMETRY = 0x46
+  CMD_SET_PANTILT = 0x47
   CMD_SYNC_ODOMETRY = 0x61
   
   SERVO_LEFT = 57
@@ -138,6 +139,13 @@ class BaseController:
 
   def sync_odometry(self, heading):
     data_string = struct.pack('>Bh', BaseController.CMD_SYNC_ODOMETRY, heading)
+    self.send_arduino_packet(data_string)
+
+  def set_pantilt(self, pan, tilt):
+    '''
+    pan, tilt = angular value in degrees, from 0 - 180
+    '''
+    data_string = struct.pack('>BBB',BaseController.CMD_SET_PANTILT,pan,tilt)
     self.send_arduino_packet(data_string)
     
   def send_arduino_packet(self, data_string):

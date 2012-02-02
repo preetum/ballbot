@@ -3,7 +3,7 @@
 import roslib; roslib.load_manifest('ros_arduino_interface')
 import rospy
 from robot import BaseController
-from bb_msgs.msg import DriveCmd, Odometry, OdometryStamped, BallPickup
+from bb_msgs.msg import DriveCmd, Odometry, OdometryStamped, BallPickup, PanTilt
 from std_msgs.msg import Header
 #import imu_communicator
 import struct, thread, math
@@ -29,6 +29,10 @@ def recieved_ballpickup_packet(ballBot,ballpickupPacket):
     '''
     ballBot.set_pickup(ballpickupPacket.direction)
     #rospy.loginfo("Ball Pickup! Direction %d" % ballpickupPacket.direction)
+
+def recieved_pantilt_packet(ballBot, packet):
+    ballBot.set_pantilt(packet.pan, packet.tilt)
+    print 'Setting pan/tilt'
 
 lastHeading = None
 def odometry_callback(packet, pub):
@@ -63,13 +67,23 @@ def odometry_callback(packet, pub):
 def main():
     rospy.init_node('ros_arduino_interface', anonymous=True)
 
-    ballBot = BaseController(port='/dev/ttyO3')
+    # Default serial port
+    port = '/dev/ttyO3'
+
+    import sys
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
+
+    ballBot = BaseController(port=port)
     odometryPublisher = rospy.Publisher('odometry', OdometryStamped)
     rospy.Subscriber("vel_cmd", DriveCmd,
                      lambda pkt: recieved_drive_packet(ballBot, pkt))
 
     rospy.Subscriber("ball_pickup",BallPickup,
                      lambda pkt: recieved_ballpickup_packet(ballBot,pkt))
+
+    rospy.Subscriber("cam_pantilt", PanTilt,
+                     lambda pkt: recieved_pantilt_packet(ballBot, pkt))
 
     #imu = imu_communicator.IMU() # Initialize IMU
 
