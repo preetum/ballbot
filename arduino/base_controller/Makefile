@@ -1,7 +1,7 @@
 AVR_TOOLS_PATH = /usr/bin
 ARDUINO_DIR  = /opt/arduino
 TARGET       = base_controller
-ARDUINO_LIBS = Servo PID_v1 SoftwareSerial
+ARDUINO_LIBS = Servo SoftwareSerial
 MCU          = atmega2560
 F_CPU        = 16000000
 

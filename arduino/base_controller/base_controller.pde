@@ -26,7 +26,7 @@
 #include "pickup.h"
 
 // Globals
-Servo steering;
+Servo steering, panServo, tiltServo;
 SimpleMotorController driveMotor(5);
 IMU imu(Serial1);
 
@@ -116,6 +116,14 @@ void packetReceived (void) {
     sendOdometry = (packet.data[1] != false);
     break;
 
+  case CMD_SET_PANTILT: {
+    unsigned char pan = packet.data[1],
+      tilt = packet.data[2];
+
+    panServo.write(pan);
+    tiltServo.write(tilt);
+  }
+
   } // switch
 
   // Toggle the LED on a valid packet
@@ -126,13 +134,16 @@ void packetReceived (void) {
 void setup() {
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
   Serial3.begin(115200);
-#else
-  Serial.begin(115200);
 #endif
+  Serial.begin(115200);
 
   // Initialize servos
   steering.attach(4);
   steering.write(SERVO_CENTER);
+  panServo.attach(6);
+  panServo.write(90);
+  tiltServo.attach(7);
+  tiltServo.write(135);
 
   // Initialize the drive motor
   driveMotor.initialize();
