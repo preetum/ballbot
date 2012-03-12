@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
 	std::cout << "Processing..." << std::endl;
 
 	cv::Mat frame;
-	cv::VideoCapture cam(atoi[argv[1]));
+	cv::VideoCapture cam(atoi(argv[1]));
     cam.set(CV_CAP_PROP_FRAME_WIDTH, 320);
     cam.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
 
