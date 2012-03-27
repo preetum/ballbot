@@ -24,7 +24,7 @@
 #include <sensor_msgs/SetCameraInfo.h>
 #include <camera_calibration_parsers/parse_ini.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
 	ros::init(argc, argv, "opencv_publisher", ros::init_options::AnonymousName);
 	ros::NodeHandle nh;
     ros::NodeHandle nh_private("~");
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
 	image_transport::ImageTransport it(nh);
     std::string name("camera");
     name += argv[1];
-    name += "/append";
+    name += "/image_raw";
 	image_transport::CameraPublisher pub =
 	    it.advertiseCamera(name, 1);
 
