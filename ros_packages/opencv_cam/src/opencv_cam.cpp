@@ -56,8 +56,8 @@ int main(int argc, char* argv[]) {
 
 	cv::Mat frame;
 	cv::VideoCapture cam(atoi(argv[1]));
-    cam.set(CV_CAP_PROP_FRAME_WIDTH, 320);
-    cam.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
+    cam.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+    cam.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
 
 	while(nh.ok()) {
         // Capture frame
