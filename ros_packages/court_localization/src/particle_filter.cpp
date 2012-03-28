@@ -481,7 +481,7 @@ int main(int argc, char** argv) {
     string imageTopic;
     if (!nhPrivate.hasParam("image_transport"))
         nhPrivate.setParam("image_transport", "compressed");
-    nhPrivate.param<string>("image", imageTopic, "camera/image");
+    nhPrivate.param<string>("image", imageTopic, "camera0/image_raw");
     imageSub = it.subscribe(imageTopic, 1, imageCallback);
 
     // Create odometry listener on topic ~odometry (default "odometry")
@@ -498,7 +498,7 @@ int main(int argc, char** argv) {
     pf.numParticles = init->size();
     //*/
 
-    int initParticles = 25;
+    int initParticles = 500;
     if (argc > 1) {
         initParticles = atoi(argv[1]);
     }
@@ -508,13 +508,13 @@ int main(int argc, char** argv) {
     //drawUniformly(init, 5000, Bounds(-200,1389), Bounds(-200, 1297),
     //                           Bounds(0,2*CV_PI));
     // Bottom strip
-    drawUniformly(init, initParticles, Bounds(300, 800), Bounds(-400, 100),
-                  Bounds(0,2*CV_PI));
+    //drawUniformly(init, initParticles, Bounds(300, 800), Bounds(-400, 100),
+    //              Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(-250, 0),
     //                  Bounds(0,2*CV_PI));
     // Top strip
-    //drawUniformly(init, 50, Bounds(400, 800), Bounds(997, 1397),
-    //              Bounds(0,2*CV_PI));
+    drawUniformly(init, initParticles, Bounds(300, 800), Bounds(997, 1497),
+                  Bounds(0,2*CV_PI));
     //    drawUniformly(init, 50, Bounds(-200, 0), Bounds(1097, 1297),
     //                  Bounds(0,2*CV_PI));
 
