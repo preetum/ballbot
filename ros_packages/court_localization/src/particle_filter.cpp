@@ -376,9 +376,10 @@ void ParticleFilter::publish(ros::Publisher &pub) const {
         thetaY += sin(p.pose.theta);
     }
     bb_msgs::Pose poseMsg;
-    poseMsg.x = 0.01*x / len; // converting to m
-    poseMsg.y = 0.01*y / len; // converting to m
 
+    // Publish pose in cm
+    poseMsg.x = x / len;
+    poseMsg.y = y / len;
     poseMsg.theta = atan2(thetaY, thetaX);
     fprintf(stderr, "Avg pose: %.2f, %.2f @ %f deg ", poseMsg.x, poseMsg.y,
             poseMsg.theta * 180 / CV_PI);
