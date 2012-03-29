@@ -1,0 +1,18 @@
+<package>
+  <description brief="stereo_opencv_cam">
+
+     stereo_opencv_cam
+
+  </description>
+  <author>Ankush Gupta</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/stereo_opencv_cam</url>
+  <depend package="roscpp"/>
+  <depend package="image_transport"/>
+  <depend package="sensor_msgs"/>
+  <depend package="camera_calibration_parsers"/>
+
+</package>
+
+
