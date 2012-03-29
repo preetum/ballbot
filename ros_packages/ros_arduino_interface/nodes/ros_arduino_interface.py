@@ -56,8 +56,8 @@ def odometry_callback(packet, pub):
     lastHeading = heading
 
     # Publish odometry message
-    dist = counts_to_meters(counts)
-    dist_delta = counts_to_meters(counts_delta)
+    dist = -counts_to_meters(counts)
+    dist_delta = -counts_to_meters(counts_delta)
     msg = OdometryStamped()
     msg.header.stamp = rospy.Time.now()
     msg.odometry = Odometry(dist, dist_delta, heading, heading_delta)
