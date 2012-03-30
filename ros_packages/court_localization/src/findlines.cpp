@@ -39,6 +39,9 @@ void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
     //  TODO tune thresholds
     threshold(frame_gray, frame_thresh, 210, 255, THRESH_BINARY);
 
+    int lowThreshold = 120;
+    Canny(frame_thresh, frame_thresh, lowThreshold, 3*lowThreshold, 3);
+
     // Probabilistic Hough transform
     vector<Vec4i> lines;
     HoughLinesP(frame_thresh, lines, 2, CV_PI/180, 80, 40, 10 );
