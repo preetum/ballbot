@@ -32,6 +32,8 @@ vector<Vec2d> u;
 vector<int> obsTimestep;
 int t = 0;
 
+int frameNo = 1;
+
 void odometryCallback(const bb_msgs::OdometryStampedConstPtr& msg) {
     t += 1;
 
@@ -43,6 +45,8 @@ void odometryCallback(const bb_msgs::OdometryStampedConstPtr& msg) {
 }
 
 void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
+    printf("\nProcessing frame %d\n", frameNo++);
+
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
@@ -58,24 +62,77 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
         cam.pan = 0;
         cam.tilt = -15.6/180.0*CV_PI;
 
-        // Draw lines in ground coordinates (robot frame)
+        // Draw lines in image coordinates
+        int correspond[seenLines.size()];
+        bool done = false,
+            skip = false;
+
+        while (!done) {
+            // Prompt for correspondences
+            for (int i = 0; i < seenLines.size(); i += 1) {
+                Mat copy = frame.clone();
+                Vec4i &l = seenLines[i];
+                Scalar color(255, 0, 0);
+                line( copy, Point(l[0], l[1]), Point(l[2], l[3]),
+                      color, 2, 8 );
+                imshow("image", copy);
+
+                // Label with line index (1-9)
+                char c = (char)cvWaitKey(0);
+                if (c >= '1' && c <= '9') {
+                    correspond[i] = c-'0';
+                } else if (c == 's') {
+                    printf("Skipping\n");
+                    skip = true;
+                    goto endloop;
+                } else {
+                    correspond[i] = 0;
+                }
+            }
+
+            // Prompt for all lines
+            printf("OK?\n");
+            Mat copy = frame.clone();
+            for (int i = 0; i < seenLines.size(); i += 1) {
+                Vec4i &l = seenLines[i];
+                int c = correspond[i];
+
+                if (c != 0) {
+                    Scalar color((char)(c * 8),
+                                 (char)(c * 16),
+                                 (char)(c * 32));
+                    line( copy, Point(l[0], l[1]), Point(l[2], l[3]),
+                          color, 2, 8 );
+                }
+            }
+            imshow("image", copy);
+            char c = (char)cvWaitKey(0);
+            if (c == 'y' || c == 'Y') {
+                done = true;
+            }
+        }
+
+    endloop:
+
+        if (skip)
+            return;
+
+        printf("Outputting\n");
+
+        // Output all lines whose correspondence != 0
         fprintf(outfile, "%% observation at t=%d\n", t);
         obsTimestep.push_back(t);
         fprintf(outfile, "z{end+1} = [");
-        for (vector<Vec4i>::iterator it = seenLines.begin();
-             it < seenLines.end(); it += 1) {
-            Vec4i &line = *it;
-
-            Point2d pt1 = cameraPointToRobot(Point2d(line[0], line[1]), cam),
-                pt2 = cameraPointToRobot(Point2d(line[2], line[3]), cam);
-
-            fprintf(outfile, "%f %f %f %f;\n", pt1.x, pt1.y, pt2.x, pt2.y);
+        for (int i = 0; i < seenLines.size(); i += 1) {
+            Vec4i &line = seenLines[i];
+            fprintf(outfile, "%d %d %d %d %d;\n",
+                    line[0], line[1], line[2], line[3], correspond[i]);
         }
         fprintf(outfile, "]';\n");
 
         // Show frame for debug
-        drawLines(frame, seenLines);
-        imshow("image", frame);
+        //drawLines(frame, seenLines);
+        //imshow("image", frame);
     }
     catch (cv_bridge::Exception& e) {
         ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -107,7 +164,7 @@ int main (int argc, char** argv) {
         nh.subscribe(odomTopic, 200, odometryCallback);
     image_transport::ImageTransport it(nh);
     image_transport::Subscriber imageSub = 
-        it.subscribe(imageTopic, 1, imageCallback);
+        it.subscribe(imageTopic, 50, imageCallback);
 
 
     outfile = fopen(filename, "w");
