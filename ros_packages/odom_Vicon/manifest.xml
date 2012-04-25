@@ -12,7 +12,7 @@
   <depend package="geometry_msgs"/>
   <depend package="bb_msgs"/>
   <depend package="vicon_mocap"/>
-  
+  <depend package="tf"/>
 
 </package>
 
