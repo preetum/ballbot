@@ -24,7 +24,12 @@ def callback(data):
     q = [data.transform.rotation.x, data.transform.rotation.y,
          data.transform.rotation.z, data.transform.rotation.w]
     angles = euler_from_quaternion(q)
-    yaw = angles[2] + math.pi
+
+    # Transform vicon coordinates to tennis court origin
+    # Vicon origin is at (685.9, 868.7) in tennis court frame
+    x = 685.9 - x
+    y = 868.7 - y
+    yaw = angles[2]
 
     pub.publish(x, y, yaw)
 
