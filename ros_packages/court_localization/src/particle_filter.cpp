@@ -37,6 +37,7 @@ ParticleFilter pf;
 ros::Publisher particlePub, posePub;
 cv::RNG myRng(time(NULL));
 double horizon = 0.0;
+camera cam;
 
 //cv::VideoWriter vid("video.avi",
 //                    CV_FOURCC('P','I','M','1'), 30, Size(640,480), true);
@@ -133,12 +134,6 @@ void ParticleFilter::observe(cv::Mat &observation) {
     vector<Vec4i> seenLines;
     findLines(observation, seenLines);
     printTime(" findlines");
-
-    // Transform visible lines to robot frame
-    camera cam;
-    cam.position.z = 33;  // fixed camera height = 33cm
-    cam.pan = 0;
-    cam.tilt = -15.6/180.0*CV_PI;
 
     // Draw lines in ground coordinates (robot frame)
     vector<Vec4d> lines;
@@ -472,6 +467,14 @@ int main(int argc, char** argv) {
     // Create debug windows
     //namedWindow("image", CV_WINDOW_AUTOSIZE);
 
+    // Initialize camera parameters
+    //    cam.position.z = 33;  // fixed camera height = 33cm
+    cam.position.z = 37;
+    cam.pan = 0;
+    //    cam.tilt = -15.6/180.0*CV_PI;
+    cam.tilt = -25.0/180*CV_PI;
+
+
     // Create particle publisher to topic "filter/particles"
     particlePub = nh.advertise<bb_msgs::PoseArray>("filter/particles", 4);
     posePub = nh.advertise<bb_msgs::Pose>("pose", 10);
@@ -526,9 +529,6 @@ int main(int argc, char** argv) {
     pf.publish(particlePub);
 
     // Calculate ROI cutoff
-    camera cam;
-    cam.position.z = 33.0;
-    cam.tilt = -15.0 * CV_PI / 180.0;
     Point3d camWorldPt =
         get_camera_world_coordinates(Point3d(8000, 0, -cam.position.z),
                                      cam.position, cam.theta, cam.pan,
@@ -536,6 +536,7 @@ int main(int argc, char** argv) {
     Point2d horizonPt =
         cam_world_position_to_imageXY(camWorldPt, cam);
     horizon = horizonPt.y;
+    ROS_INFO("Setting horizon point at y = %f", horizon);
 
     // Spin loop
     while (ros::ok()) {
