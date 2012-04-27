@@ -141,9 +141,9 @@ void setup() {
   steering.attach(4);
   steering.write(SERVO_CENTER);
   panServo.attach(6);
-  panServo.write(90);
+  panServo.write(95);
   tiltServo.attach(7);
-  tiltServo.write(135);
+  tiltServo.write(95);
 
   // Initialize the drive motor
   driveMotor.initialize();
