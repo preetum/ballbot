@@ -54,7 +54,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
         // Detect lines in the image
         vector<Vec4i> seenLines;
-        findLines(frame, seenLines);
+        findLines(frame, seenLines, NULL);
 
         // Transform visible lines to robot frame
         camera cam;

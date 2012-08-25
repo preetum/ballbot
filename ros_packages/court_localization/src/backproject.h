@@ -22,10 +22,17 @@ struct camera_intrinsic_values  //stores camera intrinsics
 
 	camera_intrinsic_values()
 	{
-		fx = 522.1019521747;
-		cx = 299.0472018951;
-		fy = 524.4051288723;
-		cy = 242.6572277189;
+        // For old Logitech camera
+		//fx = 522.1019521747;
+		//cx = 299.0472018951;
+		//fy = 524.4051288723;
+		//cy = 242.6572277189;
+
+        // For PS3 eye (left)
+        fx = 387.386851 * 2;
+        fy = 387.449595 * 2;
+        cx = 160.089395 * 2;
+        cy = 113.607509 * 2;
 	}
 };
 

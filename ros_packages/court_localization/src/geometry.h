@@ -7,7 +7,7 @@
 
 // Conversion functions (camera plane -> robot frame on ground)
 cv::Vec4d cameraLineToRobot(const cv::Vec4i &line, const camera &cam);
-cv::Point2d cameraPointToRobot(const cv::Point2d &pt, const camera &cam);
+cv::Point2d cameraPointToRobot(const cv::Point2i &pt, const camera &cam);
 
 // Misc utility functions
 cv::Vec4d pointsToLine(const cv::Point2d &pt1, const cv::Point2d &pt2);

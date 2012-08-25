@@ -81,7 +81,7 @@ def msg_callback(msg, sim):
   if last_true_pose is not None:
     diff = pose - last_true_pose
     dist = np.linalg.norm(diff[0:1])
-    if dist > 10:  # in cm
+    if dist > 30.5:  # in cm
       color = 'red'
   sim.draw_pose(pose, color)
 

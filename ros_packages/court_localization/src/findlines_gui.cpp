@@ -22,7 +22,11 @@ int houghThreshold = 80;
 int minLineLength = 40;
 int maxLineGap = 10;
 int shtThreshold = 100;
+int lineDistThresh = 50; //mm
+int lineAngleThresh = 6; //degrees
 Mat frame;
+
+camera cam;
 
 
 /* Given an input image frame, returns a set of court line candidates
@@ -106,16 +110,27 @@ void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
                 //  (a) the distance between the line segment center and
                 //      the _infinite_ combined line (not line segment)
                 //  (b) the angle difference between the line segment
-                double a = pointLineDistance(Vec2i(line[0], line[1]), group) +
-                    pointLineDistance(Vec2i(line[2], line[3]), group);
-                double b = abs(normalizeRadians(lineAngle(line) -
-                                                lineAngle(group)));
+                //double a = pointLineDistance(Vec2i(line[0], line[1]), group) +
+                //    pointLineDistance(Vec2i(line[2], line[3]), group);
+                //double b = abs(normalizeRadians(lineAngle(line) -
+                //                                lineAngle(group)));
+
+                Vec4d realLine = cameraLineToRobot(line, cam),
+                    groupedLine = cameraLineToRobot(group, cam);
+                // a = distance from midpoint of line to the infinite combined
+                //     line in the _ground plane_ (not the image plane)
+                double a = pointLineDistance(lineCenter(realLine),groupedLine),
+                    b = abs(normalizeRadians(lineAngle(realLine) -
+                                             lineAngle(groupedLine)));
 
                 // Include all lines within 1 std deviation using the
                 //  pseudo-Gaussian distribution
                 //double closeness = exp(-a/15.0 + -b/0.15);
                 //if (closeness > 0.367) {
-                if (a < 15 && b < 0.1) {
+                //if (a < 15 && b < 0.1) {
+                double athresh = lineDistThresh / 10.0,
+                    bthresh = lineAngleThresh * CV_PI / 180;
+                if (a < athresh && b < bthresh) {
 
                     // Merge the line with the group by taking the 2 points
                     //  with smallest/largest {x,y} values
@@ -232,8 +247,16 @@ int main(int argc, char **argv)
     createTrackbar("HoughP Threshold:", "img", &houghThreshold, 250, redraw);
     createTrackbar("Min Line Length:", "img", &minLineLength, 150, redraw);
     createTrackbar("Max Line Gap:", "img", &maxLineGap, 100, redraw);
+    createTrackbar("Line closeness (in mm)", "img", &lineDistThresh, 300, redraw);
+    createTrackbar("Line angle (in degrees)", "img", &lineAngleThresh, 90, redraw);
 
     createTrackbar("Hough Threshold", "std hough", &shtThreshold, 200, redraw);
+
+
+    // Initialize camera parameters -- TODO consolidate these
+    cam.position.z = 37;
+    cam.pan = 0;
+    cam.tilt = -25.0/180*CV_PI;
 
     // Spin loop
     while (ros::ok()) {

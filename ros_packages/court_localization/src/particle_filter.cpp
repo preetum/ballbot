@@ -39,6 +39,23 @@ cv::RNG myRng(time(NULL));
 double horizon = 0.0;
 camera cam;
 
+Pose truePose;
+bool truePoseReceived = false;
+bool lastObsBad = false;
+int tiltAngle = -25+90,
+    camHeight = 37;
+Mat lastImage;
+
+void redraw(int, void*) {
+    cam.position.z = camHeight;
+    cam.tilt = (tiltAngle-90)/180.0*CV_PI;
+
+    Mat copy = lastImage.clone();
+    pf.observe(copy);
+    imshow("image", copy);
+}
+
+
 //cv::VideoWriter vid("video.avi",
 //                    CV_FOURCC('P','I','M','1'), 30, Size(640,480), true);
 
@@ -132,7 +149,7 @@ void ParticleFilter::observe(cv::Mat &observation) {
     printTime("start observe");
     // Detect lines in the image
     vector<Vec4i> seenLines;
-    findLines(observation, seenLines);
+    findLines(observation, seenLines, &cam);
     printTime(" findlines");
 
     // Draw lines in ground coordinates (robot frame)
@@ -178,6 +195,20 @@ void ParticleFilter::observe(cv::Mat &observation) {
     //if (seenLines.size() == 0)
     //    return;
 
+    // Add some random particles only if last observation was bad
+    if (lastObsBad) {
+            //*/ Add some random particles only if there were observations
+            for (int i = 0; i < 100; i += 1) {
+                double x = myRng.uniform(-200.0, 1389.0),
+                    y = myRng.uniform(-200.0, 1297.0),
+                    theta = myRng.uniform(0.0,2*CV_PI);
+                pf.particles->push_back(PoseParticle(x, y, theta,
+                                                     1.0/pf.numParticles));
+            }
+            //*/
+    }
+
+
     // Draw detected lines for debugging
     drawLines(observation, seenLines);
 
@@ -188,6 +219,29 @@ void ParticleFilter::observe(cv::Mat &observation) {
         Vec4i &line = *it;
         line[1] += horizon;
         line[3] += horizon;
+    }
+
+    // Find all lines that should be visible (ground truth)
+    if (truePoseReceived) {
+        cam.position.x = truePose.x;
+        cam.position.y = truePose.y;
+        cam.theta = truePose.theta;
+
+        // Find lines that should be visible
+        vector<line_segment_all_frames> modelLines = 
+            get_view_lines(cam, Size(640,480), observation);
+
+        // Draw lines in green
+        for (int i = modelLines.size()-1; i >= 0; i -= 1) {
+            const line_segment_all_frames &modelLine = modelLines[i];
+            Vec4d line(modelLine.camWorld.pt1.x, modelLine.camWorld.pt1.z,
+                       modelLine.camWorld.pt2.x, modelLine.camWorld.pt2.z);
+            // Filter out lines that are > 5m away
+            if (pointLineDistance(Vec2d(0,0), line) <= 500) {
+                cv::line(observation, modelLine.imgPlane.pt1, 
+                         modelLine.imgPlane.pt2, Scalar(0,255,0), 2);
+            }
+        }
     }
 
     // Reweight each particle
@@ -203,7 +257,6 @@ void ParticleFilter::observe(cv::Mat &observation) {
             get_view_lines(cam, Size(640,480), observation);
 
         // Filter out lines that are far away
-        Mat tmp = Mat::zeros(480, 640, CV_8U);
         for (int i = modelLines.size()-1; i >= 0; i -= 1) {
             const line_segment_all_frames &modelLine = modelLines[i];
             Vec4d line(modelLine.camWorld.pt1.x, modelLine.camWorld.pt1.z,
@@ -232,8 +285,10 @@ void ParticleFilter::observe(cv::Mat &observation) {
                     abs(normalizeRadians(modelLineAngle - viewLineAngle));
                 double metric = pointLineSegmentDistance(pt1, line) +
                     pointLineSegmentDistance(pt2, line);
-                metric = metric * exp(3 * headingError);
-                weights[j][k] = exp(-0.003*metric - 3*headingError);
+                // WTF is this hack
+                //metric = metric * exp(3 * headingError);
+                weights[j][k] = exp(-0.5 * (metric*metric / 5000 +
+                                            headingError*headingError / 0.03));
             }
         }
 
@@ -275,6 +330,10 @@ void ParticleFilter::observe(cv::Mat &observation) {
         particle.weight *= w1 + 2*w2;
     }
     printTime(" reweight");
+
+    // Save this for next time -- decide whether to add random particles
+    lastObsBad = false;
+    //lastObsBad = (seenLines.size() >= 4 && weightSum(particles) < 0.15);
 }
 
 /* Move each particle by the specified amount, with Gaussian noise */
@@ -406,6 +465,13 @@ void odometryCallback(const bb_msgs::OdometryStampedConstPtr& msg) {
     pf.transition(dist, dtheta);
 }
 
+void poseTrueCallback(const bb_msgs::PoseConstPtr& msg) {
+    truePose.x = msg->x;
+    truePose.y = msg->y;
+    truePose.theta = msg->theta;
+    truePoseReceived = true;
+}
+
 /* On receiving an image, update this particle filter with the observation. */
 void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
 
@@ -416,6 +482,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
         printTime("cvbridge conversion");
 
         // Update particle filter
+        lastImage = cv_ptr->image.clone();
         cv_ptr->image.adjustROI(-horizon, 0, 0, 0);
         pf.observe(cv_ptr->image);
         printTime("observe");
@@ -429,15 +496,6 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg) {
             pf.initializeUniformly(500, Bounds(-200,1389), Bounds(-200, 1297),
                                    Bounds(0,2*CV_PI));
         } else {
-            /*/ Add random particles
-            for (int i = 0; i < 200; i += 1) {
-                double x = myRng.uniform(-200.0, 1389.0),
-                    y = myRng.uniform(-200.0, 1297.0),
-                    theta = myRng.uniform(0.0,2*CV_PI);
-                pf.particles->push_back(PoseParticle(x, y, theta,
-                                                     1.0/pf.numParticles));
-            }
-            //*/
             // Resample
             pf.resample();
             printTime("resample");
@@ -465,7 +523,9 @@ int main(int argc, char** argv) {
     ros::NodeHandle nhPrivate("~");
 
     // Create debug windows
-    //namedWindow("image", CV_WINDOW_AUTOSIZE);
+    namedWindow("image", CV_WINDOW_AUTOSIZE);
+    createTrackbar("Tilt angle", "image", &tiltAngle, 180, redraw);
+    createTrackbar("Cam height", "image", &camHeight, 50, redraw);
 
     // Initialize camera parameters
     //    cam.position.z = 33;  // fixed camera height = 33cm
@@ -493,6 +553,9 @@ int main(int argc, char** argv) {
     nhPrivate.param<string>("odometry", odomTopic, "odometry");
     ros::Subscriber odomSub = nh.subscribe(odomTopic, 200, odometryCallback);
 
+    // Create listener for pose (ground truth)
+    ros::Subscriber poseSub = nh.subscribe("pose_true", 200, poseTrueCallback);
+
     // Initialize particle filter
     /* Testing only
     vector<PoseParticle> *init = new vector<PoseParticle>();
@@ -509,7 +572,7 @@ int main(int argc, char** argv) {
     //*
     vector<PoseParticle> *init = new vector<PoseParticle>();
     // Whole court
-    //drawUniformly(init, 5000, Bounds(-200,1389), Bounds(-200, 1297),
+    //drawUniformly(init, 2000, Bounds(-200,1389), Bounds(-200, 1297),
     //                           Bounds(0,2*CV_PI));
     // Bottom strip
     //drawUniformly(init, initParticles, Bounds(300, 800), Bounds(-400, 100),
@@ -533,9 +596,12 @@ int main(int argc, char** argv) {
         get_camera_world_coordinates(Point3d(8000, 0, -cam.position.z),
                                      cam.position, cam.theta, cam.pan,
                                      cam.tilt);
+    /*
     Point2d horizonPt =
         cam_world_position_to_imageXY(camWorldPt, cam);
     horizon = horizonPt.y;
+    */
+    horizon = 0;
     ROS_INFO("Setting horizon point at y = %f", horizon);
 
     // Spin loop

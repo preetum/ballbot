@@ -4,25 +4,60 @@
 
 using namespace cv;
 
-// TODO store parameters
-const double radians_per_px = 0.0016,
-    frame_height = 480,
-    frame_width = 640;
-
 Vec4d cameraLineToRobot(const Vec4i &line, const camera &cam) {
-    Point2d pt1 = cameraPointToRobot(Point2d(line[0], line[1]), cam),
-        pt2 = cameraPointToRobot(Point2d(line[2], line[3]), cam);
+    Point2d pt1 = cameraPointToRobot(Point2i(line[0], line[1]), cam),
+        pt2 = cameraPointToRobot(Point2i(line[2], line[3]), cam);
     return Vec4d(pt1.x, pt1.y, pt2.x, pt2.y);
 }
 
 /* Converts a camera point to a point on the ground in the robot frame*/
-Point2d cameraPointToRobot(const Point2d &pt, const camera &cam) {
+Point2d cameraPointToRobot(const Point2i &pt, const camera &cam) {
+    // Variables for memoized values
+    static double last_camera_tilt = 0,
+        cos_tilt = 1,
+        sin_tilt = 0;
+
+    // Find x' = x/z and y' = y/z using camera projection model
+    double xp = ((double)pt.x - cam.intrinsics.cx) / cam.intrinsics.fx,
+        yp = ((double)pt.y - cam.intrinsics.cy) / cam.intrinsics.fy;
+
+    // Easy optimization: memoize the calls to the trig functions
+    if (cam.tilt != last_camera_tilt) {
+        cos_tilt = cos(-cam.tilt);
+        sin_tilt = sin(-cam.tilt);
+        last_camera_tilt = cam.tilt;
+    }
+
+    // Calculate Z (depth) using a line-plane intersection
+    //  with the plane with normal vector n = (0, cos(tilt), sin(tilt))
+    double Z = cam.position.z / (yp*cos_tilt + sin_tilt);
+
+    // Now find the true X, Y in the camera's coordinate frame
+    double X = xp * Z,
+        Y = yp * Z;
+
+    // Transform (X,Y,Z) into the robot's frame by
+    //  rotating by -tilt along the x-axis
+    // R = [1         0          0
+    //      0 cos(tilt)  sin(tilt)
+    //      0 -sin(tilt) cos(tilt)]
+    double x = X;
+    double z = -sin_tilt * Y + cos_tilt * Z;
+
+    // It's not necessary to translate or rotate further because
+    //  the coordinates we want are (x,z)
+    return Point2d(x, z);
+
+
+    /* This code is whack. New code uses camera calibrated intrinsics,
+     * which are much more accurate.
+
     double theta = (pt.y - frame_height/2) * radians_per_px - cam.tilt,
         y = cam.position.z / tan(theta),
         phi = (pt.x - frame_width/2) * radians_per_px + cam.pan,
         x = y * tan(phi);
-
     return Point2d(x, y);
+    */
 }
 
 Vec4d pointsToLine(const Point2d &pt1, const Point2d &pt2) {

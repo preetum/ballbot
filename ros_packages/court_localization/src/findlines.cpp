@@ -18,7 +18,7 @@ using namespace cv;
  * Each line is represented as a two endpoints of a line segment,
  * in pixel coordinates (x1, y1, x2, y2).
  */
-void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
+void findLines(Mat &frame, vector<Vec4i> &groupedLines, camera *cam) {
     Mat frame_gray, frame_thresh;
 
     /*/ Resize input image
@@ -66,6 +66,10 @@ void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
             for (int i = lines.size()-1; i >= 0; i -= 1) {
                 const Vec4i &line = lines[i];
 
+                bool includeInGroup = false;
+
+                // Use old dist metric
+                if (cam == NULL) {
                 // Distance metric is based on
                 //  (a) the distance between the line segment center and
                 //      the _infinite_ combined line (not line segment)
@@ -77,10 +81,26 @@ void findLines(Mat &frame, vector<Vec4i> &groupedLines) {
 
                 // Include all lines within 1 std deviation using the
                 //  pseudo-Gaussian distribution
-                //double closeness = exp(-a/15.0 + -b/0.15);
-                //if (closeness > 0.367) {
-                if (a < 15 && b < 0.1) {
+                includeInGroup = (a < 15 && b < 0.1);
+                }
 
+                // Use new dist metric
+                else {
+
+                Vec4d realLine = cameraLineToRobot(line, *cam),
+                    groupedLine = cameraLineToRobot(group, *cam);
+                // a = distance from midpoint of line to the infinite combined
+                //     line in the _ground plane_ (not the image plane)
+                // b = magnitude of the angle difference in the ground plane
+                //     (not the image plane)
+                double a = pointLineDistance(lineCenter(realLine),groupedLine),
+                    b = abs(normalizeRadians(lineAngle(realLine) -
+                                             lineAngle(groupedLine)));
+                // Include all lines w/in 10 cm and 20 degrees
+                includeInGroup = (a < 10.0 && b < 0.35);
+                }
+
+                if (includeInGroup) {
                     // Merge the line with the group by taking the 2 points
                     //  with smallest/largest {x,y} values
                     double groupAngle = lineAngle(group);
